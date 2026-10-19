@@ -49,7 +49,9 @@ ec=$(run "$CLEAN" --confirm "$(printf 'a%.0s' {1..64})"); [[ "$ec" != "0" ]] || 
 ec=$(run "$CLEAN" --confirm); [[ "$ec" != "0" ]] || { echo "FAIL: empty confirm accepted"; fail=1; }
 
 # B1+B2: correct confirm deletes staging + tarball + legacy
-ec=$(run "$CLEAN" --confirm "$SHA"); [[ "$ec" == "0" ]] || { echo "FAIL: good confirm exit $ec"; fail=1; }
+# L1: an upper-case paste of the right hash is accepted (normalised to lower case)
+SHA_UP=$(printf '%s' "$SHA" | tr 'a-f' 'A-F')
+ec=$(run "$CLEAN" --confirm "$SHA_UP"); [[ "$ec" == "0" ]] || { echo "FAIL: upper-case good confirm exit $ec"; fail=1; }
 [[ ! -d "$STAGING" ]] || { echo "FAIL: staging not deleted"; fail=1; }
 [[ ! -f "$TGZ" ]] || { echo "FAIL: tarball not deleted (B2)"; fail=1; }
 [[ ! -d "$LEGACY" ]] || { echo "FAIL: legacy not deleted"; fail=1; }

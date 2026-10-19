@@ -10,7 +10,7 @@ import (
 
 // KeychainStore is only available on macOS; on other systems its methods return an error so the ceremony
 // tooling compiles everywhere but the root key can only be made and kept on Josh's Mac.
-// TrustedApps mirrors the darwin field so callers can set ROTTEN_KEYCHAIN_TRUST on every OS.
+// TrustedApps mirrors the darwin field so callers compile on every OS (see the F2 note in keychain_darwin.go).
 type KeychainStore struct {
 	Service     string
 	TrustedApps []string
@@ -22,3 +22,6 @@ var errNoKeychain = errors.New("the macOS Keychain is only available on macOS; r
 
 func (KeychainStore) Put(string, core.Signer) error   { return errNoKeychain }
 func (KeychainStore) Get(string) (core.Signer, error) { return nil, errNoKeychain }
+
+func (KeychainStore) Has(string) bool                  { return false }
+func (KeychainStore) GetSecret(string) (string, error) { return "", errNoKeychain }

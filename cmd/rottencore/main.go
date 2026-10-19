@@ -81,6 +81,13 @@ func main() {
 	fs.StringVar(&devTeam, "team", "", "device approve: team id (omit with --individual)")
 	fs.BoolVar(&devIndividual, "individual", false, "device approve: approve under an individual account")
 	fs.StringVar(&hostBase, "host", "", "host: Red-XAI Host origin for `rottencore host ...` (or RA_HOST_URL)")
+	fs.StringVar(&pairDevID, "dev", "", "devhub-pair: exact expected certificate subject devId (ROTTEN_DEV_ID)")
+	fs.StringVar(&pairDeviceLabel, "device-label", "", "devhub-pair: Keychain label of the device key (default rottencore-device)")
+	fs.StringVar(&pairName, "name", "", "devhub-pair: device name shown in the dashboard (default xlr1-mac)")
+	fs.StringVar(&pairState, "state", "", "devhub-pair: pairing state file (code + poll secret, 0600)")
+	fs.StringVar(&pairAPIKeyLabel, "api-key-label", "", "devhub-pair: Keychain account holding the build API key (default ra-build-api-key)")
+	fs.BoolVar(&pairKeyStdin, "api-key-stdin", false, "devhub-pair: read the build API key from stdin (never argv)")
+	fs.DurationVar(&pairTimeout, "timeout", 0, "devhub-pair: how long to wait for approval (default 12m)")
 	fs.Parse(reorder(args[1:]))
 	rest := fs.Args()
 
@@ -104,6 +111,10 @@ func main() {
 		return
 	}
 	if runM1(ctx, cmd, rest, *kid, *lastSeq) {
+		return
+	}
+	if cmd == "devhub-pair" {
+		runDevhubPair(ctx)
 		return
 	}
 	if runDevice(ctx, cmd, rest) {
@@ -352,7 +363,7 @@ func progress() func(int64, int64) {
 // reorder lets flags come after positional arguments.
 func reorder(a []string) []string {
 	var flags, pos []string
-	valued := map[string]bool{"--admin": true, "-admin": true, "--store-url": true, "-store-url": true, "--accounts-issuer": true, "-accounts-issuer": true, "--theme": true, "-theme": true, "--limit": true, "-limit": true, "--progress": true, "-progress": true, "--kid": true, "-kid": true, "--last-seq": true, "-last-seq": true, "--trust-test-root": true, "-trust-test-root": true, "--trust-root": true, "-trust-root": true, "--key": true, "-key": true, "--label": true, "-label": true, "--service": true, "-service": true, "--bundle": true, "-bundle": true, "--app": true, "-app": true, "--app-version": true, "-app-version": true, "--platform": true, "-platform": true, "--sign-host": true, "-sign-host": true, "--out": true, "-out": true, "--team": true, "-team": true, "--host": true, "-host": true}
+	valued := map[string]bool{"--admin": true, "-admin": true, "--store-url": true, "-store-url": true, "--accounts-issuer": true, "-accounts-issuer": true, "--theme": true, "-theme": true, "--limit": true, "-limit": true, "--progress": true, "-progress": true, "--kid": true, "-kid": true, "--last-seq": true, "-last-seq": true, "--trust-test-root": true, "-trust-test-root": true, "--trust-root": true, "-trust-root": true, "--key": true, "-key": true, "--label": true, "-label": true, "--service": true, "-service": true, "--bundle": true, "-bundle": true, "--app": true, "-app": true, "--app-version": true, "-app-version": true, "--platform": true, "-platform": true, "--sign-host": true, "-sign-host": true, "--out": true, "-out": true, "--team": true, "-team": true, "--host": true, "-host": true, "--dev": true, "-dev": true, "--device-label": true, "-device-label": true, "--name": true, "-name": true, "--state": true, "-state": true, "--api-key-label": true, "-api-key-label": true, "--timeout": true, "-timeout": true}
 	for i := 0; i < len(a); i++ {
 		if strings.HasPrefix(a[i], "-") && a[i] != "-" {
 			flags = append(flags, a[i])

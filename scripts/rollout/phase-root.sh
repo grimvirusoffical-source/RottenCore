@@ -8,17 +8,24 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 source "$HERE/lib.sh"
 require_darwin
 setup_rollout_env
+require_mac_terminal
 
 [[ -x "$ROTTENCORE_CA" ]] || die "rottencore-ca not at $ROTTENCORE_CA"
 [[ -f "$TIERS" ]] || die "tiers missing: $TIERS"
 
+# QA L5: the CSR is NOT in the rollout tgz. Grok Bot scps it separately to $ROOT_DIR/issuing.csr.json;
+# its public key is pinned below (QA M4), so a swapped CSR stops the phase.
 CSR="${ROTTEN_ISSUING_CSR:-$ROOT_DIR/issuing.csr.json}"
-# Also accept the box drop path if copied next to the script pack
-[[ -f "$CSR" ]] || CSR="$HERE/issuing.csr.json"
-[[ -f "$CSR" ]] || die "issuing.csr.json not found (expected at $ROOT_DIR/issuing.csr.json — Grok Bot runs issuing-csr on the server and copies it here)"
+require_abs "$CSR" "ROTTEN_ISSUING_CSR"
+[[ -f "$CSR" ]] || die "issuing.csr.json not found at $CSR (Grok Bot scps it from the box separately)"
+CSR_FP=$(pubkey_fp "$CSR" csr) || die "cannot read the CSR public key"
+echo "ISSUING_CSR_FINGERPRINT=$CSR_FP"
+echo "ISSUING_CSR_PINNED     =$ISSUING_CSR_FP_PIN"
+[[ "$CSR_FP" == "$ISSUING_CSR_FP_PIN" ]] || die "issuing CSR public key $CSR_FP does not match the box copy $ISSUING_CSR_FP_PIN — STOP, do not sign"
 
 if ! done_p ceremony-root; then
   log "=== phase-root (a) production root ceremony ==="
+  keychain_prompt_notice rottencore-root
   if keychain_has rottencore-root; then
     die "Keychain has rottencore-root but marker missing; refuse to re-generate"
   fi
@@ -42,6 +49,9 @@ fi
 
 if ! done_p sign-issuing-csr; then
   log "=== phase-root (b) sign server issuing CSR (issuer key stays on ra-core) ==="
+  # M4: re-check right before the root signs (the file could change between steps).
+  [[ "$(pubkey_fp "$CSR" csr)" == "$ISSUING_CSR_FP_PIN" ]] || die "CSR changed after the pin check — STOP"
+  keychain_prompt_notice rottencore-root
   "$ROTTENCORE_CA" sign-intermediate \
     --keychain --label rottencore-root \
     --dir "$ROOT_DIR" \
@@ -54,13 +64,15 @@ else
 fi
 [[ -f "$ROOT_DIR/issuing.bundle.json" ]] || die "issuing.bundle.json missing"
 
-ROOT_FP=$(python3 -c 'import json,base64,hashlib; c=json.load(open("'"$ROOT_DIR"'/root.cert.json")); pk=c["publicKey"]; raw=base64.b64decode(pk) if isinstance(pk,str) else bytes(pk); print("sha256:"+hashlib.sha256(raw).hexdigest())')
-ISS_FP=$(python3 -c 'import json,base64,hashlib; b=json.load(open("'"$ROOT_DIR"'/issuing.bundle.json")); chain=b.get("chain") or b; pk=chain[0]["publicKey"]; raw=base64.b64decode(pk) if isinstance(pk,str) else bytes(pk); print("sha256:"+hashlib.sha256(raw).hexdigest())')
+ROOT_FP=$(pubkey_fp "$ROOT_DIR/root.cert.json" cert)
+ISS_FP=$(pubkey_fp "$ROOT_DIR/issuing.bundle.json" chain0)
+# M4: the signed issuing certificate must carry exactly the pinned CSR public key.
+[[ "$ISS_FP" == "$ISSUING_CSR_FP_PIN" ]] || die "signed issuing cert key $ISS_FP != pinned CSR key $ISSUING_CSR_FP_PIN — STOP, do not ship issuing.bundle.json"
 
 echo
 echo "===== phase-root PUBLIC FINGERPRINTS ====="
 echo "ROOT_FINGERPRINT=$ROOT_FP"
-echo "ISSUING_FINGERPRINT=$ISS_FP"
+echo "ISSUING_FINGERPRINT=$ISS_FP (matches pinned CSR key)"
 echo "ROOT_CERT_JSON=$ROOT_DIR/root.cert.json"
 echo "ISSUING_BUNDLE_JSON=$ROOT_DIR/issuing.bundle.json"
 echo "NEXT: copy issuing.bundle.json + root.cert.json to the ra-core server; load the chain; then run phase-pair"

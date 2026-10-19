@@ -1,6 +1,7 @@
 package ca
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -40,24 +41,117 @@ func TestKeychainDarwinSourceKeepsSecretsOffArgv(t *testing.T) {
 	}
 }
 
-// TestMacSignScriptKeepsKeyMaterialOffArgv audits the Mac ceremony script: it must drive signing
-// through rottencore-ca --keychain (labels only) and must never invoke `security … -w <secret>`.
-func TestMacSignScriptKeepsKeyMaterialOffArgv(t *testing.T) {
+// The only lines in the rollout scripts that may touch secrets, matched exactly after trimming (QA M2).
+// Anything else that reads a Keychain secret (-w), prints a secret variable, or builds an Authorization
+// header fails the audit.
+var allowedSecretLines = map[string]bool{
+	// lib.sh load_github_token: one Keychain read into an unexported shell variable.
+	`GH_RELEASE_TOKEN=$(/usr/bin/security find-generic-password -a github-token -s "${KEYCHAIN_SERVICE:-com.redx.rottencore.ca}" -w) \`: true,
+	// lib.sh curl_github: the header goes to curl on stdin (-H @-).
+	`printf 'Authorization: Bearer %s\n' "$GH_RELEASE_TOKEN" | curl -sS -L --fail \`: true,
+	// lib.sh load_github_token: move a session token into the unexported variable.
+	`GH_RELEASE_TOKEN="$GITHUB_TOKEN"`: true,
+	// lib.sh: hidden prompt.
+	`read -r -s -p "GitHub token (input hidden): " GH_RELEASE_TOKEN; echo >&2`: true,
+	// publish.sh / restore.sh (python): token popped from env, sent to curl on stdin.
+	`token = os.environ.pop("GITHUB_TOKEN")`:                                                                     true,
+	`AUTH_LINE = f"Authorization: Bearer {token}\n"`:                                                             true,
+	`return subprocess.run(["curl", "-sS", "-H", "@-", *args], input=AUTH_LINE, capture_output=True, text=True)`: true,
+}
+
+var (
+	shVarRe     = regexp.MustCompile(`\$\{?([A-Za-z_][A-Za-z0-9_]*)`)
+	secretWords = map[string]bool{"KEY": true, "SECRET": true, "SEED": true, "PRIV": true, "PRIVATE": true,
+		"TOKEN": true, "PASSWORD": true, "PASS": true, "PW": true, "BLOB": true, "PASSPHRASE": true, "SK": true}
+	exportRe    = regexp.MustCompile(`(^|[;&\s])export\s+([A-Za-z_][A-Za-z0-9_]*)`)
+	printVerbRe = regexp.MustCompile(`(^|[;&|(\s])(echo|printf|log|cat|tee|print)\b|print\(`)
+)
+
+// secretVar reports whether a shell variable name looks like it holds key material or a credential:
+// one of its _-separated words is KEY, SECRET, TOKEN, … (KEYCHAIN_SERVICE is fine).
+func secretVar(name string) bool {
+	for _, w := range strings.Split(strings.ToUpper(name), "_") {
+		if secretWords[w] {
+			return true
+		}
+	}
+	return false
+}
+
+// auditRolloutScript returns every violation in one script.
+func auditRolloutScript(name, text string) []string {
+	var bad []string
+	add := func(i int, why, line string) { bad = append(bad, fmt.Sprintf("%s:%d: %s: %s", name, i+1, why, line)) }
+	for i, line := range strings.Split(text, "\n") {
+		trim := strings.TrimSpace(line)
+		if trim == "" || strings.HasPrefix(trim, "#") {
+			continue
+		}
+		if allowedSecretLines[trim] {
+			continue
+		}
+		low := strings.ToLower(trim)
+		switch {
+		case strings.Contains(trim, "add-generic-password"):
+			add(i, "writes a Keychain item from a script (use rottencore --keychain)", trim)
+		case strings.Contains(trim, "security") && regexp.MustCompile(`(^|\s)-w(\s|$|\))`).MatchString(trim):
+			add(i, "reads a Keychain secret outside the allow-list", trim)
+		case strings.Contains(trim, "dump-keychain") || strings.Contains(trim, "security export"):
+			add(i, "exports Keychain contents", trim)
+		case strings.Contains(trim, "Authorization:") || strings.Contains(low, "bearer "):
+			add(i, "builds an Authorization header outside the allow-list (use curl_github / run_curl)", trim)
+		case regexp.MustCompile(`(^|\s)set\s+-[a-z]*x`).MatchString(trim) || strings.Contains(trim, "xtrace"):
+			add(i, "xtrace would echo secrets", trim)
+		case strings.Contains(low, "nacl") || strings.Contains(low, "signingkey("):
+			add(i, "Python key handling (keys stay in the Go binary, QA F1)", trim)
+		}
+		for _, m := range shVarRe.FindAllStringSubmatch(trim, -1) {
+			if !secretVar(m[1]) {
+				continue
+			}
+			if printVerbRe.MatchString(trim) {
+				add(i, "prints secret variable $"+m[1], trim)
+			}
+			if strings.Contains(trim, "curl") {
+				add(i, "secret variable $"+m[1]+" on a curl command line", trim)
+			}
+		}
+		for _, m := range exportRe.FindAllStringSubmatch(trim, -1) {
+			if secretVar(m[2]) {
+				add(i, "exports secret variable "+m[2]+" into child environments", trim)
+			}
+		}
+		// python heredocs: never print a token / key value
+		if strings.Contains(trim, "print(") && regexp.MustCompile(`\b(token|AUTH_LINE|api_key|seed|priv)\b`).MatchString(trim) {
+			add(i, "prints a secret from Python", trim)
+		}
+	}
+	return bad
+}
+
+func rolloutScriptsDir(t *testing.T) string {
+	t.Helper()
+	if env, ok := os.LookupEnv("MAC_SIGN_SH"); ok {
+		// QA L7: an explicit path that does not exist is a failure, not a silent fallback.
+		if _, err := os.Stat(env); err != nil {
+			t.Fatalf("MAC_SIGN_SH=%s does not exist", env)
+		}
+		return filepath.Dir(env)
+	}
 	_, thisFile, _, _ := runtime.Caller(0)
 	dir := filepath.Join(filepath.Dir(thisFile), "..", "scripts", "rollout")
-	if env := os.Getenv("MAC_SIGN_SH"); env != "" {
-		dir = filepath.Dir(env)
+	if _, err := os.Stat(filepath.Join(dir, "mac-sign.sh")); err != nil {
+		t.Fatalf("rollout scripts not found at %s: %v", dir, err)
 	}
-	if _, err := os.Stat(dir); err != nil {
-		alt := "/workspace/rollout"
-		if _, err2 := os.Stat(alt); err2 != nil {
-			t.Skip("scripts/rollout not found; ceremony script audit skipped")
-		}
-		dir = alt
-	}
+	return dir
+}
+
+// TestMacSignScriptKeepsKeyMaterialOffArgv audits every rollout script with the strict rules above.
+func TestMacSignScriptKeepsKeyMaterialOffArgv(t *testing.T) {
+	dir := rolloutScriptsDir(t)
 	entries, err := filepath.Glob(filepath.Join(dir, "*.sh"))
-	if err != nil || len(entries) == 0 {
-		t.Skip("no *.sh in", dir)
+	if err != nil || len(entries) < 8 {
+		t.Fatalf("expected the rollout scripts in %s, got %v (%v)", dir, entries, err)
 	}
 	var combined strings.Builder
 	for _, path := range entries {
@@ -65,41 +159,55 @@ func TestMacSignScriptKeepsKeyMaterialOffArgv(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		text := string(b)
-		combined.WriteString(text)
-		combined.WriteByte('\n')
-		if strings.Contains(text, "add-generic-password") {
-			t.Fatalf("%s must not call add-generic-password; use rottencore-ca --keychain", path)
-		}
-		for _, line := range strings.Split(text, "\n") {
-			trim := strings.TrimSpace(line)
-			if strings.HasPrefix(trim, "#") || !strings.Contains(trim, "security") {
-				continue
-			}
-			// Existence probes without -w are OK. find … -w in phase-pair is intentional:
-			// the secret is captured into a shell/python variable, never passed as another process's argv.
-			// Still forbid add-generic-password and `security … -w` used to *set* a password.
-			if strings.Contains(trim, "add-generic-password") {
-				t.Fatalf("%s: %s", path, trim)
-			}
-		}
-		// Bearer token must not appear on curl argv
-		for _, line := range strings.Split(text, "\n") {
-			trim := strings.TrimSpace(line)
-			if strings.HasPrefix(trim, "#") {
-				continue
-			}
-			// Allow `printf 'Authorization: …' | curl -H @-` (header on stdin). Forbid Bearer on curl argv.
-			if strings.Contains(trim, "curl") && strings.Contains(trim, "Authorization: Bearer") && !strings.Contains(trim, "-H @-") && !strings.Contains(trim, "printf") {
-				t.Fatalf("%s puts Authorization on curl argv (use -H @-): %s", path, trim)
-			}
-			if strings.Contains(trim, "curl") && strings.Contains(trim, "$GITHUB_TOKEN") && strings.Contains(trim, "-H") && !strings.Contains(trim, "-H @-") && !strings.Contains(trim, "printf") {
-				t.Fatalf("%s expands GITHUB_TOKEN into curl -H argv: %s", path, trim)
-			}
+		combined.Write(b)
+		for _, v := range auditRolloutScript(filepath.Base(path), string(b)) {
+			t.Error(v)
 		}
 	}
 	text := combined.String()
 	if !strings.Contains(text, "--keychain") {
 		t.Fatalf("%s scripts should use --keychain so keys stay in the Keychain", dir)
+	}
+	pair, _ := os.ReadFile(filepath.Join(dir, "phase-pair.sh"))
+	if strings.Contains(string(pair), "python3 - ") || strings.Contains(string(pair), "find-generic-password") {
+		t.Fatal("phase-pair.sh must pair through `rottencore devhub-pair` (no Python, no Keychain reads in shell)")
+	}
+	if !strings.Contains(string(pair), "devhub-pair") {
+		t.Fatal("phase-pair.sh must call rottencore devhub-pair")
+	}
+}
+
+// TestRolloutAuditCatchesLeaks proves the audit is not toothless (QA M2): each of these must fail it.
+func TestRolloutAuditCatchesLeaks(t *testing.T) {
+	bad := []string{
+		`echo "$RA_API_KEY"`,
+		`printf '%s\n' "$GH_RELEASE_TOKEN" > /tmp/t`,
+		`printf '%s' "${DEVICE_SEED}" | xxd`,
+		`log "key=$PRIV_BLOB"`,
+		`echo $KEY`,
+		`K=$(security find-generic-password -a josh-mega -s svc -w)`,
+		`security add-generic-password -a x -s y -w "$B"`,
+		`curl -H "Authorization: Bearer $GITHUB_TOKEN" https://api.github.com`,
+		`curl -u "x:$GH_RELEASE_TOKEN" https://api.github.com`,
+		`export RA_API_KEY`,
+		`set -x`,
+		`from nacl.signing import SigningKey`,
+		`print(token)`,
+		`cat <<<"$MEGA_PRIVATE"`,
+	}
+	for _, line := range bad {
+		if len(auditRolloutScript("fixture.sh", line+"\n")) == 0 {
+			t.Errorf("audit missed: %s", line)
+		}
+	}
+	ok := []string{
+		`security find-generic-password -a "$label" -s "${KEYCHAIN_SERVICE:-com.redx.rottencore.ca}" >/dev/null 2>&1`,
+		`"$ROTTENCORE" sign-batch "$BATCH" --keychain --label josh-mega --service "$KEYCHAIN_SERVICE" \`,
+		`echo "ROOT_FINGERPRINT=$ROOT_FP"`,
+	}
+	for _, line := range ok {
+		if v := auditRolloutScript("fixture.sh", line+"\n"); len(v) != 0 {
+			t.Errorf("audit false positive: %v", v)
+		}
 	}
 }

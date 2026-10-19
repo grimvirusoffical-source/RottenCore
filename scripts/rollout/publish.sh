@@ -196,12 +196,16 @@ import json, os, sys, subprocess, urllib.parse, time
 
 plan = json.load(open(sys.argv[1]))
 owner, api, log_path = sys.argv[2], sys.argv[3], sys.argv[4]
-token = os.environ["GITHUB_TOKEN"]
+token = os.environ.pop("GITHUB_TOKEN")
 headers = [
-  "-H", f"Authorization: Bearer {token}",
   "-H", "Accept: application/vnd.github+json",
   "-H", "X-GitHub-Api-Version: 2022-11-28",
 ]
+# QA M5: the token reaches curl over stdin (-H @-), never argv; and it is dropped from the environment
+# so curl children do not inherit it.
+AUTH_LINE = f"Authorization: Bearer {token}\n"
+def run_curl(args):
+  return subprocess.run(["curl", "-sS", "-H", "@-", *args], input=AUTH_LINE, capture_output=True, text=True)
 
 def log(msg):
   line = time.strftime("[%Y-%m-%dT%H:%M:%SZ] ", time.gmtime()) + msg
@@ -209,7 +213,7 @@ def log(msg):
   open(log_path, "a").write(line + "\n")
 
 def curl(args, check=True):
-  r = subprocess.run(["curl", "-sS", *args], capture_output=True, text=True)
+  r = run_curl(args)
   if check and r.returncode != 0:
     raise SystemExit(f"curl failed: {r.stderr}\n{r.stdout}")
   return r

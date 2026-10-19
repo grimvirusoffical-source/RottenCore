@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/grimvirusoffical-source/RottenCore/builder"
@@ -52,6 +53,34 @@ func runSign(ctx context.Context, cmd string, rest []string) bool {
 		out(art, func() {
 			fmt.Printf("signed %s (%s)\n  %s\n  SHA256SUMS regenerated in %s\n", art.Filename, builder.Label(builder.Project{Name: signApp, Version: signVersion}, art.Platform), art.SigPath, filepath.Dir(art.Path))
 		})
+	case "sign-batch":
+		// One Keychain read for the whole rollout (each read is an Allow prompt, QA F2).
+		// <list.tsv>: one asset per line: path<TAB>app<TAB>version[<TAB>platform]
+		need(rest, 1)
+		jobs, err := readSignList(rest[0])
+		check(err)
+		k, chain := loadSigner()
+		host := signHost
+		if host == "" {
+			host = builder.HostOS()
+		}
+		var arts []*builder.Artifact
+		for _, j := range jobs {
+			art, err := builder.SignFile(j[0], j[1], j[2], j[3], host, k, chain, time.Now())
+			if wh, ok := err.(*builder.ErrWrongHost); ok {
+				fail(fmt.Errorf("%s: %s", j[0], wh.Error()), 4)
+			}
+			if err != nil {
+				fail(fmt.Errorf("%s: %w", j[0], err), 1)
+			}
+			arts = append(arts, art)
+			if !o.json {
+				fmt.Printf("signed %s -> %s\n", art.Path, art.SigPath)
+			}
+		}
+		if o.json {
+			out(arts, func() {})
+		}
 	case "build-inbox":
 		need(rest, 1)
 		req, targets, path, err := builder.OpenInboxRequest(core.SupportDir(), rest[0])
@@ -127,6 +156,35 @@ func runBuild(ctx context.Context, req *builder.Request, targets []builder.Targe
 		}
 		fmt.Println("SHA256SUMS:", res.SumsPath)
 	})
+}
+
+// readSignList parses a sign-batch list: path<TAB>app<TAB>version[<TAB>platform]; # comments allowed.
+func readSignList(path string) ([][4]string, error) {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	var jobs [][4]string
+	for i, line := range strings.Split(string(b), "\n") {
+		line = strings.TrimRight(line, "\r")
+		if strings.TrimSpace(line) == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		f := strings.Split(line, "\t")
+		if len(f) < 3 || len(f) > 4 || f[0] == "" || f[1] == "" || f[2] == "" {
+			return nil, fmt.Errorf("%s:%d: want path<TAB>app<TAB>version[<TAB>platform]", path, i+1)
+		}
+		if !filepath.IsAbs(f[0]) {
+			return nil, fmt.Errorf("%s:%d: asset path must be absolute", path, i+1)
+		}
+		var j [4]string
+		copy(j[:], f)
+		jobs = append(jobs, j)
+	}
+	if len(jobs) == 0 {
+		return nil, fmt.Errorf("%s: no assets listed", path)
+	}
+	return jobs, nil
 }
 
 // applySigningDefaults fills --bundle/--label/--service from config.json or signing.json when flags are empty

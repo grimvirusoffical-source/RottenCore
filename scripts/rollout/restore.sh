@@ -40,9 +40,14 @@ import json, os, sys, subprocess, time
 from pathlib import Path
 
 root, owner, api, dry = Path(sys.argv[1]), sys.argv[2], sys.argv[3], sys.argv[4] == "1"
-token = os.environ["GITHUB_TOKEN"]
-headers = ["-H", f"Authorization: Bearer {token}", "-H", "Accept: application/vnd.github+json",
+token = os.environ.pop("GITHUB_TOKEN")
+headers = ["-H", "Accept: application/vnd.github+json",
            "-H", "X-GitHub-Api-Version: 2022-11-28", "-H", "Content-Type: application/json"]
+# QA M5: the token reaches curl over stdin (-H @-), never argv; and it is dropped from the environment
+# so curl children do not inherit it.
+AUTH_LINE = f"Authorization: Bearer {token}\n"
+def run_curl(args):
+  return subprocess.run(["curl", "-sS", "-H", "@-", *args], input=AUTH_LINE, capture_output=True, text=True)
 
 candidates = []
 plan = root / "work" / "publish-plan.json"
@@ -63,8 +68,7 @@ if dry:
 
 for c in candidates:
     url = f"{api}/repos/{owner}/{c['repo']}/releases/{c['release_id']}"
-    r = subprocess.run(["curl", "-sS", "-X", "PATCH", *headers, "--data", json.dumps({"draft": False}), url],
-                       capture_output=True, text=True)
+    r = run_curl(["-X", "PATCH", *headers, "--data", json.dumps({"draft": False}), url])
     data = json.loads(r.stdout)
     if data.get("draft") is not False and data.get("draft") != False:
         # GitHub may return draft:false
@@ -83,8 +87,13 @@ import json, os, sys, subprocess, urllib.parse, time
 manifest = json.load(open(sys.argv[1]))
 inv = json.load(open(sys.argv[2]))
 owner, api, dry = sys.argv[3], sys.argv[4], sys.argv[5] == "1"
-token = os.environ["GITHUB_TOKEN"]
-headers = ["-H", f"Authorization: Bearer {token}", "-H", "Accept: application/vnd.github+json", "-H", "X-GitHub-Api-Version: 2022-11-28"]
+token = os.environ.pop("GITHUB_TOKEN")
+headers = ["-H", "Accept: application/vnd.github+json", "-H", "X-GitHub-Api-Version: 2022-11-28"]
+# QA M5: the token reaches curl over stdin (-H @-), never argv; and it is dropped from the environment
+# so curl children do not inherit it.
+AUTH_LINE = f"Authorization: Bearer {token}\n"
+def run_curl(args):
+  return subprocess.run(["curl", "-sS", "-H", "@-", *args], input=AUTH_LINE, capture_output=True, text=True)
 
 # Prefer full inventory for older releases that were drafted
 from pathlib import Path
@@ -100,7 +109,7 @@ for repo, data in inv["repos"].items():
       index[(repo, tag, a["name"])] = {"release_id": r["id"], "asset_id": a["id"], "label": a.get("label") or ""}
 
 def curl(args):
-  r = subprocess.run(["curl", "-sS", *args], capture_output=True, text=True)
+  r = run_curl(args)
   if r.returncode != 0:
     raise SystemExit(r.stderr or r.stdout)
   return r
@@ -125,13 +134,13 @@ if dry:
 for a in actions:
   print(f"RESTORE {a['repo']}/{a['tag']}/{a['name']}", flush=True)
   url = f"{api}/repos/{owner}/{a['repo']}/releases/assets/{a['asset_id']}"
-  r = subprocess.run(["curl", "-sS", "-X", "DELETE", *headers, "-o", "/dev/null", "-w", "%{http_code}", url], capture_output=True, text=True)
+  r = run_curl(["-X", "DELETE", *headers, "-o", "/dev/null", "-w", "%{http_code}", url])
   if r.stdout.strip() not in ("204", "404"):
     raise SystemExit(f"delete failed: {r.stdout} {r.stderr}")
   q = urllib.parse.urlencode({"name": a["name"], "label": a["label"]} if a["label"] else {"name": a["name"]})
   up = f"https://uploads.github.com/repos/{owner}/{a['repo']}/releases/{a['release_id']}/assets?{q}"
-  r = subprocess.run(["curl", "-sS", "-X", "POST", *headers, "-H", "Content-Type: application/octet-stream",
-                      "--data-binary", f"@{a['path']}", up], capture_output=True, text=True)
+  r = run_curl(["-X", "POST", *headers, "-H", "Content-Type: application/octet-stream",
+                      "--data-binary", f"@{a['path']}", up])
   data = json.loads(r.stdout)
   if "id" not in data:
     raise SystemExit(f"upload failed: {r.stdout[:400]}")

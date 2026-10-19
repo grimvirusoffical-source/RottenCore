@@ -20,23 +20,25 @@ import (
 // key reloads as the right type.
 //
 // Put feeds `security -i` over stdin so the private-key blob never appears in process argv (visible to
-// `ps`). Get uses `security find-generic-password -w`, which prints the secret on stdout only.
+// `ps`). Get uses `/usr/bin/security find-generic-password -w`, which prints the secret on stdout only,
+// into this process.
 //
-// TrustedApps lists absolute paths of binaries that may read the item without a GUI prompt
-// (repeated -T). Over Tailscale SSH a prompt fails with errSecInteractionNotAllowed; trusting
-// rottencore and rottencore-ca avoids that. Items stay non-exportable. Empty TrustedApps falls
-// back to -T "" (may prompt). Unlock the login keychain for headless runs:
-//
-//	security unlock-keychain -p <pw-via-stdin> ~/Library/Keychains/login.keychain-db
-//
-// (password over stdin only — never argv).
+// Access control (QA F2): because every read is performed by /usr/bin/security, the item ACL sees
+// `security` as the accessing application. Listing our binaries with -T (TrustedApps) therefore does NOT
+// gate or authorise our reads, and these items are NOT non-exportable: anything that can run `security`
+// as Josh and get a click on "Allow" can read them. The protection is the per-read GUI prompt. The
+// rollout therefore runs from Terminal on the Mac (never SSH) and Josh clicks "Allow" for each prompt and
+// NEVER "Always Allow" (that would add `security` to the ACL and let any process read the key silently).
+// Empty TrustedApps writes -T "" (no app pre-authorised: every read prompts), which is what the rollout
+// uses. A Security.framework (cgo) build would make our binary the accessor; it cannot be cross-built from
+// the Linux box (no macOS SDK/toolchain), so it is future work.
 //
 // This is a software-key store: the bytes exist in Keychain, not in the Secure Enclave (the Enclave only
 // holds P-256 keys, which these tiers do not use). For the production root, the runbook also calls for an
 // offline USB backup; Keychain is the live copy.
 type KeychainStore struct {
 	Service     string
-	TrustedApps []string // absolute paths trusted for -T (SSH-safe Get)
+	TrustedApps []string // absolute paths for -T; see the F2 note above (ineffective while reads go through security)
 }
 
 func (KeychainStore) Kind() string { return "macOS Keychain" }
@@ -71,8 +73,8 @@ func (s KeychainStore) Put(label string, k core.Signer) error {
 		if app == "" {
 			continue
 		}
-		if !filepath.IsAbs(app) {
-			return fmt.Errorf("keychain TrustedApps entry %q must be an absolute path", app)
+		if !filepath.IsAbs(app) || !safeKeychainToken.MatchString(app) {
+			return fmt.Errorf("keychain TrustedApps entry %q must be an absolute path without spaces or shell characters", app)
 		}
 		// Quote for the interactive security line; paths are absolute and should not contain spaces
 		// that break -T (caller must use paths without spaces, e.g. /Users/.../bin/rottencore).
@@ -111,4 +113,25 @@ func (s KeychainStore) Get(label string) (core.Signer, error) {
 		return nil, err
 	}
 	return signerFromPriv(blob[:i], raw)
+}
+
+// Has reports whether an item exists, reading attributes only (no -w), so it never triggers an ACL prompt.
+func (s KeychainStore) Has(label string) bool {
+	if !safeKeychainToken.MatchString(label) {
+		return false
+	}
+	return exec.Command("/usr/bin/security", "find-generic-password", "-a", label, "-s", s.service()).Run() == nil
+}
+
+// GetSecret returns a raw generic-password secret (e.g. the build API key under account ra-build-api-key).
+// The value comes back on stdout into this process only.
+func (s KeychainStore) GetSecret(label string) (string, error) {
+	if !safeKeychainToken.MatchString(label) {
+		return "", fmt.Errorf("keychain label %q has unsafe characters", label)
+	}
+	out, err := exec.Command("/usr/bin/security", "find-generic-password", "-a", label, "-s", s.service(), "-w").Output()
+	if err != nil {
+		return "", fmt.Errorf("no Keychain secret labelled %q (%v)", label, err)
+	}
+	return strings.TrimSpace(string(out)), nil
 }

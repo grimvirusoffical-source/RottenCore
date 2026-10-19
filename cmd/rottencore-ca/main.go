@@ -223,8 +223,10 @@ func main() {
 func keystore(keychain bool, dir, service string) ca.KeyStore {
 	if keychain {
 		var trust []string
-		// ROTTEN_KEYCHAIN_TRUST=colon-separated absolute binary paths (rottencore:rottencore-ca)
-		// so Get works over Tailscale SSH without a GUI prompt. Items stay non-exportable.
+		// ROTTEN_KEYCHAIN_TRUST=colon-separated absolute binary paths for -T. NOTE (QA F2): reads go through
+		// /usr/bin/security, so this does not authorise our binaries and items are not non-exportable; the
+		// rollout leaves it unset (-T "", every read prompts: click Allow, never Always Allow). Paths are
+		// validated in KeychainStore.Put (absolute, safe characters).
 		for _, p := range strings.Split(os.Getenv("ROTTEN_KEYCHAIN_TRUST"), ":") {
 			p = strings.TrimSpace(p)
 			if p != "" {

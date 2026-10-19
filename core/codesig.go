@@ -74,8 +74,12 @@ type Cert struct {
 	NotBefore int64       `json:"notBefore"`
 	NotAfter  int64       `json:"notAfter"`
 	Test      bool        `json:"test"`
-	Issuer    string      `json:"issuer"`
-	Signature []byte      `json:"signature"`
+	// Platforms and Device bind a dev-hub certificate to its registered signing device (same fields and
+	// order as rarxai.Cert). Omitted when empty so older certificates keep their exact signed bytes.
+	Platforms []string `json:"platforms,omitempty"`
+	Device    string   `json:"device,omitempty"`
+	Issuer    string   `json:"issuer"`
+	Signature []byte   `json:"signature"`
 }
 
 func (c *Cert) tbs() ([]byte, error) {

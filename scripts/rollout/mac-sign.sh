@@ -7,6 +7,8 @@
 #   ./mac-sign.sh pair|phase-pair     # pair device + Mega cert (needs ROTTEN_DEV_ID/TEAM_ID)
 #   ./mac-sign.sh sign|phase-sign     # latest-only sign → staging → tarball
 #   ./mac-sign.sh all                 # root && pair && sign (stops on first error)
+#
+# Run in Terminal ON the Mac (not SSH). Keychain prompts: click "Allow", NEVER "Always Allow" (QA F2).
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 cmd="${1:-}"
@@ -20,7 +22,7 @@ case "$cmd" in
     "$HERE/phase-sign.sh"
     ;;
   *)
-    echo "usage: $0 root|pair|sign|all" >&2
+    echo "usage: $0 root|pair|sign|all   (Terminal on the Mac; Keychain prompts: Allow, never Always Allow)" >&2
     echo "  root  — production root + sign server issuing CSR" >&2
     echo "  pair  — device pairing + Mega cert (ROTTEN_DEV_ID / ROTTEN_TEAM_ID required)" >&2
     echo "  sign  — latest-only sign, staging, tarball" >&2

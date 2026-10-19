@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# phase-sign: latest-only download → digest check vs backup MANIFEST → sign → staging → tarball.
+# phase-sign: latest-only download → digest check vs backup MANIFEST (HARD STOP, QA B3) → one batch
+# sign (a single Keychain read of josh-mega: one Allow prompt, QA F2) → verify → staging → tarball.
 # Does NOT delete staging (mac-cleanup.sh after box verifies sha256).
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -7,11 +8,17 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 source "$HERE/lib.sh"
 require_darwin
 setup_rollout_env
+require_mac_terminal
 
 [[ -x "$ROTTENCORE" ]] || die "rottencore not at $ROTTENCORE"
 [[ -f "$INVENTORY" ]] || die "inventory missing: $INVENTORY"
 [[ -f "$ROOT_DIR/josh-mega.bundle.json" ]] || die "josh-mega.bundle.json missing — run phase-pair first"
 [[ -f "$ROOT_DIR/root.cert.json" ]] || die "root.cert.json missing — run phase-root first"
+
+# QA B3: MANIFEST.json ships in the rollout tgz (default: the ceremony folder). Missing or not the pinned
+# sha256 = stop before anything is downloaded or signed.
+require_backup_manifest
+load_github_token
 
 ROOT_HEX=$(python3 -c 'import json,base64,binascii; c=json.load(open("'"$ROOT_DIR"'/root.cert.json")); pk=c["publicKey"]; raw=base64.b64decode(pk) if isinstance(pk,str) else bytes(pk); print(binascii.hexlify(raw).decode())')
 
@@ -63,18 +70,10 @@ PY
   mv "$dest.partial" "$dest"
 }
 
-sign_one() {
-  local path="$1" app="$2" ver="$3" plat="$4"
-  local rasig="${path}.rasig"
-  if [[ -f "$rasig" ]]; then
-    log "already signed: $(basename "$path")"
-  else
-    log "sign $(basename "$path") ($app $ver $plat)"
-    local args=(sign "$path" --keychain --label josh-mega --bundle "$ROOT_DIR/josh-mega.bundle.json" --app "$app" --app-version "$ver")
-    [[ -n "$plat" ]] && args+=(--platform "$plat")
-    "$ROTTENCORE" "${args[@]}"
-  fi
-  "$ROTTENCORE" verify-signature "$path" "$rasig" --trust-root "$ROOT_HEX" \
+verify_one() {
+  local path="$1" rasig="${1}.rasig"
+  [[ -f "$rasig" ]] || die "missing rasig for $path"
+  "$ROTTENCORE" verify-signature "$path" "$rasig" --trust-root "$ROOT_HEX" </dev/null \
     || die "verify-signature failed for $path"
 }
 
@@ -86,34 +85,40 @@ for a in inv["sign_on_mac"]:
   print("\t".join([a["repo"], a["tag"], a["asset"], a.get("url",""), a["category"], str(a.get("size",0))]))
 PY
 
-while IFS=$'\t' read -r REPO TAG ASSET URL CAT SIZE; do
+# Pass 1: download + MANIFEST digest check for every asset (any mismatch stops before signing anything).
+BATCH="$ROOT_DIR/work/sign-batch.tsv"
+: > "$BATCH"
+PENDING=()
+while IFS=$'\t' read -r REPO TAG ASSET URL CAT SIZE <&3; do
   [[ -z "${REPO:-}" ]] && continue
   MARK="sign-$(printf '%s' "$REPO/$TAG/$ASSET" | tr '/ ' '__')"
-  if done_p "$MARK"; then
-    # After cleanup, markers without files must re-sign — check staging file exists
-    if [[ -f "$STAGING_DIR/$REPO/$TAG/$ASSET.rasig" ]]; then
-      log "skip (done): $REPO/$TAG/$ASSET"
-      continue
-    fi
-    log "marker present but staging file missing — re-signing $REPO/$TAG/$ASSET"
-  fi
   DEST_DIR="$STAGING_DIR/$REPO/$TAG"
-  mkdir -p "$DEST_DIR"
   LOCAL="$DEST_DIR/$ASSET"
-  download_asset "$REPO" "$TAG" "$ASSET" "$URL" "$LOCAL"
-  # Integrity vs box backup MANIFEST before signing
-  if [[ -f "${ROTTEN_BACKUPS:-/workspace/release-backups}/MANIFEST.json" ]]; then
-    verify_backup_digest "$REPO" "$TAG" "$ASSET" "$LOCAL"
-  else
-    log "WARN: no ROTTEN_BACKUPS MANIFEST on this Mac — skipping digest check (box should have verified)"
+  if done_p "$MARK" && [[ -f "$LOCAL.rasig" && -f "$LOCAL" ]]; then
+    log "skip (done): $REPO/$TAG/$ASSET"
+    continue
   fi
-  META_APP=$(app_meta "$REPO" "$TAG" "$ASSET" "$CAT" | sed -n '1p')
-  META_VER=$(app_meta "$REPO" "$TAG" "$ASSET" "$CAT" | sed -n '2p')
-  META_PLAT=$(app_meta "$REPO" "$TAG" "$ASSET" "$CAT" | sed -n '3p')
-  sign_one "$LOCAL" "$META_APP" "$META_VER" "$META_PLAT"
-  [[ -f "$LOCAL.rasig" ]] || die "missing rasig for $LOCAL"
-  mark "$MARK"
-done < "$ROOT_DIR/work/sign-list.tsv"
+  mkdir -p "$DEST_DIR"
+  download_asset "$REPO" "$TAG" "$ASSET" "$URL" "$LOCAL"
+  verify_backup_digest "$REPO" "$TAG" "$ASSET" "$LOCAL"
+  rm -f "$LOCAL.rasig"   # re-sign from scratch after a partial run
+  META=$(app_meta "$REPO" "$TAG" "$ASSET" "$CAT")
+  META_APP=$(sed -n '1p' <<<"$META"); META_VER=$(sed -n '2p' <<<"$META"); META_PLAT=$(sed -n '3p' <<<"$META")
+  printf '%s\t%s\t%s\t%s\n' "$LOCAL" "$META_APP" "$META_VER" "$META_PLAT" >> "$BATCH"
+  PENDING+=("$MARK|$LOCAL")
+done 3< "$ROOT_DIR/work/sign-list.tsv"
+
+# Pass 2: one rottencore process signs the batch (one Keychain read → one Allow prompt).
+if [[ ${#PENDING[@]} -gt 0 ]]; then
+  log "=== sign ${#PENDING[@]} assets (one Keychain read of josh-mega) ==="
+  keychain_prompt_notice josh-mega
+  "$ROTTENCORE" sign-batch "$BATCH" --keychain --label josh-mega --service "$KEYCHAIN_SERVICE" \
+    --bundle "$ROOT_DIR/josh-mega.bundle.json" </dev/null
+  for item in "${PENDING[@]}"; do
+    verify_one "${item#*|}"
+    mark "${item%%|*}"
+  done
+fi
 
 log "=== SHA256SUMS ==="
 find "$STAGING_DIR" -mindepth 2 -maxdepth 2 -type d | while read -r d; do

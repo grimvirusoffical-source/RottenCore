@@ -13,13 +13,15 @@ server and drops `issuing.csr.json` for the Mac.
 
 1. `./mac-sign.sh root` — production root in Keychain; sign the CSR → `issuing.bundle.json` + `root.cert.json`
 2. Load the bundle on the server; confirm `GET /v1/devhub/ca/chain` shows `issuing:true`
-3. `./mac-sign.sh pair` — device + Mega keys in Keychain; pair via `/v1/devhub/pairings`; Mega cert from `/certs`
+3. `./mac-sign.sh pair` runs `rottencore devhub-pair`. It generates the device and Mega keys in-process into the Keychain, pairs via `/v1/devhub/pairings`, gets the Mega cert from `/certs`, and requires an exact subject devId/teamId
 4. `./mac-sign.sh sign` — latest-only sign → staging → tarball
 5. Box verifies sha256; `./mac-cleanup.sh --confirm <sha256>` (required form)
 
-`ROTTEN_KEYCHAIN_TRUST` lists absolute paths of `rottencore` and `rottencore-ca` so Keychain Get works
-over Tailscale SSH without a GUI prompt. Unlock the login keychain first (`security unlock-keychain`,
-password over stdin). Clients send `X-RA-Launcher: 0.2.0`.
+**Run the phases in Terminal on the Mac and click "Allow", never "Always Allow" (QA F2).** Keychain reads
+go through `/usr/bin/security`, so `-T` trust lists cannot single out our binaries and the items are not
+non-exportable. The per-read prompt is the control, and the scripts refuse to run over SSH.
+`ROTTEN_KEYCHAIN_TRUST` is no longer set by the rollout. `sign` reads josh-mega once (`rottencore sign-batch`).
+`pair` runs entirely in Go (`rottencore devhub-pair`). Clients send `X-RA-Launcher: 0.2.0`.
 
 See `scripts/rollout/QA-README.md`.
 

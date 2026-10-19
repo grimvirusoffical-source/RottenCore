@@ -17,6 +17,8 @@ if [[ $# -ne 2 || "${1:-}" != "--confirm" ]]; then
 fi
 EXPECTED="${2:-}"
 [[ "$EXPECTED" =~ ^[0-9a-fA-F]{64}$ ]] || die "confirm value must be a 64-character hex sha256 (got '${EXPECTED:0:16}…' len=${#EXPECTED})"
+# QA L1: shasum prints lower-case; accept an upper-case paste by normalising.
+EXPECTED=$(printf '%s' "$EXPECTED" | tr 'A-F' 'a-f')
 
 ROOT_DIR="${ROTTEN_CEREMONY_DIR:-$HOME/redx-ceremony}"
 [[ "$ROOT_DIR" == /* ]] || die "ROTTEN_CEREMONY_DIR must be absolute"
