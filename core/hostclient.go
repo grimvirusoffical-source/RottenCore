@@ -16,6 +16,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -92,6 +93,24 @@ func ParseHostError(status int, b []byte) *HostError {
 	return e
 }
 
+// IsSequenceRegression reports whether err is a 409 sequence_regression (a downgrade or a failed min_from).
+func IsSequenceRegression(err error) bool {
+	var he *HostError
+	return errors.As(err, &he) && he.Status == http.StatusConflict && he.Code == "sequence_regression"
+}
+
+// IsForbidden reports a 401/403 (missing or reused confirm token, missing host-admin key, owner gate).
+func IsForbidden(err error) bool {
+	var he *HostError
+	return errors.As(err, &he) && (he.Status == http.StatusUnauthorized || he.Status == http.StatusForbidden)
+}
+
+// IsNotFound reports a 404 (unknown app or an extra path segment).
+func IsNotFound(err error) bool {
+	var he *HostError
+	return errors.As(err, &he) && he.Status == http.StatusNotFound
+}
+
 func (h *HostClient) url(p string, q url.Values) (string, error) {
 	if !ValidOrigin(strings.TrimRight(h.Base, "/"), h.AllowLoopbackHTTP) {
 		return "", fmt.Errorf("host %q is not an https origin", h.Base)
@@ -116,7 +135,7 @@ func (h *HostClient) http() *http.Client {
 }
 
 // do sends one request; confirm is the operation id for dangerous calls.
-func (h *HostClient) do(ctx context.Context, method, p string, q url.Values, body interface{}, confirm string, out interface{}) (http.Header, []byte, error) {
+func (h *HostClient) do(ctx context.Context, method, p string, q url.Values, body interface{}, confirm, confirmTok string, out interface{}) (http.Header, []byte, error) {
 	u, err := h.url(p, q)
 	if err != nil {
 		return nil, nil, err
@@ -143,6 +162,9 @@ func (h *HostClient) do(ctx context.Context, method, p string, q url.Values, bod
 	}
 	if confirm != "" {
 		req.Header.Set("X-RedX-Confirm", confirm)
+	}
+	if confirmTok != "" {
+		req.Header.Set("X-RedX-Update-Confirm", confirmTok)
 	}
 	resp, err := h.http().Do(req)
 	if err != nil {
@@ -208,7 +230,54 @@ type HostRollout struct {
 		Total   int     `json:"total"`
 		Percent float64 `json:"percent"`
 	} `json:"progress"`
-	Health map[string]interface{} `json:"health"`
+	Health *RolloutHealth `json:"health"`
+}
+
+// RolloutHealth is the host's health readout for a rollout. Rates are pointers: they are null until the host
+// has data, and "null rates" means health is unknown (nothing auto-promotes; the UI shows "awaiting health
+// data").
+type RolloutHealth struct {
+	SuccessRate *float64 `json:"success_rate"`
+	ErrorRate   *float64 `json:"error_rate"`
+	CrashRate   *float64 `json:"crash_rate"`
+	Samples     int      `json:"samples"`
+}
+
+// Known reports whether the host has real health numbers yet.
+func (hh *RolloutHealth) Known() bool {
+	return hh != nil && (hh.SuccessRate != nil || hh.ErrorRate != nil || hh.CrashRate != nil)
+}
+
+// AwaitingHealthData is true when the host has not reported health yet (health object missing or all rates
+// null). While this holds the updater must not auto-promote and the UI shows "awaiting health data".
+func (r *HostRollout) AwaitingHealthData() bool { return !r.Health.Known() }
+
+// AutoPromoteEligible reports whether an automatic promotion is allowed: only with known, healthy numbers
+// (no errors or crashes) on a canary that has finished its bake. Unknown health is never auto-promoted.
+func (r *HostRollout) AutoPromoteEligible() bool {
+	if r.AwaitingHealthData() || r.State != "canary" {
+		return false
+	}
+	h := r.Health
+	if h.ErrorRate != nil && *h.ErrorRate > 0 {
+		return false
+	}
+	if h.CrashRate != nil && *h.CrashRate > 0 {
+		return false
+	}
+	return true
+}
+
+// HealthSummary is a short line for the UI.
+func (r *HostRollout) HealthSummary() string {
+	if r.AwaitingHealthData() {
+		return "awaiting health data"
+	}
+	h := r.Health
+	if (h.ErrorRate != nil && *h.ErrorRate > 0) || (h.CrashRate != nil && *h.CrashRate > 0) {
+		return "degraded"
+	}
+	return "healthy"
 }
 
 // Terminal reports whether the rollout has finished one way or another.
@@ -239,26 +308,53 @@ type ApplyRequest struct {
 	DryRun     bool       `json:"dry_run"`
 }
 
+// planToken runs the required first step of a two-step dangerous call: it re-sends the same request with
+// plan:true and reads the single-use X-RedX-Update-Confirm token the host mints (tied to the app, version
+// and action). The caller then sends the real request with that token plus X-RedX-Confirm. A host that
+// returns no token is treated as refusing the operation.
+func (h *HostClient) planToken(ctx context.Context, method, path string, body interface{}) (string, error) {
+	pb := map[string]interface{}{}
+	if body != nil {
+		raw, err := json.Marshal(body)
+		if err != nil {
+			return "", err
+		}
+		if err := json.Unmarshal(raw, &pb); err != nil {
+			return "", err
+		}
+	}
+	pb["plan"] = true
+	hdr, _, err := h.do(ctx, method, path, nil, pb, "", "", nil)
+	if err != nil {
+		return "", err
+	}
+	tok := hdr.Get("X-RedX-Update-Confirm")
+	if tok == "" {
+		return "", &HostError{Status: http.StatusForbidden, Code: "forbidden", Message: "the host did not issue an update-confirm token for the plan step"}
+	}
+	return tok, nil
+}
+
 // Apps lists every app (GET /v1/updates/apps).
 func (h *HostClient) Apps(ctx context.Context) ([]HostApp, error) {
 	var out struct {
 		Apps []HostApp `json:"apps"`
 	}
-	_, _, err := h.do(ctx, "GET", "/v1/updates/apps", nil, nil, "", &out)
+	_, _, err := h.do(ctx, "GET", "/v1/updates/apps", nil, nil, "", "", &out)
 	return out.Apps, err
 }
 
 // App is one app's update status.
 func (h *HostClient) App(ctx context.Context, app string) (*HostApp, error) {
 	var out HostApp
-	_, _, err := h.do(ctx, "GET", "/v1/updates/apps/"+url.PathEscape(app), nil, nil, "", &out)
+	_, _, err := h.do(ctx, "GET", "/v1/updates/apps/"+url.PathEscape(app), nil, nil, "", "", &out)
 	return &out, err
 }
 
 // Keys is GET /v1/updates/keys (no auth).
 func (h *HostClient) Keys(ctx context.Context) ([]UpdateKey, error) {
 	var out []UpdateKey
-	_, _, err := h.do(ctx, "GET", "/v1/updates/keys", nil, nil, "", &out)
+	_, _, err := h.do(ctx, "GET", "/v1/updates/keys", nil, nil, "", "", &out)
 	return out, err
 }
 
@@ -268,7 +364,7 @@ func (h *HostClient) Manifest(ctx context.Context, app, version, source string) 
 	if source != "" {
 		q.Set("source", source)
 	}
-	hdr, b, err := h.do(ctx, "GET", "/v1/updates/apps/"+url.PathEscape(app)+"/manifests/"+url.PathEscape(version), q, nil, "", nil)
+	hdr, b, err := h.do(ctx, "GET", "/v1/updates/apps/"+url.PathEscape(app)+"/manifests/"+url.PathEscape(version), q, nil, "", "", nil)
 	if err != nil {
 		return nil, "", "", err
 	}
@@ -305,7 +401,7 @@ func (h *HostClient) SetSource(ctx context.Context, app, source string, hosted b
 	if err := ValidUpdateSource(source, hosted); err != nil {
 		return err
 	}
-	_, _, err := h.do(ctx, "PUT", "/v1/updates/apps/"+url.PathEscape(app)+"/source", nil, map[string]string{"source": source}, "", nil)
+	_, _, err := h.do(ctx, "PUT", "/v1/updates/apps/"+url.PathEscape(app)+"/source", nil, map[string]string{"source": source}, "", "", nil)
 	return err
 }
 
@@ -315,39 +411,61 @@ func (h *HostClient) Apply(ctx context.Context, app string, req ApplyRequest) (r
 		RolloutID  string `json:"rollout_id"`
 		SnapshotID string `json:"snapshot_id"`
 	}
-	_, _, err = h.do(ctx, "POST", "/v1/updates/apps/"+url.PathEscape(app)+"/apply", nil, req, OpUpdateApply, &out)
+	path := "/v1/updates/apps/" + url.PathEscape(app) + "/apply"
+	tok, err := h.planToken(ctx, "POST", path, req)
+	if err != nil {
+		return "", "", err
+	}
+	_, _, err = h.do(ctx, "POST", path, nil, req, OpUpdateApply, tok, &out)
 	return out.RolloutID, out.SnapshotID, err
 }
 
 // Rollout reads one rollout.
 func (h *HostClient) Rollout(ctx context.Context, id string) (*HostRollout, error) {
 	var out HostRollout
-	_, _, err := h.do(ctx, "GET", "/v1/updates/rollouts/"+url.PathEscape(id), nil, nil, "", &out)
+	_, _, err := h.do(ctx, "GET", "/v1/updates/rollouts/"+url.PathEscape(id), nil, nil, "", "", &out)
 	return &out, err
 }
 
 // Promote moves a canary to 100%.
 func (h *HostClient) Promote(ctx context.Context, id string) error {
-	_, _, err := h.do(ctx, "POST", "/v1/updates/rollouts/"+url.PathEscape(id)+"/promote", nil, map[string]string{}, OpUpdatePromote, nil)
+	path := "/v1/updates/rollouts/" + url.PathEscape(id) + "/promote"
+	tok, err := h.planToken(ctx, "POST", path, map[string]string{})
+	if err != nil {
+		return err
+	}
+	_, _, err = h.do(ctx, "POST", path, nil, map[string]string{}, OpUpdatePromote, tok, nil)
 	return err
 }
 
 // RollbackRollout rolls a rollout back (also mid-rollout).
 func (h *HostClient) RollbackRollout(ctx context.Context, id, reason string) error {
-	_, _, err := h.do(ctx, "POST", "/v1/updates/rollouts/"+url.PathEscape(id)+"/rollback", nil, map[string]string{"reason": reason}, OpUpdateRolloutRollback, nil)
+	path := "/v1/updates/rollouts/" + url.PathEscape(id) + "/rollback"
+	body := map[string]string{"reason": reason}
+	tok, err := h.planToken(ctx, "POST", path, body)
+	if err != nil {
+		return err
+	}
+	_, _, err = h.do(ctx, "POST", path, nil, body, OpUpdateRolloutRollback, tok, nil)
 	return err
 }
 
 // RestoreSnapshot restores an app to a snapshot.
 func (h *HostClient) RestoreSnapshot(ctx context.Context, app, snapshotID string) error {
-	_, _, err := h.do(ctx, "POST", "/v1/updates/apps/"+url.PathEscape(app)+"/rollback", nil, map[string]string{"snapshot_id": snapshotID}, OpUpdateAppRollback, nil)
+	path := "/v1/updates/apps/" + url.PathEscape(app) + "/rollback"
+	body := map[string]string{"snapshot_id": snapshotID}
+	tok, err := h.planToken(ctx, "POST", path, body)
+	if err != nil {
+		return err
+	}
+	_, _, err = h.do(ctx, "POST", path, nil, body, OpUpdateAppRollback, tok, nil)
 	return err
 }
 
 // Snapshots lists an app's snapshots.
 func (h *HostClient) Snapshots(ctx context.Context, app string) ([]HostSnapshot, error) {
 	var raw json.RawMessage
-	if _, _, err := h.do(ctx, "GET", "/v1/updates/apps/"+url.PathEscape(app)+"/snapshots", nil, nil, "", &raw); err != nil {
+	if _, _, err := h.do(ctx, "GET", "/v1/updates/apps/"+url.PathEscape(app)+"/snapshots", nil, nil, "", "", &raw); err != nil {
 		return nil, err
 	}
 	var list []HostSnapshot
@@ -361,10 +479,61 @@ func (h *HostClient) Snapshots(ctx context.Context, app string) ([]HostSnapshot,
 	return wrapped.Snapshots, err
 }
 
-// Publish keeps GitHub and the host in sync. RottenCore's uploader calls it only after QA sign-off.
-func (h *HostClient) Publish(ctx context.Context, app string, req interface{}) (json.RawMessage, error) {
+// PublishRequest publishes a version so the host and GitHub stay in sync. Owner-only while Accounts are on,
+// only for hosted apps, and every asset URL must be an exact GitHub release download link from an
+// allowlisted repo. RottenCore's uploader calls this only after QA sign-off.
+type PublishRequest struct {
+	Version string          `json:"version"`
+	Tag     string          `json:"tag"`
+	Assets  []ReleaseAsset  `json:"assets"`
+	Extra   json.RawMessage `json:"extra,omitempty"`
+}
+
+// ReleaseAsset is one published file. URL must be
+// https://github.com/{owner}/{repo}/releases/download/{tag}/{file}.
+type ReleaseAsset struct {
+	Name   string `json:"name"`
+	URL    string `json:"url"`
+	SHA256 string `json:"sha256"`
+}
+
+// releaseAssetRe matches exactly https://github.com/{owner}/{repo}/releases/download/{tag}/{file}.
+var releaseAssetRe = regexp.MustCompile(`^https://github\.com/([^/]+)/([^/]+)/releases/download/([^/]+)/([^/?#]+)$`)
+
+// ValidateReleaseAssetURL checks the exact GitHub release-download shape and, when owner/repo are given,
+// that the link belongs to that repo. It is the client-side mirror of the host's allowlist check.
+func ValidateReleaseAssetURL(owner, repo, raw string) error {
+	m := releaseAssetRe.FindStringSubmatch(raw)
+	if m == nil {
+		return fmt.Errorf("asset URL %q is not an exact https://github.com/{owner}/{repo}/releases/download/{tag}/{file} link", raw)
+	}
+	if owner != "" && !strings.EqualFold(m[1], owner) || repo != "" && !strings.EqualFold(m[2], repo) {
+		return fmt.Errorf("asset URL %q is not in the allowlisted repo %s/%s", raw, owner, repo)
+	}
+	return nil
+}
+
+// Publish validates the request locally (hosted app, asset URLs) then runs the two-step confirm. allowOwner,
+// allowRepo are the one repo the host allowlists for this app ("" to skip the client-side repo check).
+func (h *HostClient) Publish(ctx context.Context, app string, hosted bool, allowOwner, allowRepo string, req PublishRequest) (json.RawMessage, error) {
+	if !hosted {
+		return nil, &HostError{Status: http.StatusConflict, Code: "not_hosted", Message: "publish is only for hosted apps"}
+	}
+	if len(req.Assets) == 0 {
+		return nil, &HostError{Status: http.StatusBadRequest, Code: "invalid", Message: "publish needs at least one asset"}
+	}
+	for _, a := range req.Assets {
+		if err := ValidateReleaseAssetURL(allowOwner, allowRepo, a.URL); err != nil {
+			return nil, &HostError{Status: http.StatusBadRequest, Code: "invalid", Message: err.Error()}
+		}
+	}
+	path := "/v1/updates/apps/" + url.PathEscape(app) + "/publish"
+	tok, err := h.planToken(ctx, "POST", path, req)
+	if err != nil {
+		return nil, err
+	}
 	var out json.RawMessage
-	_, _, err := h.do(ctx, "POST", "/v1/updates/apps/"+url.PathEscape(app)+"/publish", nil, req, OpUpdatePublish, &out)
+	_, _, err = h.do(ctx, "POST", path, nil, req, OpUpdatePublish, tok, &out)
 	return out, err
 }
 

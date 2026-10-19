@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -232,8 +233,45 @@ func fakeHost(t *testing.T) (*httptest.Server, *[]string) {
 		need(w, r, "")
 		w.Write([]byte(`{"apps":[{"app":"redx","hosted":true,"source_pref":"both","latest":{"host":{"version":"0.4.5","sequence":42}},"available":[{"version":"0.4.5","channel":"stable","outcome":{"tags":["+perf"],"summary":"s","risk":{"score":0.1,"level":"low","reasons":[]},"changelog_md":""},"sources":["github","host"]}]},{"app":"notes","hosted":false,"available":[]}]}`))
 	})
+	// plan: a request with {"plan":true} mints a single-use confirm token and returns it in the header.
+	// The real call must then carry that token (X-RedX-Update-Confirm) plus X-RedX-Confirm: <op>.
+	planned := map[string]bool{}
+	confirmStep := func(w http.ResponseWriter, r *http.Request, op string) bool {
+		mu.Lock()
+		log = append(log, r.Method+" "+r.URL.Path+" confirm="+r.Header.Get("X-RedX-Confirm")+" tok="+r.Header.Get("X-RedX-Update-Confirm")+" auth="+r.Header.Get("Authorization"))
+		mu.Unlock()
+		var body map[string]interface{}
+		raw, _ := io.ReadAll(r.Body)
+		json.Unmarshal(raw, &body)
+		if body["plan"] == true {
+			tok := "ct_" + op + "_" + r.PathValue("app") + r.PathValue("id")
+			mu.Lock()
+			planned[tok] = true
+			mu.Unlock()
+			w.Header().Set("X-RedX-Update-Confirm", tok)
+			w.WriteHeader(200)
+			w.Write([]byte(`{"plan":true}`))
+			return false
+		}
+		if r.Header.Get("X-RedX-Confirm") != op {
+			w.WriteHeader(428)
+			w.Write([]byte(`{"error":{"code":"confirm_required","message":"send X-RedX-Confirm: ` + op + `"}}`))
+			return false
+		}
+		tok := r.Header.Get("X-RedX-Update-Confirm")
+		mu.Lock()
+		ok := planned[tok]
+		delete(planned, tok) // single use
+		mu.Unlock()
+		if !ok {
+			w.WriteHeader(403)
+			w.Write([]byte(`{"error":{"code":"forbidden","message":"missing or reused update-confirm token"}}`))
+			return false
+		}
+		return true
+	}
 	mux.HandleFunc("POST /v1/updates/apps/{app}/apply", func(w http.ResponseWriter, r *http.Request) {
-		if need(w, r, OpUpdateApply) {
+		if confirmStep(w, r, OpUpdateApply) {
 			w.WriteHeader(202)
 			w.Write([]byte(`{"rollout_id":"ro_1","snapshot_id":"snap_1"}`))
 		}
@@ -242,17 +280,30 @@ func fakeHost(t *testing.T) (*httptest.Server, *[]string) {
 		need(w, r, "")
 		w.Write([]byte(`{"rollout_id":"ro_1","app":"redx","version":"0.4.5","source":"host","strategy":"direct","state":"done","snapshot_id":"snap_1","progress":{"updated":1,"total":1,"percent":100},"health":{"error_rate":0}}`))
 	})
-	mux.HandleFunc("POST /v1/updates/rollouts/{id}/promote", func(w http.ResponseWriter, r *http.Request) { need(w, r, OpUpdatePromote) })
-	mux.HandleFunc("POST /v1/updates/rollouts/{id}/rollback", func(w http.ResponseWriter, r *http.Request) { need(w, r, OpUpdateRolloutRollback) })
+	mux.HandleFunc("POST /v1/updates/rollouts/{id}/promote", func(w http.ResponseWriter, r *http.Request) {
+		confirmStep(w, r, OpUpdatePromote)
+	})
+	mux.HandleFunc("POST /v1/updates/rollouts/{id}/rollback", func(w http.ResponseWriter, r *http.Request) {
+		confirmStep(w, r, OpUpdateRolloutRollback)
+	})
 	mux.HandleFunc("POST /v1/updates/apps/{app}/rollback", func(w http.ResponseWriter, r *http.Request) {
-		if need(w, r, OpUpdateAppRollback) {
-			w.Write([]byte(`{"ok":true,"snapshot_id":"snap_1","app":"redx"}`))
+		if confirmStep(w, r, OpUpdateAppRollback) {
+			w.Write([]byte(`{"ok":true,"snapshot_id":"snap_1","app":"` + r.PathValue("app") + `"}`))
 		}
 	})
 	mux.HandleFunc("POST /v1/updates/apps/{app}/publish", func(w http.ResponseWriter, r *http.Request) {
-		need(w, r, OpUpdatePublish)
-		w.WriteHeader(403)
-		w.Write([]byte(`{"error":"owner only"}`)) // owner-gate shape
+		// the owner gate fires before the plan step on this host
+		if r.Header.Get("Authorization") != "Bearer owner" {
+			mu.Lock()
+			log = append(log, "POST "+r.URL.Path+" publish-denied")
+			mu.Unlock()
+			w.WriteHeader(403)
+			w.Write([]byte(`{"error":"owner only"}`)) // owner-gate shape
+			return
+		}
+		if confirmStep(w, r, OpUpdatePublish) {
+			w.Write([]byte(`{"published":true}`))
+		}
 	})
 	mux.HandleFunc("PUT /v1/updates/apps/{app}/source", func(w http.ResponseWriter, r *http.Request) {
 		need(w, r, "")
@@ -317,7 +368,7 @@ func TestHostClientMatchesPR10(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	_, err = h.Publish(ctx, "redx", map[string]string{"version": "0.4.5"})
+	_, err = h.Publish(ctx, "redx", true, "grimvirusoffical-source", "quick-launch", PublishRequest{Version: "0.4.5", Tag: "v0.4.5", Assets: []ReleaseAsset{{Name: "a.dmg", URL: "https://github.com/grimvirusoffical-source/quick-launch/releases/download/v0.4.5/a.dmg"}}})
 	var he *HostError
 	if !errors.As(err, &he) || !he.OwnerGate || he.Status != 403 || he.Message != "owner only" {
 		t.Fatalf("owner gate: %#v", err)
@@ -339,7 +390,7 @@ func TestHostClientMatchesPR10(t *testing.T) {
 	if len(evs) != 2 || evs[0].Type != "rollout.state" || evs[1].Type != "rollback.done" {
 		t.Fatalf("events %+v", evs)
 	}
-	confirms := map[string]string{"/apply": OpUpdateApply, "/promote": OpUpdatePromote, "rollouts/ro_1/rollback": OpUpdateRolloutRollback, "apps/redx/rollback": OpUpdateAppRollback, "/publish": OpUpdatePublish}
+	confirms := map[string]string{"/apply": OpUpdateApply, "/promote": OpUpdatePromote, "rollouts/ro_1/rollback": OpUpdateRolloutRollback, "apps/redx/rollback": OpUpdateAppRollback}
 	for suffix, op := range confirms {
 		found := false
 		for _, l := range *log {
