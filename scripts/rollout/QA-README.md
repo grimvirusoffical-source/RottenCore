@@ -6,7 +6,7 @@ Hub: `https://api.rottenapplestore.org` (ra-core 0.2.0). Clients send `X-RA-Laun
 
 ## Prerequisites
 
-- Mac (`xlr1-mac`) over Tailscale; `ROTTEN_DEV_ID` / `ROTTEN_TEAM_ID` from Josh’s Red-XAI Accounts row (`A<accountId>`, `T<teamId>`).
+- Mac (`xlr1-mac`) over Tailscale; `ROTTEN_DEV_ID` / `ROTTEN_TEAM_ID` from Josh’s account in the **production ra-core store** (`A<accountId>`, `T<teamId>`; `ra-core account-status` prints `certDevId` / `certTeamId`). They are not Red-XAI Accounts ids.
 - On the **server**, Grok Bot runs `rottencore-ca issuing-csr` and drops `issuing.csr.json` for the Mac (also copied to `/workspace/rollout/issuing.csr.json` when ready).
 - Optional session `GITHUB_TOKEN` for private assets (passed to curl via `-H @-`, never left on argv).
 - Unlock the login keychain for headless SSH (password over **stdin** only):

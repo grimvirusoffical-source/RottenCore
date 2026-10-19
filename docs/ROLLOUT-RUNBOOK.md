@@ -34,7 +34,7 @@ Canonical copies for QA live under `/workspace/rollout/` and are also committed 
   `rottencore-signed.tgz`. QA runs `mac-cleanup.sh` only after the box verifies that
   tarball's sha256. Keychain keys stay.
 - **Mega subject ids:** `mac-sign.sh` requires `ROTTEN_DEV_ID` and `ROTTEN_TEAM_ID`
-  (from Red-XAI Accounts). It refuses to run if unset. Keygen failures stop the script;
+  (`A<accountId>` / `T<teamId>` from the production ra-core store, printed by `ra-core account-status` as certDevId / certTeamId; not Red-XAI Accounts ids). It refuses to run if unset. Keygen failures stop the script;
   existing Keychain labels are detected with `security find-generic-password` (no `|| true`).
 - **Older → draft:** after the latest release's assets are replaced, `publish.sh` converts
   every other release in those repos to a draft (tags kept) when backups under
