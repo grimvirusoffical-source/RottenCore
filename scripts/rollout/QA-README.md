@@ -40,7 +40,7 @@ Hub: `https://api.rottenapplestore.org` (ra-core 0.2.0). Clients send `X-RA-Laun
 - *Optional* extra cross-check: if `ROTTEN_DEV_ID` and/or `ROTTEN_TEAM_ID` are set, they're validated and ra-core's subject must
   also match them exactly, otherwise the run stops (fail closed). The phases print that this check is optional. Formats:
   - dev: `^rxa_[A-Z2-7]{26}$` (Red-XAI Accounts sub; Josh's primary is `rxa_LVWECFKVPN6XMPISHYONVY6WUB`)
-  - team: the owner's rxa_ for an individual context (it must then equal the dev id), or `^rxt_[A-Z2-7]{26}$`. **PENDING:** the patterns
+  - team: the owner's rxa_ for an individual context (it must then equal the dev id), or `^rxt_[A-Z2-7]{26}$` (final, ra-core `rxa-cert-ids`). The patterns
     live in `core/ids.go` (`TeamIDPatterns`) and `lib.sh` (`ROTTEN_TEAM_ID_PATTERNS`), and a test keeps the two in sync.
   - Old `A<n>`/`T<n>` ids, lower-case ids, ids of the wrong length, and someone else's rxa_ in the team slot are refused.
 - **GitHub token (required for phase-sign):** stored as Keychain account `github-token` (service
@@ -132,10 +132,24 @@ certs in `~/redx-ceremony` stay.
 
 The latest **published** release for each repo, Gendragoon included. Windows and Android are deferred. Older releases become drafts after publish, and only once they're fully backed up.
 
-## PENDING (Grok Bot)
+## ra-core contract (final, RottenApple `rxa-cert-ids` @ 711171b)
 
-- Header `X-RedX-Accounts-Key` (`devhub.AccountsKeyHeader`) and the signing-time path `/v1/devhub/account-status`
-  (`devhub.AccountStatusPath`) are placeholders.
-- The response shape is also a placeholder: `account: {name, email, subject}` in `/pairings/status` once approved, and in account-status.
-- The subject layout is assumed to be `{name, teamId, devId}`. Only `core.SubjectIDs` / `core.SanityCheckSubject` assume it. The byte-for-byte rule (`core.EqualSubjectBytes`) does not depend on it.
-- Team id format: `core.TeamIDPatterns` / `lib.sh ROTTEN_TEAM_ID_PATTERNS`.
+- **Ids:** `devId` = the Red-XAI Accounts sub `^rxa_[A-Z2-7]{26}$`; `teamId` = the owner's rxa_ id for an
+  individual developer account (== devId), or `^rxt_[A-Z2-7]{26}$` for a team (made once by ra-core, immutable;
+  Red-XAI Accounts has no team entity). `ra-core account-status --email E` prints `certDevId`, `certTeamId` and
+  `certSubject` on the server.
+- **Subject layout:** `{"name":"<team name>","teamId":"…","devId":"…"}`, keys in that order, Go `encoding/json`
+  bytes. Josh: `{"name":"Josh Franklinn","teamId":"rxa_LVWECFKVPN6XMPISHYONVY6WUB","devId":"rxa_LVWECFKVPN6XMPISHYONVY6WUB"}`.
+- **Header:** `X-RedX-Accounts-Key` (as `devhub.AccountsKeyHeader`). The key is a ra-core-issued "Red-XAI Accounts
+  key" for the linked account: Dev page → API keys → *Red-XAI Accounts key* (`POST /v1/keys {"accounts":true}`,
+  shown once, `ra_sk_live_…`, kind `accounts`, no API access of its own). No token exchange.
+  - pairings: binds the pairing to that account (only it can approve); pairings/status: ignored on the request;
+  - challenge / certs: the build key (`Authorization: Bearer $RA_API_KEY`) is still required; the Accounts key must
+    be the same account's (`403 accounts_key_mismatch`);
+  - account-status: the Accounts key alone.
+- **Signing-time path:** `GET` or `POST /v1/devhub/account-status` (as `devhub.AccountStatusPath`).
+- **Response:** `account: {id, sub, name, email, rxaLinked, subject}` in account-status and in `/pairings/status`
+  once approved (when the pairing was started with the header). `subject` is a JSON object whose bytes equal the
+  `subject` member of the certificate `POST /v1/devhub/certs` returns. `name` is the Red-XAI Accounts username.
+  account-status also returns `cert {devId, teamId, subject, ready}` and `contexts` (exactly one: the key's team).
+- **One Mega cert per request**, for the key's single developer context.

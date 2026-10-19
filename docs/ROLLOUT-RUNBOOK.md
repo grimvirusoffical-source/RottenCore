@@ -37,7 +37,7 @@ Canonical copies for QA live under `/workspace/rollout/` and are also committed 
   tarball's sha256. Keychain keys stay.
 - **Mega subject ids:** nothing is hand-fed. The Mega cert subject must equal the subject ra-core returns
   for the Accounts key (byte for byte), and Josh confirms it by typing `yes`. `ROTTEN_DEV_ID`/`ROTTEN_TEAM_ID` are
-  optional. If set, they're validated (`^rxa_[A-Z2-7]{26}$`; team rxa_ (individual, == dev) or `^rxt_[A-Z2-7]{26}$`, PENDING) and
+  optional. If set, they're validated (`^rxa_[A-Z2-7]{26}$`; team rxa_ (individual, == dev) or `^rxt_[A-Z2-7]{26}$`; final, see QA-README "ra-core contract") and
   must match ra-core exactly (fail closed). `rottencore-ca issue --mega` takes the ids from the signed request
   subject. Keygen failures stop the script;
   existing Keychain labels are detected with `security find-generic-password` (no `|| true`).
