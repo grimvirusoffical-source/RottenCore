@@ -22,12 +22,15 @@ var (
 	signPlatform string
 	signHost     string // override the detected host GOOS (tests / cross-check); default runtime.GOOS
 	buildOut     string
+	signKeychain bool   // load the signing key from the macOS Keychain instead of --key
+	signLabel    string // Keychain account / label (e.g. josh-mega); used with --keychain
+	signService  string // Keychain service (default com.redx.rottencore.ca)
 )
 
 // runSign handles `rottencore sign` and `rottencore build`. It returns false for anything else.
 //
-//	rottencore sign <file> --key dev.key.json --bundle dev.bundle.json --app com.redx.x --app-version 1.0.0 [--platform P]
-//	rottencore build <request.json> --key dev.key.json --bundle dev.bundle.json [--out DIR]
+//	rottencore sign <file> (--key dev.key.json | --keychain --label josh-mega) --bundle dev.bundle.json --app com.redx.x --app-version 1.0.0 [--platform P]
+//	rottencore build <request.json> (--key | --keychain --label) --bundle dev.bundle.json [--out DIR]
 //
 // Both enforce Josh's signing-device policy: a Mac signs only Mac and iOS assets; a Windows machine only
 // Windows and Android assets. A refused asset names the device it needs.
@@ -95,10 +98,27 @@ func deferredList(d []builder.Target) []map[string]string {
 }
 
 func loadSigner() (core.Signer, []core.Cert) {
-	if signKey == "" || signBundle == "" {
-		fail(errors.New("signing needs --key and --bundle (make them with rottencore-ca)"), 2)
+	if signBundle == "" {
+		fail(errors.New("signing needs --bundle (make it with rottencore-ca)"), 2)
 	}
-	k, err := ca.ReadKey(signKey)
+	var (
+		k   core.Signer
+		err error
+	)
+	switch {
+	case signKeychain:
+		if signLabel == "" {
+			fail(errors.New("signing with --keychain needs --label (e.g. josh-mega)"), 2)
+		}
+		if signKey != "" {
+			fail(errors.New("pass either --keychain --label or --key, not both"), 2)
+		}
+		k, err = ca.KeychainStore{Service: signService}.Get(signLabel)
+	case signKey != "":
+		k, err = ca.ReadKey(signKey)
+	default:
+		fail(errors.New("signing needs --key <file> or --keychain --label <label> (and --bundle)"), 2)
+	}
 	check(err)
 	b, err := ca.ReadBundle(signBundle)
 	check(err)

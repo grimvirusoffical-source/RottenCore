@@ -1,8 +1,10 @@
 # Rollout runbook — root ceremony and signing
 
-Step-by-step commands for standing up the Red-XAI signing chain and signing a release. **Nothing in this
-runbook has been run.** It is waiting on Josh's confirmation. Do **not** run the ceremony on Josh's Mac,
-message QA, touch the ra-core server, or modify any GitHub release until Josh says so.
+Step-by-step commands for standing up the Red-XAI signing chain and signing a release. **Josh confirmed the
+live signed rollout (2026-10-19).** QA Dev runs the Mac steps on xlr1-mac via Tailscale using
+`/workspace/rollout/mac-sign.sh`. The box then publishes with `/workspace/rollout/publish.sh` after the
+signed files are copied back. Do **not** modify any GitHub release until the Mac ceremony has finished and
+the public root fingerprint is recorded.
 
 ## What this sets up
 ```
@@ -17,8 +19,11 @@ Red-XAI Root (Josh's Mac, Keychain, offline)          <-- private key never leav
   is **never** copied to the box or the ra-core server. Later it is moved to an **offline USB drive with a
   backup** (two copies kept apart); the Mac copy can then be retired.
 - Only the **public root certificate** is exported and pinned in Rotten Core / Poison Apple.
-- The **issuing CA key** is generated **on the server where ra-core runs**; only its **CSR** travels to the
-  root. The issuing key never visits the root machine.
+- The **issuing CA key** for tonight's ceremony is generated **on Josh's Mac** under Keychain label
+  `rottencore-issuing` (the Mac-hosted option). Only its **public bundle** later gets loaded into ra-core
+  through the runbook process (root-owned 0600 files, values via stdin). The long-term plan still moves the
+  issuing key onto the ra-core server; tonight we keep it on the Mac so signing can finish without server
+  writes.
 - Developer keys (including Josh's Mega key) are generated **on the developer's Mac**; only a **CSR** goes to
   the issuing CA.
 
@@ -43,28 +48,29 @@ mkdir -p ~/redx-ceremony && cd ~/redx-ceremony
 
 # generate the root key INTO the Keychain and export ONLY the public root certificate
 rottencore-ca ceremony-root \
+  --production \
   --keychain --label rottencore-root \
   --alg ed25519 --mic \
   --dir ~/redx-ceremony \
   --out ~/redx-ceremony/root.cert.json
 ```
+- `--production` makes a real (non-TEST) root. Without it, every issued cert carries `test:true` and
+  production verifiers refuse it.
 - The private key is now a Keychain item (`service com.redx.rottencore.ca`, account `rottencore-root`). It
   never touched disk in the clear.
 - `root.cert.json` is the **public** root certificate — this is what gets pinned (`PinnedCARoots`). Share it;
   it is not secret.
 - Back up: export the Keychain item to an **offline USB** and make a second copy. Keep both off the network.
 
-> Until the real ceremony, `ceremony-root` marks the root **TEST** (every issued cert carries `test:true` and
-> production verifiers refuse it). The production ceremony flips this once Josh confirms.
-
-## 2. Issuing CA — on the ra-core server
-Generate the issuing key where it will live and emit only a CSR.
+## 2. Issuing CA — on Josh's Mac tonight (Mac-hosted option)
+Generate the issuing key in the Mac Keychain and emit only a CSR. The public bundle is loaded into ra-core
+later by Grok Bot (root-owned 0600 files, values via stdin).
 ```sh
 rottencore-ca issuing-csr \
-  --keychain=false --dir /etc/ra-core/ca --label rottencore-issuing \
-  --alg ed25519 \
-  --out /etc/ra-core/ca/issuing.csr.json
-# send ONLY issuing.csr.json to the root machine (it carries no private key)
+  --keychain --label rottencore-issuing \
+  --dir ~/redx-ceremony --alg ed25519 \
+  --out ~/redx-ceremony/issuing.csr.json
+# CSR carries no private key; the key lives in Keychain as rottencore-issuing
 ```
 
 ## 3. Sign the issuing CSR — back on Josh's Mac
@@ -88,13 +94,17 @@ rottencore-ca keygen --keychain --label josh-mega --alg ed25519 --dir ~/redx-cer
 rottencore-ca request --keychain --label josh-mega --name "Josh Franklinn (Mega)" \
   --out ~/redx-ceremony/josh-mega.csr.json
 
-# on the issuing CA: issue the developer cert from the CSR
+# on Josh's Mac (issuing CA is Keychain-hosted tonight): issue the Mega cert from the CSR
 rottencore-ca issue \
-  --dir /etc/ra-core/ca \
-  --req josh-mega.csr.json \
+  --keychain --label rottencore-issuing \
+  --dir ~/redx-ceremony \
+  --req ~/redx-ceremony/josh-mega.csr.json \
   --dev josh --team T-josh --role developer --mega \
-  --out josh-mega.bundle.json
+  --tiers ~/redx-ceremony/tiers-ed25519.json \
+  --out ~/redx-ceremony/josh-mega.bundle.json
 ```
+`tiers-ed25519.json` forces every tier (including Mega) to Ed25519 for tonight so Poison Apple's rarxai
+verifier can check the chain. Move Mega/owner/root to P-384 once the launcher verifies P-384 end-to-end.
 > To issue the Mega cert as **P-384** instead (once the launcher verifies P-384), use `--alg p384` for both
 > `keygen` and `request`; the Mega tier is P-384 by default and `issue` enforces the match.
 
@@ -108,10 +118,10 @@ rottencore-ca issue \
 ```sh
 # on Josh's Mac: sign the Mac arm64 disk image
 rottencore sign ./out/quicklaunch-1.0.0-beta-macos-arm64.dmg \
-  --key ~/redx-ceremony/josh-mega.key.json \
-  --bundle ./out/josh-mega.bundle.json \
+  --keychain --label josh-mega \
+  --bundle ~/redx-ceremony/josh-mega.bundle.json \
   --app com.redx.quicklaunch --app-version 1.0.0
-# writes quicklaunch-1.0.0-beta-macos-arm64.dmg.rasig and regenerates ./out/SHA256SUMS
+# Mega private key stays in Keychain; writes .rasig and regenerates SHA256SUMS
 ```
 - Where a container format can carry the signature inside the file, `rottencore sign` embeds it; no Rotten
   Core format supports that yet (an embedded signature cannot cover the bytes of the file that contains it),
@@ -129,11 +139,13 @@ Once the **production** (non-TEST) root exists, add its public key to `core.Pinn
 public key stays pinned in `core.PinnedStoreKeys`. Until then, developers and QA can trust a TEST root for a
 run with `rottencore --trust-test-root <hex>` (results are labelled TEST and never count as production).
 
-## Do NOT yet
-- run any of the above on Josh's Mac,
-- generate the production (non-TEST) root,
-- message QA,
-- change anything on the ra-core server,
-- modify any GitHub release.
+## Tonight's scripts
+- `/workspace/rollout/mac-sign.sh` — QA runs this on Josh's Mac over Tailscale (ceremony + sign every Mac/iOS/Linux/extension asset).
+- `/workspace/rollout/publish.sh` — box publishes the signed copies back to GitHub after they land in `/workspace/rollout/signed/`.
+- `/workspace/rollout/restore.sh` — puts the `/workspace/release-backups/` originals back if something goes wrong.
 
-All of those wait on Josh's explicit go-ahead.
+## Still do NOT
+- load the issuing bundle into ra-core until Grok Bot does it through the runbook process,
+- sign Windows or Android assets (need a Windows device),
+- charge Stripe,
+- print or commit any private key.

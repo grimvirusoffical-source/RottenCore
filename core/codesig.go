@@ -222,10 +222,35 @@ type CARoot struct {
 	Test      bool   // refused when the policy is Production
 }
 
-// PinnedCARoots are the production Red-XAI developer-CA roots. EMPTY until Red-XAI provisions the
-// production CA (ra-core today only has the test CA tool ra-ca). Like PinnedStoreKeys, a root can only be
-// added in code, never from a file, an environment variable or a manifest.
-var PinnedCARoots = []CARoot{}
+// PinnedCARoots are the production Red-XAI developer-CA roots. EMPTY until Josh's root ceremony
+// (`rottencore-ca ceremony-root --production`) runs; then paste the PUBLIC root key below. Like
+// PinnedStoreKeys, a root can only be added in code, never from a file, an environment variable or a
+// manifest.
+//
+// After the ceremony, open ~/redx-ceremony/root.cert.json and copy its "publicKey" (base64) into
+// ProductionRootPublicKeyB64 and its "alg" ("" for v1/ed25519, else "ed25519"/"p384") into
+// ProductionRootAlg. The ceremony also prints the sha256 fingerprint for the record; the pin is the key
+// itself. The root is PUBLIC; its private key never leaves Josh's Mac. Poison Apple pins the same values.
+const (
+	ProductionRootName         = "Red-XAI Root"
+	ProductionRootPublicKeyB64 = "" // TODO(ceremony): root.cert.json "publicKey" (base64). Empty => no production root pinned yet.
+	ProductionRootAlg          = "" // "" (v1/ed25519) | "ed25519" | "p384", matching root.cert.json "alg"
+)
+
+// PinnedCARoots pins the production root once ProductionRootPublicKeyB64 is filled in. Until then it is
+// empty and only a TEST root passed with --trust-test-root can verify a chain (never in production mode).
+var PinnedCARoots = buildPinnedCARoots()
+
+func buildPinnedCARoots() []CARoot {
+	if ProductionRootPublicKeyB64 == "" {
+		return []CARoot{}
+	}
+	pub, err := base64.StdEncoding.DecodeString(ProductionRootPublicKeyB64)
+	if err != nil || len(pub) == 0 {
+		panic("bad pinned CA root public key")
+	}
+	return []CARoot{{Name: ProductionRootName, Alg: ProductionRootAlg, PublicKey: pub, Test: false}}
+}
 
 // ChainPolicy configures VerifyCertChain.
 type ChainPolicy struct {
