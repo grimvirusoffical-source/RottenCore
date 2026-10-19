@@ -89,8 +89,8 @@ def main():
                 nc = name_category(a["name"]); cc, why = content_category(p)
                 cat = cc
                 if cc == "mac-script":
-                    # macOS installer script: Mac-only, but only signed if it was already a Mac asset by name
-                    cat = "mac" if nc == "mac" or a["name"].endswith(".py") and "macos" in a["name"].lower() else "other"
+                    # macOS installer script (install-macos.py, Install.command launcher): Mac-only, signed on the Mac
+                    cat = "mac"
                 elif cc == "other":
                     cat = nc  # content inconclusive (source zip, text): the filename decides
                 if cc not in ("other", "mac-script") and nc not in ("other", cc):
@@ -109,8 +109,6 @@ def main():
                 else:
                     entry["reason"] = ("checksum file: merged, never dropped, by publish.sh" if cat == "checksum"
                                        else "not a build (metadata/installer helper): left as published")
-                    if cc == "mac-script":
-                        entry["reason"] += "; NOTE macOS installer script, not in the Mac signing set (flagged for Josh)"
                     untouched.append(entry); m["action"] = "untouched"; m["reason"] = entry["reason"]
                 m["category"] = cat
     if problems:

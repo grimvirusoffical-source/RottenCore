@@ -499,7 +499,7 @@
               "content_type": "application/octet-stream",
               "browser_download_url": "https://github.com/grimvirusoffical-source/gendragoon-cloud-ssd/releases/download/v0.18.0-rc.3/Install.command",
               "updated_at": "2026-10-19T18:14:15Z",
-              "category": "other",
+              "category": "mac",
               "label": "Gendragoon Beta 0.18.0 (Mac) \u2014 Installer launcher (.command)"
             },
             {
@@ -670,8 +670,8 @@
     "checksum": 5,
     "extension": 5,
     "linux": 14,
-    "mac": 20,
-    "other": 2,
+    "mac": 21,
+    "other": 1,
     "windows": 10
   },
   "sign_on_mac": [
@@ -952,6 +952,20 @@
       "url": "https://github.com/grimvirusoffical-source/gendragoon-cloud-ssd/releases/download/v0.18.0-rc.3/install-macos.py",
       "category": "mac",
       "label": "Gendragoon Beta 0.18.0 (Mac) \u2014 Installer script (.py)",
+      "evidence": "script",
+      "platform": "macos"
+    },
+    {
+      "repo": "gendragoon-cloud-ssd",
+      "tag": "v0.18.0-rc.3",
+      "draft": false,
+      "prerelease": true,
+      "asset": "Install.command",
+      "asset_id": 652180234,
+      "size": 476,
+      "url": "https://github.com/grimvirusoffical-source/gendragoon-cloud-ssd/releases/download/v0.18.0-rc.3/Install.command",
+      "category": "mac",
+      "label": "Gendragoon Beta 0.18.0 (Mac) \u2014 Installer launcher (.command)",
       "evidence": "script",
       "platform": "macos"
     }
@@ -1537,20 +1551,6 @@
       "tag": "v0.18.0-rc.3",
       "draft": false,
       "prerelease": true,
-      "asset": "Install.command",
-      "asset_id": 652180234,
-      "size": 476,
-      "url": "https://github.com/grimvirusoffical-source/gendragoon-cloud-ssd/releases/download/v0.18.0-rc.3/Install.command",
-      "category": "other",
-      "label": "Gendragoon Beta 0.18.0 (Mac) \u2014 Installer launcher (.command)",
-      "evidence": "script",
-      "reason": "not a build (metadata/installer helper): left as published; NOTE macOS installer script, not in the Mac signing set (flagged for Josh)"
-    },
-    {
-      "repo": "gendragoon-cloud-ssd",
-      "tag": "v0.18.0-rc.3",
-      "draft": false,
-      "prerelease": true,
       "asset": "package-status.json",
       "asset_id": 652180235,
       "size": 731,
@@ -1590,5 +1590,5 @@
     }
   ],
   "sign_policy": "a Mac signs only macOS and iOS builds; Linux/extensions: no signing host yet; Windows/Android: Windows host",
-  "classified_at": "2026-10-19T23:18:15Z"
+  "classified_at": "2026-10-19T23:26:11Z"
 }

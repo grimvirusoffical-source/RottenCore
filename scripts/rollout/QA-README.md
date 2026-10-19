@@ -82,7 +82,7 @@ The tgz holds:
 - `tiers-ed25519.json`
 - this README
 - **`MANIFEST.json` + `MANIFEST.json.sha256`**, the box backup manifest (QA B3). phase-sign HARD-STOPS if the manifest is missing or its sha256 isn't the pinned
-  `ca16acf820c69848007aff6351bbe99fb528b51c73b4252b86f06783c128900d`, and on any asset digest mismatch.
+  `f1bfc42e3250bd535304e031db346a27d8806c2478c251250d342e5bb9c5cbba`, and on any asset digest mismatch.
 
 ```bash
 # on the box
@@ -160,17 +160,20 @@ UDIF, `.app` zip, `.ipa`, macOS installer script), cross-checked against the fil
 | RedX | v0.4.5 | 8 |
 | quick-launch | v1.0.0-beta.1 | 8 |
 | RottenApple | v0.1.0-beta.1 | 2 (darwin tar.gz) |
-| gendragoon-cloud-ssd | v0.18.0-rc.3 | 2 (`GenDragoon-Cloud-SSD-Mac-v0.18.0.zip`, `install-macos.py`) |
+| gendragoon-cloud-ssd | v0.18.0-rc.3 | 3 (`GenDragoon-Cloud-SSD-Mac-v0.18.0.zip`, `install-macos.py`, `Install.command`) |
 | Gendragoon-Releases | all-platforms-2026-10-19 | 0 (no Mac or iOS asset) |
-| **Total** | | **20** |
+| **Total** | | **21** |
 
 - **Deferred (31), left exactly as published:** Linux (14) and browser extensions (5): no signing host yet;
   Windows (10) and Android (2): need the Windows host. Each entry in `inventory.json` `deferred` has its reason.
-- **Untouched latest (7):** checksum files and metadata. `publish.sh` never deletes or re-uploads a deferred or
+- **Untouched latest (6):** checksum files and metadata. `publish.sh` never deletes or re-uploads a deferred or
   untouched asset; a checksum file is only **merged** (the signed assets' lines may change, every other line is
   kept as published), and skipped when nothing changed.
-- `gendragoon-cloud-ssd/Install.command` is a macOS installer launcher (it runs `install-macos.py`), but it is
-  **not** in the signing set; flagged for Josh.
+- `gendragoon-cloud-ssd/Install.command` is a macOS installer launcher (it runs `install-macos.py`), so it is
+  signed on the Mac (Josh's decision, 2026-10-19).
+- Expected `publish.sh --dry-run`: **21** replacements, **21** `.rasig` sidecars, **0** checksum files to
+  replace (4 unchanged: signing does not change asset bytes), **0** missing, **31** deferred, **6** other latest
+  assets left as published, **9** older releases → draft, 0 draft-blocked.
 - `sign-batch` refuses the whole batch if any line is not macOS/iOS (exit 4, before any prompt or Keychain
   read); `phase-sign` and the MANIFEST (`action: sign_on_mac`) refuse it too.
 - Older releases become drafts after publish, and only once they're fully backed up.

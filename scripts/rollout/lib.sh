@@ -155,7 +155,7 @@ keychain_prompt_notice() {
 }
 
 # Pinned public values from the box (QA B3 / M4). Override only with values Grok Bot gives you.
-BACKUP_MANIFEST_SHA256_PIN="${ROTTEN_MANIFEST_SHA256:-ca16acf820c69848007aff6351bbe99fb528b51c73b4252b86f06783c128900d}"
+BACKUP_MANIFEST_SHA256_PIN="${ROTTEN_MANIFEST_SHA256:-f1bfc42e3250bd535304e031db346a27d8806c2478c251250d342e5bb9c5cbba}"
 ISSUING_CSR_FP_PIN="${ROTTEN_ISSUING_CSR_FP:-sha256:30af5d5eff2a398cba6e560cf9c00d51babe9775618e11c2f3db69d058379183}"
 
 sha256_of() { shasum -a 256 "$1" | awk '{print $1}'; }

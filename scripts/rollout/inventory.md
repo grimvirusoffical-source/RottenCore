@@ -1,7 +1,7 @@
 # Inventory (latest published only)
-Classified: 2026-10-19T23:18:15Z (by content of the box backups)
+Classified: 2026-10-19T23:26:11Z (by content of the box backups)
 
-Sign on Mac (macOS/iOS only): 20  |  Deferred: 31  |  Untouched (checksums/metadata): 7
+Sign on Mac (macOS/iOS only): 21  |  Deferred: 31  |  Untouched (checksums/metadata): 6
 
 ## RottenApple → `v0.1.0-beta.1`
 - sign_on_mac: 2
@@ -64,12 +64,12 @@ _(no releases)_
   - `SHA256SUMS` (checksum; checksum file: merged, never dropped, by publish.sh)
 
 ## gendragoon-cloud-ssd → `v0.18.0-rc.3`
-- sign_on_mac: 2
+- sign_on_mac: 3
   - `GenDragoon-Cloud-SSD-Mac-v0.18.0.zip` (mac; zip with .app/Contents/MacOS)
   - `install-macos.py` (mac; script)
+  - `Install.command` (mac; script)
 - deferred: 0
-- untouched: 3
-  - `Install.command` (other; not a build (metadata/installer helper): left as published; NOTE macOS installer script, not in the Mac signing set (flagged for Josh))
+- untouched: 2
   - `package-status.json` (other; not a build (metadata/installer helper): left as published)
   - `sha256.txt` (checksum; checksum file: merged, never dropped, by publish.sh)
 

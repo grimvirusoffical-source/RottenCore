@@ -54,8 +54,8 @@ func TestInventoryIsMacIOSOnly(t *testing.T) {
 	if inv.Old != nil {
 		t.Error("stale deferred_windows_android list")
 	}
-	if len(inv.Sign) != 20 {
-		t.Errorf("sign_on_mac = %d, want 20", len(inv.Sign))
+	if len(inv.Sign) != 21 {
+		t.Errorf("sign_on_mac = %d, want 21", len(inv.Sign))
 	}
 	for _, a := range inv.Sign {
 		c := a["category"].(string)

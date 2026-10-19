@@ -63,7 +63,7 @@ func TestManifestPinConsistent(t *testing.T) {
 	if err != nil || !strings.Contains(string(readme), pin) {
 		t.Fatalf("QA-README.md does not state the lib.sh MANIFEST pin %s", pin)
 	}
-	if strings.Contains(string(readme), "81c30f1041bc5501") {
+	if strings.Contains(string(readme), "81c30f1041bc5501") || strings.Contains(string(readme), "ca16acf820c69848") {
 		t.Fatal("QA-README.md still names the old MANIFEST pin")
 	}
 }
