@@ -97,14 +97,7 @@ final class AppModel: ObservableObject {
     /// Loads a QuickLaunch build request from the inbox by id and switches to the Build screen.
     func openBuildRequest(id: String) async {
         section = .build
-        let env = ProcessInfo.processInfo.environment
-        let support: String
-        if let home = env["ROTTENCORE_HOME"], !home.isEmpty {
-            support = home
-        } else {
-            support = FileManager.default.homeDirectoryForCurrentUser
-                .appendingPathComponent("Library/Application Support/RottenCore").path
-        }
+        let support = RottenCorePaths.supportDir().path
         let inbox = support + "/build-requests/" + id.lowercased() + ".json"
         guard FileManager.default.fileExists(atPath: inbox) else {
             error = "No build request \"\(id)\" in the Rotten Core inbox."

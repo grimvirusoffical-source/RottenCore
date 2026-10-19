@@ -24,12 +24,16 @@ type Config struct {
 const DefaultStoreURL = "https://api.rottenapplestore.org"
 
 // SupportDir is where Rotten Core (and QuickLaunch's hand-off inbox) keep their files.
-// Override with ROTTENCORE_HOME on every OS. Defaults:
+// Override with ROTTENCORE_HOME on every OS (ROTTENCORE_SUPPORT_DIR is accepted as an alias, matching
+// QuickLaunch; ROTTENCORE_HOME wins when both are set). Defaults:
 //   macOS:   ~/Library/Application Support/RottenCore
 //   Windows: %APPDATA%\RottenCore
 //   Linux:   $XDG_DATA_HOME/rottencore or ~/.local/share/rottencore
 func SupportDir() string {
 	if d := os.Getenv("ROTTENCORE_HOME"); d != "" {
+		return d
+	}
+	if d := os.Getenv("ROTTENCORE_SUPPORT_DIR"); d != "" { // alias, same precedence as QuickLaunch
 		return d
 	}
 	h, _ := os.UserHomeDir()
