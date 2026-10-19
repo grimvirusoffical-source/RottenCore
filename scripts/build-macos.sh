@@ -58,11 +58,22 @@ plutil -replace 0.BundleIsRelocatable -bool NO build/component.plist
 pkgbuild --root build/pkgroot --component-plist build/component.plist --identifier com.redxai.rottencore.pkg \
   --version "$VERSION" --install-location / build/rottencore-component.pkg
 PKG="$OUT/RottenCore-Installer-$VERSION-macos-universal.pkg"
-# --resources only takes effect with a distribution file, so synthesize one first
+# productbuild's --resources does not reliably carry arbitrary files, so add the manifest
+# to the product's Resources directly (expand, copy, flatten), then sign if asked.
 productbuild --synthesize --package build/rottencore-component.pkg build/distribution.xml
-SIGN=()
-if [ -n "${PKG_SIGN_IDENTITY:-}" ]; then SIGN=(--sign "$PKG_SIGN_IDENTITY"); fi
-productbuild --distribution build/distribution.xml --resources build/pkgres --package-path build ${SIGN[@]+"${SIGN[@]}"} "$PKG"
+productbuild --distribution build/distribution.xml --package-path build build/unsigned.pkg
+rm -rf build/pkgx
+pkgutil --expand build/unsigned.pkg build/pkgx
+mkdir -p build/pkgx/Resources
+cp build/pkgres/rottencore.json build/pkgx/Resources/rottencore.json
+rm -f build/flat.pkg
+pkgutil --flatten build/pkgx build/flat.pkg
+if [ -n "${PKG_SIGN_IDENTITY:-}" ]; then
+  productsign --sign "$PKG_SIGN_IDENTITY" build/flat.pkg "$PKG"
+else
+  cp build/flat.pkg "$PKG"
+fi
+xar -tf "$PKG"
 xar -tf "$PKG" | grep -q '^Resources/rottencore.json$' || { echo "rottencore.json missing from the pkg"; exit 1; }
 pkgutil --check-signature "$PKG" || true
 

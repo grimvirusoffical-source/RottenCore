@@ -139,7 +139,28 @@ func fromPkgExpand(ctx context.Context, r Runner, pkg, tmp string) *found {
 	if f == nil {
 		f = fromDir(x, "embedded:pkg")
 	}
+	if f == nil {
+		f = fromPkgPayload(ctx, r, pkg, d)
+	}
 	return f
+}
+
+// fromPkgPayload is the last resort: unpack the payload (pkgutil --expand-full, no root
+// needed, nothing is installed) and read the manifest from the app bundle it carries.
+func fromPkgPayload(ctx context.Context, r Runner, pkg, d string) *found {
+	y := filepath.Join(d, "full")
+	if _, err := r.Run(ctx, "/usr/sbin/pkgutil", "--expand-full", pkg, y); err != nil {
+		return nil
+	}
+	for _, pat := range []string{"Payload/*.app", "Payload/Applications/*.app", "*.pkg/Payload/*.app", "*.pkg/Payload/Applications/*.app"} {
+		apps, _ := filepath.Glob(filepath.Join(y, pat))
+		for _, a := range apps {
+			if f := fromDir(a, "embedded:pkg-payload"); f != nil {
+				return f
+			}
+		}
+	}
+	return nil
 }
 
 var quotedRe = regexp.MustCompile(`"((?:[^"\\]|\\.)*)"`)
