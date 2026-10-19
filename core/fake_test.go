@@ -90,6 +90,8 @@ func (f *fakeRunner) Run(ctx context.Context, name string, args ...string) ([]by
 			return []byte("package-id: " + args[1] + "\nvolume: /\nlocation: /\n"), nil
 		case "--only-files", "--only-dirs":
 			return nil, nil
+		case "--expand":
+			return nil, errors.New("not a package")
 		case "--forget":
 			delete(f.installed, args[1])
 			return nil, nil

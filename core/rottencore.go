@@ -437,9 +437,9 @@ func (c *Core) Install(ctx context.Context, in *Inspection, o InstallOptions) (*
 			return nil, err
 		}
 		e.Paths, e.Codesign = []string{target}, cs
-		if e.AppID == "" || e.Version == "" || e.Name == "" {
-			id, name, ver := bundleInfo(ctx, c.Engine.R, target)
-			e.AppID, e.Name, e.Version = firstNonEmpty(e.AppID, id), firstNonEmpty(e.Name, name), firstNonEmpty(e.Version, ver)
+		id, name, ver := bundleInfo(ctx, c.Engine.R, target)
+		if in.Manifest == nil { // without a manifest the bundle's own Info.plist names the app
+			e.AppID, e.Name, e.Version = firstNonEmpty(id, e.AppID), firstNonEmpty(name, e.Name), firstNonEmpty(e.Version, ver)
 		}
 	case KindPKG:
 		var known []string

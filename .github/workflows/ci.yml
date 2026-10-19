@@ -46,6 +46,7 @@ jobs:
           lipo -info "build/RottenCore Installer.app/Contents/MacOS/RottenCoreInstaller"
           (cd dist && shasum -a 256 -c SHA256SUMS)
           pkgutil --payload-files dist/*.pkg | head -20
+          xar -tf dist/*.pkg
           hdiutil attach -nobrowse -readonly -mountpoint /tmp/rcdmg dist/*.dmg && ls -la /tmp/rcdmg && hdiutil detach /tmp/rcdmg
       - name: End to end on this Mac (real tools, real RedX release)
         env:
@@ -73,6 +74,8 @@ jobs:
           $RC uninstall com.redx.app
           test ! -e "$HOME/Applications/RedX.app"
           # the pkg path: our own pkg, as root (the runner has password-less sudo)
+          $RC inspect dist/*.pkg
+          $RC inspect --json dist/*.pkg | grep -q '"appId":"com.redxai.rottencore.installer"'
           sudo ROTTENCORE_HOME="$ROTTENCORE_HOME" ROTTENCORE_GITHUB_TOKEN="$ROTTENCORE_GITHUB_TOKEN" $RC install dist/*.pkg --accept-untrusted --yes
           test -x /usr/local/bin/rottencore
           pkgutil --pkg-info com.redxai.rottencore.pkg

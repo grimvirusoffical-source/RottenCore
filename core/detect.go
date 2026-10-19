@@ -88,7 +88,7 @@ func fromZip(path string) *found {
 func fromPkg(ctx context.Context, r Runner, pkg, tmp string) *found {
 	out, err := r.Run(ctx, "/usr/bin/xar", "-tf", pkg)
 	if err != nil {
-		return nil
+		return fromPkgExpand(ctx, r, pkg, tmp)
 	}
 	var want []string
 	for _, l := range strings.Split(string(out), "\n") {
@@ -99,7 +99,7 @@ func fromPkg(ctx context.Context, r Runner, pkg, tmp string) *found {
 		}
 	}
 	if len(want) == 0 {
-		return nil
+		return fromPkgExpand(ctx, r, pkg, tmp)
 	}
 	d, err := os.MkdirTemp(tmp, "pkg-")
 	if err != nil {
@@ -120,6 +120,24 @@ func fromPkg(ctx context.Context, r Runner, pkg, tmp string) *found {
 	}
 	if f.manifest == nil && f.attestation == nil {
 		return nil
+	}
+	return f
+}
+
+// fromPkgExpand is the fallback: pkgutil --expand (no root needed) and read Resources/.
+func fromPkgExpand(ctx context.Context, r Runner, pkg, tmp string) *found {
+	d, err := os.MkdirTemp(tmp, "pkgx-")
+	if err != nil {
+		return nil
+	}
+	defer os.RemoveAll(d)
+	x := filepath.Join(d, "x")
+	if _, err := r.Run(ctx, "/usr/sbin/pkgutil", "--expand", pkg, x); err != nil {
+		return nil
+	}
+	f := fromDir(filepath.Join(x, "Resources"), "embedded:pkg")
+	if f == nil {
+		f = fromDir(x, "embedded:pkg")
 	}
 	return f
 }
