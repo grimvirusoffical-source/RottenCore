@@ -58,11 +58,12 @@ plutil -replace 0.BundleIsRelocatable -bool NO build/component.plist
 pkgbuild --root build/pkgroot --component-plist build/component.plist --identifier com.redxai.rottencore.pkg \
   --version "$VERSION" --install-location / build/rottencore-component.pkg
 PKG="$OUT/RottenCore-Installer-$VERSION-macos-universal.pkg"
-if [ -n "${PKG_SIGN_IDENTITY:-}" ]; then
-  productbuild --package build/rottencore-component.pkg --resources build/pkgres --sign "$PKG_SIGN_IDENTITY" "$PKG"
-else
-  productbuild --package build/rottencore-component.pkg --resources build/pkgres "$PKG"
-fi
+# --resources only takes effect with a distribution file, so synthesize one first
+productbuild --synthesize --package build/rottencore-component.pkg build/distribution.xml
+SIGN=()
+if [ -n "${PKG_SIGN_IDENTITY:-}" ]; then SIGN=(--sign "$PKG_SIGN_IDENTITY"); fi
+productbuild --distribution build/distribution.xml --resources build/pkgres --package-path build ${SIGN[@]+"${SIGN[@]}"} "$PKG"
+xar -tf "$PKG" | grep -q '^Resources/rottencore.json$' || { echo "rottencore.json missing from the pkg"; exit 1; }
 pkgutil --check-signature "$PKG" || true
 
 echo "== cli"

@@ -27,7 +27,9 @@ GitHub builds are **not trusted** (only the Rotten Apple store can make an app t
 1. Put `rottencore.json` (this folder; version, tag and pattern filled by the build) in
    `RedX.app/Contents/Resources/rottencore.json` **and** at the root of the dmg.
 2. For the `.pkg`, wrap the component package so the manifest travels in its Resources:
-   `productbuild --package redx-component.pkg --resources <dir with rottencore.json> redx-<v>-macos-<arch>.pkg`.
+   `productbuild --synthesize --package redx-component.pkg dist.xml` then
+   `productbuild --distribution dist.xml --resources <dir with rottencore.json> --package-path <dir of the component> redx-<v>-macos-<arch>.pkg`
+   (`--resources` is ignored without a distribution file).
 3. Optionally put `RottenCore Installer.app` in the dmg next to RedX.app so people can double-click it;
    RottenCore ignores itself when it looks for the app to install, and `install.bundle` names RedX.app.
 
@@ -41,7 +43,8 @@ Patch for `deploy/macos/build-macos.sh` (sketch, not applied):
   cp "$MF" "$STAGE/rottencore.json"
   # ... pkg: build the component as before into $W/component.pkg, then
   mkdir -p "$W/res" && cp "$MF" "$W/res/"
-  productbuild --package "$W/component.pkg" --resources "$W/res" "$OUT/${NAME}.pkg"
+  productbuild --synthesize --package "$W/component.pkg" "$W/dist.xml"
+  productbuild --distribution "$W/dist.xml" --resources "$W/res" --package-path "$W" "$OUT/${NAME}.pkg"
 ```
 
 The app's bundle id is `com.redx.app` and the package id `com.redx.pkg`, so RottenCore's uninstall removes
