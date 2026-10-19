@@ -1,0 +1,115 @@
+{
+  "generated_at": "2026-10-19T21:09:45Z",
+  "policy": "latest published release per repo; newer drafts flagged; only-drafts repos use newest draft",
+  "latest": {
+    "RottenApple": {
+      "tag": "v0.1.0-beta.1",
+      "release_id": 417342524,
+      "published_at": "2026-10-19T13:44:58Z",
+      "prerelease": true,
+      "draft": false,
+      "assets": 8
+    },
+    "quick-launch": {
+      "tag": "v1.0.0-beta.1",
+      "release_id": 417325964,
+      "published_at": "2026-10-19T13:29:02Z",
+      "prerelease": true,
+      "draft": false,
+      "assets": 14
+    },
+    "RottenCore": null,
+    "RedX": {
+      "tag": "v0.4.5",
+      "release_id": 417596262,
+      "published_at": "2026-10-19T18:13:02Z",
+      "prerelease": false,
+      "draft": false,
+      "assets": 19
+    },
+    "gendragoon-cloud-ssd": {
+      "tag": "v0.18.0-rc.3",
+      "release_id": 416180781,
+      "published_at": "2026-10-18T01:58:51Z",
+      "prerelease": true,
+      "draft": false,
+      "assets": 5
+    },
+    "gendragoon-apps": null,
+    "Gendragoon-Releases": {
+      "tag": "all-platforms-2026-10-19",
+      "release_id": 416951054,
+      "published_at": "2026-10-19T05:59:49Z",
+      "prerelease": true,
+      "draft": false,
+      "assets": 12
+    }
+  },
+  "flagged_newer_drafts": [],
+  "will_become_drafts": [
+    {
+      "repo": "RedX",
+      "tag": "v0.4.4",
+      "release_id": 417264728,
+      "published_at": "2026-10-19T12:28:06Z",
+      "asset_count": 19
+    },
+    {
+      "repo": "RedX",
+      "tag": "v0.4.3",
+      "release_id": 417113027,
+      "published_at": "2026-10-19T09:27:57Z",
+      "asset_count": 19
+    },
+    {
+      "repo": "RedX",
+      "tag": "v0.3.0",
+      "release_id": 416983016,
+      "published_at": "2026-10-19T06:41:34Z",
+      "asset_count": 8
+    },
+    {
+      "repo": "gendragoon-cloud-ssd",
+      "tag": "v0.18.0-rc.1",
+      "release_id": 416146269,
+      "published_at": "2026-10-18T00:21:15Z",
+      "asset_count": 5
+    },
+    {
+      "repo": "gendragoon-cloud-ssd",
+      "tag": "v0.17.0-rc.1",
+      "release_id": 416042125,
+      "published_at": "2026-10-17T20:30:05Z",
+      "asset_count": 6
+    },
+    {
+      "repo": "gendragoon-cloud-ssd",
+      "tag": "v0.4.0",
+      "release_id": 412134581,
+      "published_at": "2026-10-13T21:42:04Z",
+      "asset_count": 2
+    },
+    {
+      "repo": "Gendragoon-Releases",
+      "tag": "desktop-companion-windows-linux-source-ce5665f",
+      "release_id": 416897274,
+      "published_at": "2026-10-19T04:19:11Z",
+      "asset_count": 2
+    },
+    {
+      "repo": "Gendragoon-Releases",
+      "tag": "windows-x64-v0.1.0-unpacked",
+      "release_id": 416897219,
+      "published_at": "2026-10-19T04:19:03Z",
+      "asset_count": 2
+    },
+    {
+      "repo": "Gendragoon-Releases",
+      "tag": "android-v0.17.0-build20-debug",
+      "release_id": 416897202,
+      "published_at": "2026-10-19T04:19:00Z",
+      "asset_count": 2
+    }
+  ],
+  "repos_with_only_drafts": []
+}

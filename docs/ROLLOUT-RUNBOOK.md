@@ -6,6 +6,26 @@ live signed rollout (2026-10-19).** QA Dev runs the Mac steps on xlr1-mac via Ta
 signed files are copied back. Do **not** modify any GitHub release until the Mac ceremony has finished and
 the public root fingerprint is recorded.
 
+## Box-side scripts (Josh plan 2026-10-19 21:06 UTC)
+
+Canonical copies for QA live under `/workspace/rollout/` and are also committed in
+`scripts/rollout/`.
+
+- **Latest only:** inventory and `mac-sign.sh` cover the newest *published* release per
+  repo. Newer drafts are flagged but not signed (unless the repo has only drafts).
+- **No Mac copies:** signed files go to a temporary staging dir, packed into
+  `rottencore-signed.tgz`. QA runs `mac-cleanup.sh` only after the box verifies that
+  tarball's sha256. Keychain keys stay.
+- **Mega subject ids:** `mac-sign.sh` requires `ROTTEN_DEV_ID` and `ROTTEN_TEAM_ID`
+  (from Red-XAI Accounts). It refuses to run if unset. Keygen failures stop the script;
+  existing Keychain labels are detected with `security find-generic-password` (no `|| true`).
+- **Older → draft:** after the latest release's assets are replaced, `publish.sh` converts
+  every other release in those repos to a draft (tags kept) when backups under
+  `/workspace/release-backups` fully match. `restore.sh --undraft` reverses that.
+
+See `scripts/rollout/QA-README.md` for the exact Mac and box commands.
+
+
 ## What this sets up
 ```
 Red-XAI Root (Josh's Mac, Keychain, offline)          <-- private key never leaves the Mac

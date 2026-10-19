@@ -1,0 +1,8 @@
+{
+  "standard": {"name": "standard", "alg": "ed25519", "validityDays": 365, "renewBeforeDays": 30},
+  "mega":     {"name": "mega",     "alg": "ed25519", "validityDays": 730, "renewBeforeDays": 60},
+  "owner":    {"name": "owner",    "alg": "ed25519", "validityDays": 730, "renewBeforeDays": 60},
+  "service":  {"name": "service",  "alg": "ed25519", "validityDays": 365, "renewBeforeDays": 30},
+  "issuing":  {"name": "issuing",  "alg": "ed25519", "validityDays": 1825, "renewBeforeDays": 365},
+  "root":     {"name": "root",     "alg": "ed25519", "validityDays": 7300, "renewBeforeDays": 730}
+}

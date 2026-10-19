@@ -1,0 +1,2825 @@
+{
+  "generated_at": "2026-10-19T20:30:00Z",
+  "owner": "grimvirusoffical-source",
+  "repos": {
+    "RottenApple": {
+      "releases": [
+        {
+          "id": 417342524,
+          "tag": "v0.1.0-beta.1",
+          "name": "Rotten Apple Beta 0.1.0",
+          "draft": false,
+          "prerelease": true,
+          "published_at": "2026-10-19T13:44:58Z",
+          "html_url": "https://github.com/grimvirusoffical-source/RottenApple/releases/tag/v0.1.0-beta.1",
+          "assets": [
+            {
+              "name": "rotten-apple-0.1.0-darwin-amd64.tar.gz",
+              "id": 656400430,
+              "size": 23253462,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RottenApple/releases/download/v0.1.0-beta.1/rotten-apple-0.1.0-darwin-amd64.tar.gz",
+              "updated_at": "2026-10-19T18:13:42Z",
+              "category": "mac",
+              "label": "Rotten Apple Beta 0.1.0 (Mac, Intel chip)"
+            },
+            {
+              "name": "rotten-apple-0.1.0-darwin-arm64.tar.gz",
+              "id": 656400561,
+              "size": 21454437,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RottenApple/releases/download/v0.1.0-beta.1/rotten-apple-0.1.0-darwin-arm64.tar.gz",
+              "updated_at": "2026-10-19T18:13:43Z",
+              "category": "mac",
+              "label": "Rotten Apple Beta 0.1.0 (Mac, M1 chip)"
+            },
+            {
+              "name": "rotten-apple-0.1.0-linux-amd64.tar.gz",
+              "id": 656400653,
+              "size": 22917923,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RottenApple/releases/download/v0.1.0-beta.1/rotten-apple-0.1.0-linux-amd64.tar.gz",
+              "updated_at": "2026-10-19T18:13:43Z",
+              "category": "linux",
+              "label": "Rotten Apple Beta 0.1.0 (Linux)"
+            },
+            {
+              "name": "rotten-apple-0.1.0-linux-arm64.tar.gz",
+              "id": 656400723,
+              "size": 20722650,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RottenApple/releases/download/v0.1.0-beta.1/rotten-apple-0.1.0-linux-arm64.tar.gz",
+              "updated_at": "2026-10-19T18:13:44Z",
+              "category": "linux",
+              "label": "Rotten Apple Beta 0.1.0 (Linux, ARM64)"
+            },
+            {
+              "name": "rotten-apple-0.1.0-windows-amd64.zip",
+              "id": 656400808,
+              "size": 23604645,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RottenApple/releases/download/v0.1.0-beta.1/rotten-apple-0.1.0-windows-amd64.zip",
+              "updated_at": "2026-10-19T18:13:45Z",
+              "category": "windows",
+              "label": "Rotten Apple Beta 0.1.0 (Windows)"
+            },
+            {
+              "name": "rotten-apple-0.1.0-windows-arm64.zip",
+              "id": 656400924,
+              "size": 21123381,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RottenApple/releases/download/v0.1.0-beta.1/rotten-apple-0.1.0-windows-arm64.zip",
+              "updated_at": "2026-10-19T18:13:45Z",
+              "category": "windows",
+              "label": "Rotten Apple Beta 0.1.0 (Windows, ARM)"
+            },
+            {
+              "name": "rotten-apple-extension-0.1.0.zip",
+              "id": 656401030,
+              "size": 46700,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RottenApple/releases/download/v0.1.0-beta.1/rotten-apple-extension-0.1.0.zip",
+              "updated_at": "2026-10-19T18:09:21Z",
+              "category": "extension",
+              "label": "Rotten Apple Beta 0.1.0 (Browser extension)"
+            },
+            {
+              "name": "SHA256SUMS",
+              "id": 656401060,
+              "size": 723,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RottenApple/releases/download/v0.1.0-beta.1/SHA256SUMS",
+              "updated_at": "2026-10-19T18:09:21Z",
+              "category": "checksum",
+              "label": "Rotten Apple Beta 0.1.0 \u2014 Checksums (SHA-256)"
+            }
+          ]
+        }
+      ]
+    },
+    "quick-launch": {
+      "releases": [
+        {
+          "id": 417325964,
+          "tag": "v1.0.0-beta.1",
+          "name": "QuickLaunch Beta 1.0.0",
+          "draft": false,
+          "prerelease": true,
+          "published_at": "2026-10-19T13:29:02Z",
+          "html_url": "https://github.com/grimvirusoffical-source/quick-launch/releases/tag/v1.0.0-beta.1",
+          "assets": [
+            {
+              "name": "QuickLaunch-1.0.0-beta.1-darwin-arm64.dmg",
+              "id": 656361061,
+              "size": 113773412,
+              "content_type": "application/x-apple-diskimage",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/quick-launch/releases/download/v1.0.0-beta.1/QuickLaunch-1.0.0-beta.1-darwin-arm64.dmg",
+              "updated_at": "2026-10-19T18:13:33Z",
+              "category": "mac",
+              "label": "QuickLaunch Beta 1.0.0 (Mac, M1 chip) \u2014 Disk image (.dmg)"
+            },
+            {
+              "name": "QuickLaunch-1.0.0-beta.1-darwin-arm64.pkg",
+              "id": 656361425,
+              "size": 102662846,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/quick-launch/releases/download/v1.0.0-beta.1/QuickLaunch-1.0.0-beta.1-darwin-arm64.pkg",
+              "updated_at": "2026-10-19T18:13:34Z",
+              "category": "mac",
+              "label": "QuickLaunch Beta 1.0.0 (Mac, M1 chip) \u2014 Installer (.pkg)"
+            },
+            {
+              "name": "QuickLaunch-1.0.0-beta.1-darwin-arm64.zip",
+              "id": 656361611,
+              "size": 102602873,
+              "content_type": "application/zip",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/quick-launch/releases/download/v1.0.0-beta.1/QuickLaunch-1.0.0-beta.1-darwin-arm64.zip",
+              "updated_at": "2026-10-19T18:13:34Z",
+              "category": "mac",
+              "label": "QuickLaunch Beta 1.0.0 (Mac, M1 chip) \u2014 Portable (.zip)"
+            },
+            {
+              "name": "QuickLaunch-1.0.0-beta.1-darwin-x64.dmg",
+              "id": 656361851,
+              "size": 122782046,
+              "content_type": "application/x-apple-diskimage",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/quick-launch/releases/download/v1.0.0-beta.1/QuickLaunch-1.0.0-beta.1-darwin-x64.dmg",
+              "updated_at": "2026-10-19T18:13:35Z",
+              "category": "mac",
+              "label": "QuickLaunch Beta 1.0.0 (Mac, Intel chip) \u2014 Disk image (.dmg)"
+            },
+            {
+              "name": "QuickLaunch-1.0.0-beta.1-darwin-x64.pkg",
+              "id": 656362042,
+              "size": 110482377,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/quick-launch/releases/download/v1.0.0-beta.1/QuickLaunch-1.0.0-beta.1-darwin-x64.pkg",
+              "updated_at": "2026-10-19T18:13:36Z",
+              "category": "mac",
+              "label": "QuickLaunch Beta 1.0.0 (Mac, Intel chip) \u2014 Installer (.pkg)"
+            },
+            {
+              "name": "QuickLaunch-1.0.0-beta.1-darwin-x64.zip",
+              "id": 656362238,
+              "size": 110430858,
+              "content_type": "application/zip",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/quick-launch/releases/download/v1.0.0-beta.1/QuickLaunch-1.0.0-beta.1-darwin-x64.zip",
+              "updated_at": "2026-10-19T18:13:36Z",
+              "category": "mac",
+              "label": "QuickLaunch Beta 1.0.0 (Mac, Intel chip) \u2014 Portable (.zip)"
+            },
+            {
+              "name": "QuickLaunch-1.0.0-beta.1-linux-x64.tar.gz",
+              "id": 656362432,
+              "size": 111389411,
+              "content_type": "application/gzip",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/quick-launch/releases/download/v1.0.0-beta.1/QuickLaunch-1.0.0-beta.1-linux-x64.tar.gz",
+              "updated_at": "2026-10-19T18:13:37Z",
+              "category": "linux",
+              "label": "QuickLaunch Beta 1.0.0 (Linux) \u2014 Portable (.tar.gz)"
+            },
+            {
+              "name": "QuickLaunch-1.0.0-beta.1-win32-x64.zip",
+              "id": 656362647,
+              "size": 120569151,
+              "content_type": "application/zip",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/quick-launch/releases/download/v1.0.0-beta.1/QuickLaunch-1.0.0-beta.1-win32-x64.zip",
+              "updated_at": "2026-10-19T18:13:38Z",
+              "category": "windows",
+              "label": "QuickLaunch Beta 1.0.0 (Windows) \u2014 Portable (.zip)"
+            },
+            {
+              "name": "quicklaunch-cli-1.0.0-beta.1-darwin-amd64",
+              "id": 656362904,
+              "size": 12141488,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/quick-launch/releases/download/v1.0.0-beta.1/quicklaunch-cli-1.0.0-beta.1-darwin-amd64",
+              "updated_at": "2026-10-19T18:13:38Z",
+              "category": "mac",
+              "label": "QuickLaunch Beta 1.0.0 (Mac, Intel chip) \u2014 Command-line tool"
+            },
+            {
+              "name": "quicklaunch-cli-1.0.0-beta.1-darwin-arm64",
+              "id": 656362983,
+              "size": 11149970,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/quick-launch/releases/download/v1.0.0-beta.1/quicklaunch-cli-1.0.0-beta.1-darwin-arm64",
+              "updated_at": "2026-10-19T18:13:39Z",
+              "category": "mac",
+              "label": "QuickLaunch Beta 1.0.0 (Mac, M1 chip) \u2014 Command-line tool"
+            },
+            {
+              "name": "quicklaunch-cli-1.0.0-beta.1-linux-amd64",
+              "id": 656363087,
+              "size": 11878560,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/quick-launch/releases/download/v1.0.0-beta.1/quicklaunch-cli-1.0.0-beta.1-linux-amd64",
+              "updated_at": "2026-10-19T18:13:40Z",
+              "category": "linux",
+              "label": "QuickLaunch Beta 1.0.0 (Linux) \u2014 Command-line tool"
+            },
+            {
+              "name": "quicklaunch-cli-1.0.0-beta.1-linux-arm64",
+              "id": 656363193,
+              "size": 10879136,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/quick-launch/releases/download/v1.0.0-beta.1/quicklaunch-cli-1.0.0-beta.1-linux-arm64",
+              "updated_at": "2026-10-19T18:13:41Z",
+              "category": "linux",
+              "label": "QuickLaunch Beta 1.0.0 (Linux, ARM64) \u2014 Command-line tool"
+            },
+            {
+              "name": "quicklaunch-cli-1.0.0-beta.1-windows-amd64.exe",
+              "id": 656363271,
+              "size": 12281856,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/quick-launch/releases/download/v1.0.0-beta.1/quicklaunch-cli-1.0.0-beta.1-windows-amd64.exe",
+              "updated_at": "2026-10-19T18:13:41Z",
+              "category": "windows",
+              "label": "QuickLaunch Beta 1.0.0 (Windows) \u2014 Command-line tool (.exe)"
+            },
+            {
+              "name": "SHA256SUMS.txt",
+              "id": 656362874,
+              "size": 1398,
+              "content_type": "text/plain",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/quick-launch/releases/download/v1.0.0-beta.1/SHA256SUMS.txt",
+              "updated_at": "2026-10-19T18:08:43Z",
+              "category": "checksum",
+              "label": "QuickLaunch Beta 1.0.0 \u2014 Checksums (SHA-256)"
+            }
+          ]
+        }
+      ]
+    },
+    "RottenCore": {
+      "releases": []
+    },
+    "RedX": {
+      "releases": [
+        {
+          "id": 417596262,
+          "tag": "v0.4.5",
+          "name": "RedX 0.4.5",
+          "draft": false,
+          "prerelease": false,
+          "published_at": "2026-10-19T18:13:02Z",
+          "html_url": "https://github.com/grimvirusoffical-source/RedX/releases/tag/v0.4.5",
+          "assets": [
+            {
+              "name": "redx-0.4.5-darwin-amd64.tar.gz",
+              "id": 657040220,
+              "size": 13621672,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.5/redx-0.4.5-darwin-amd64.tar.gz",
+              "updated_at": "2026-10-19T18:12:10Z",
+              "category": "mac",
+              "label": "RedX 0.4.5 (Mac, Intel chip) \u2014 Archive (.tar.gz)"
+            },
+            {
+              "name": "redx-0.4.5-darwin-arm64.tar.gz",
+              "id": 657040301,
+              "size": 12634667,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.5/redx-0.4.5-darwin-arm64.tar.gz",
+              "updated_at": "2026-10-19T18:12:12Z",
+              "category": "mac",
+              "label": "RedX 0.4.5 (Mac, M1 chip) \u2014 Archive (.tar.gz)"
+            },
+            {
+              "name": "redx-0.4.5-linux-amd64.tar.gz",
+              "id": 657040378,
+              "size": 13467713,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.5/redx-0.4.5-linux-amd64.tar.gz",
+              "updated_at": "2026-10-19T18:12:13Z",
+              "category": "linux",
+              "label": "RedX 0.4.5 (Linux) \u2014 Archive (.tar.gz)"
+            },
+            {
+              "name": "redx-0.4.5-linux-arm64.tar.gz",
+              "id": 657040506,
+              "size": 12263272,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.5/redx-0.4.5-linux-arm64.tar.gz",
+              "updated_at": "2026-10-19T18:12:15Z",
+              "category": "linux",
+              "label": "RedX 0.4.5 (Linux, ARM64) \u2014 Archive (.tar.gz)"
+            },
+            {
+              "name": "redx-0.4.5-linux-armv7.tar.gz",
+              "id": 657040584,
+              "size": 13013351,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.5/redx-0.4.5-linux-armv7.tar.gz",
+              "updated_at": "2026-10-19T18:12:17Z",
+              "category": "linux",
+              "label": "RedX 0.4.5 (Linux, Raspberry Pi) \u2014 Archive (.tar.gz)"
+            },
+            {
+              "name": "redx-0.4.5-macos-amd64.dmg",
+              "id": 657040704,
+              "size": 15112248,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.5/redx-0.4.5-macos-amd64.dmg",
+              "updated_at": "2026-10-19T18:12:19Z",
+              "category": "mac",
+              "label": "RedX 0.4.5 (Mac, Intel chip) \u2014 Disk image (.dmg)"
+            },
+            {
+              "name": "redx-0.4.5-macos-amd64.pkg",
+              "id": 657040767,
+              "size": 24096699,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.5/redx-0.4.5-macos-amd64.pkg",
+              "updated_at": "2026-10-19T18:12:22Z",
+              "category": "mac",
+              "label": "RedX 0.4.5 (Mac, Intel chip) \u2014 Installer (.pkg)"
+            },
+            {
+              "name": "redx-0.4.5-macos-arm64.dmg",
+              "id": 657040886,
+              "size": 13581847,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.5/redx-0.4.5-macos-arm64.dmg",
+              "updated_at": "2026-10-19T18:12:23Z",
+              "category": "mac",
+              "label": "RedX 0.4.5 (Mac, M1 chip) \u2014 Disk image (.dmg)"
+            },
+            {
+              "name": "redx-0.4.5-macos-arm64.pkg",
+              "id": 657040970,
+              "size": 21717310,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.5/redx-0.4.5-macos-arm64.pkg",
+              "updated_at": "2026-10-19T18:12:26Z",
+              "category": "mac",
+              "label": "RedX 0.4.5 (Mac, M1 chip) \u2014 Installer (.pkg)"
+            },
+            {
+              "name": "redx-0.4.5-macos-universal.dmg",
+              "id": 657041073,
+              "size": 28641191,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.5/redx-0.4.5-macos-universal.dmg",
+              "updated_at": "2026-10-19T18:12:28Z",
+              "category": "mac",
+              "label": "RedX 0.4.5 (Mac, Universal) \u2014 Disk image (.dmg)"
+            },
+            {
+              "name": "redx-0.4.5-macos-universal.pkg",
+              "id": 657041183,
+              "size": 45099704,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.5/redx-0.4.5-macos-universal.pkg",
+              "updated_at": "2026-10-19T18:12:32Z",
+              "category": "mac",
+              "label": "RedX 0.4.5 (Mac, Universal) \u2014 Installer (.pkg)"
+            },
+            {
+              "name": "redx-0.4.5-windows-amd64-setup.exe",
+              "id": 657041308,
+              "size": 9159845,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.5/redx-0.4.5-windows-amd64-setup.exe",
+              "updated_at": "2026-10-19T18:12:33Z",
+              "category": "windows",
+              "label": "RedX 0.4.5 (Windows) \u2014 Installer (.exe)"
+            },
+            {
+              "name": "redx-0.4.5-windows-amd64.zip",
+              "id": 657041367,
+              "size": 13385301,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.5/redx-0.4.5-windows-amd64.zip",
+              "updated_at": "2026-10-19T18:12:35Z",
+              "category": "windows",
+              "label": "RedX 0.4.5 (Windows) \u2014 Portable (.zip)"
+            },
+            {
+              "name": "redx-0.4.5-windows-arm64-setup.exe",
+              "id": 657041431,
+              "size": 7883255,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.5/redx-0.4.5-windows-arm64-setup.exe",
+              "updated_at": "2026-10-19T18:12:37Z",
+              "category": "windows",
+              "label": "RedX 0.4.5 (Windows, ARM) \u2014 Installer (.exe)"
+            },
+            {
+              "name": "redx-0.4.5-windows-arm64.zip",
+              "id": 657041497,
+              "size": 12121216,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.5/redx-0.4.5-windows-arm64.zip",
+              "updated_at": "2026-10-19T18:12:39Z",
+              "category": "windows",
+              "label": "RedX 0.4.5 (Windows, ARM) \u2014 Portable (.zip)"
+            },
+            {
+              "name": "redx_0.4.5_amd64.deb",
+              "id": 657041613,
+              "size": 9195702,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.5/redx_0.4.5_amd64.deb",
+              "updated_at": "2026-10-19T18:12:42Z",
+              "category": "linux",
+              "label": "RedX 0.4.5 (Linux) \u2014 Debian package (.deb)"
+            },
+            {
+              "name": "redx_0.4.5_arm64.deb",
+              "id": 657041726,
+              "size": 8093572,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.5/redx_0.4.5_arm64.deb",
+              "updated_at": "2026-10-19T18:12:44Z",
+              "category": "linux",
+              "label": "RedX 0.4.5 (Linux, ARM64) \u2014 Debian package (.deb)"
+            },
+            {
+              "name": "redx_0.4.5_armhf.deb",
+              "id": 657041779,
+              "size": 8600518,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.5/redx_0.4.5_armhf.deb",
+              "updated_at": "2026-10-19T18:12:46Z",
+              "category": "linux",
+              "label": "RedX 0.4.5 (Linux, Raspberry Pi) \u2014 Debian package (.deb)"
+            },
+            {
+              "name": "SHA256SUMS",
+              "id": 657040172,
+              "size": 1701,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.5/SHA256SUMS",
+              "updated_at": "2026-10-19T18:12:08Z",
+              "category": "checksum",
+              "label": "RedX 0.4.5 checksums (SHA256SUMS)"
+            }
+          ]
+        },
+        {
+          "id": 417264728,
+          "tag": "v0.4.4",
+          "name": "RedX 0.4.4",
+          "draft": false,
+          "prerelease": false,
+          "published_at": "2026-10-19T12:28:06Z",
+          "html_url": "https://github.com/grimvirusoffical-source/RedX/releases/tag/v0.4.4",
+          "assets": [
+            {
+              "name": "redx-0.4.4-darwin-amd64.tar.gz",
+              "id": 656210579,
+              "size": 13431103,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.4/redx-0.4.4-darwin-amd64.tar.gz",
+              "updated_at": "2026-10-19T18:13:46Z",
+              "category": "mac",
+              "label": "RedX 0.4.4 (Mac, Intel chip) \u2014 Portable (.tar.gz)"
+            },
+            {
+              "name": "redx-0.4.4-darwin-arm64.tar.gz",
+              "id": 656210619,
+              "size": 12452904,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.4/redx-0.4.4-darwin-arm64.tar.gz",
+              "updated_at": "2026-10-19T18:13:46Z",
+              "category": "mac",
+              "label": "RedX 0.4.4 (Mac, M1 chip) \u2014 Portable (.tar.gz)"
+            },
+            {
+              "name": "redx-0.4.4-linux-amd64.tar.gz",
+              "id": 656210679,
+              "size": 13281954,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.4/redx-0.4.4-linux-amd64.tar.gz",
+              "updated_at": "2026-10-19T18:13:47Z",
+              "category": "linux",
+              "label": "RedX 0.4.4 (Linux) \u2014 Portable (.tar.gz)"
+            },
+            {
+              "name": "redx-0.4.4-linux-arm64.tar.gz",
+              "id": 656210741,
+              "size": 12091515,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.4/redx-0.4.4-linux-arm64.tar.gz",
+              "updated_at": "2026-10-19T18:13:47Z",
+              "category": "linux",
+              "label": "RedX 0.4.4 (Linux, ARM64) \u2014 Portable (.tar.gz)"
+            },
+            {
+              "name": "redx-0.4.4-linux-armv7.tar.gz",
+              "id": 656210788,
+              "size": 12837242,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.4/redx-0.4.4-linux-armv7.tar.gz",
+              "updated_at": "2026-10-19T18:13:48Z",
+              "category": "linux",
+              "label": "RedX 0.4.4 (Linux, Raspberry Pi) \u2014 Portable (.tar.gz)"
+            },
+            {
+              "name": "redx-0.4.4-macos-amd64.dmg",
+              "id": 656210861,
+              "size": 14894863,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.4/redx-0.4.4-macos-amd64.dmg",
+              "updated_at": "2026-10-19T18:13:48Z",
+              "category": "mac",
+              "label": "RedX 0.4.4 (Mac, Intel chip) \u2014 Disk image (.dmg)"
+            },
+            {
+              "name": "redx-0.4.4-macos-amd64.pkg",
+              "id": 656210931,
+              "size": 23717004,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.4/redx-0.4.4-macos-amd64.pkg",
+              "updated_at": "2026-10-19T18:13:49Z",
+              "category": "mac",
+              "label": "RedX 0.4.4 (Mac, Intel chip) \u2014 Installer (.pkg)"
+            },
+            {
+              "name": "redx-0.4.4-macos-arm64.dmg",
+              "id": 656210976,
+              "size": 13390211,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.4/redx-0.4.4-macos-arm64.dmg",
+              "updated_at": "2026-10-19T18:13:49Z",
+              "category": "mac",
+              "label": "RedX 0.4.4 (Mac, M1 chip) \u2014 Disk image (.dmg)"
+            },
+            {
+              "name": "redx-0.4.4-macos-arm64.pkg",
+              "id": 656211013,
+              "size": 21363939,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.4/redx-0.4.4-macos-arm64.pkg",
+              "updated_at": "2026-10-19T18:13:50Z",
+              "category": "mac",
+              "label": "RedX 0.4.4 (Mac, M1 chip) \u2014 Installer (.pkg)"
+            },
+            {
+              "name": "redx-0.4.4-macos-universal.dmg",
+              "id": 656211062,
+              "size": 28231793,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.4/redx-0.4.4-macos-universal.dmg",
+              "updated_at": "2026-10-19T18:13:51Z",
+              "category": "mac",
+              "label": "RedX 0.4.4 (Mac, Universal) \u2014 Disk image (.dmg)"
+            },
+            {
+              "name": "redx-0.4.4-macos-universal.pkg",
+              "id": 656211180,
+              "size": 44359638,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.4/redx-0.4.4-macos-universal.pkg",
+              "updated_at": "2026-10-19T18:13:51Z",
+              "category": "mac",
+              "label": "RedX 0.4.4 (Mac, Universal) \u2014 Installer (.pkg)"
+            },
+            {
+              "name": "redx-0.4.4-windows-amd64-setup.exe",
+              "id": 656211282,
+              "size": 9017362,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.4/redx-0.4.4-windows-amd64-setup.exe",
+              "updated_at": "2026-10-19T18:13:52Z",
+              "category": "windows",
+              "label": "RedX 0.4.4 (Windows) \u2014 Installer (.exe)"
+            },
+            {
+              "name": "redx-0.4.4-windows-amd64.zip",
+              "id": 656211344,
+              "size": 13186040,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.4/redx-0.4.4-windows-amd64.zip",
+              "updated_at": "2026-10-19T18:13:52Z",
+              "category": "windows",
+              "label": "RedX 0.4.4 (Windows) \u2014 Portable (.zip)"
+            },
+            {
+              "name": "redx-0.4.4-windows-arm64-setup.exe",
+              "id": 656211376,
+              "size": 7694610,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.4/redx-0.4.4-windows-arm64-setup.exe",
+              "updated_at": "2026-10-19T18:13:53Z",
+              "category": "windows",
+              "label": "RedX 0.4.4 (Windows, ARM) \u2014 Installer (.exe)"
+            },
+            {
+              "name": "redx-0.4.4-windows-arm64.zip",
+              "id": 656211417,
+              "size": 11941605,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.4/redx-0.4.4-windows-arm64.zip",
+              "updated_at": "2026-10-19T18:13:53Z",
+              "category": "windows",
+              "label": "RedX 0.4.4 (Windows, ARM) \u2014 Portable (.zip)"
+            },
+            {
+              "name": "redx_0.4.4_amd64.deb",
+              "id": 656211465,
+              "size": 9052872,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.4/redx_0.4.4_amd64.deb",
+              "updated_at": "2026-10-19T18:13:54Z",
+              "category": "linux",
+              "label": "RedX 0.4.4 (Linux) \u2014 Debian package (.deb)"
+            },
+            {
+              "name": "redx_0.4.4_arm64.deb",
+              "id": 656211500,
+              "size": 7770832,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.4/redx_0.4.4_arm64.deb",
+              "updated_at": "2026-10-19T18:13:54Z",
+              "category": "linux",
+              "label": "RedX 0.4.4 (Linux, ARM64) \u2014 Debian package (.deb)"
+            },
+            {
+              "name": "redx_0.4.4_armhf.deb",
+              "id": 656211559,
+              "size": 8459234,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.4/redx_0.4.4_armhf.deb",
+              "updated_at": "2026-10-19T18:13:55Z",
+              "category": "linux",
+              "label": "RedX 0.4.4 (Linux, Raspberry Pi) \u2014 Debian package (.deb)"
+            },
+            {
+              "name": "SHA256SUMS",
+              "id": 656211605,
+              "size": 1701,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.4/SHA256SUMS",
+              "updated_at": "2026-10-19T18:08:59Z",
+              "category": "checksum",
+              "label": "RedX 0.4.4 \u2014 Checksums (SHA-256)"
+            }
+          ]
+        },
+        {
+          "id": 417113027,
+          "tag": "v0.4.3",
+          "name": "RedX 0.4.3",
+          "draft": false,
+          "prerelease": false,
+          "published_at": "2026-10-19T09:27:57Z",
+          "html_url": "https://github.com/grimvirusoffical-source/RedX/releases/tag/v0.4.3",
+          "assets": [
+            {
+              "name": "redx-0.4.3-darwin-amd64.tar.gz",
+              "id": 655823592,
+              "size": 13428315,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.3/redx-0.4.3-darwin-amd64.tar.gz",
+              "updated_at": "2026-10-19T18:13:55Z",
+              "category": "mac",
+              "label": "RedX 0.4.3 (Mac, Intel chip) \u2014 Portable (.tar.gz)"
+            },
+            {
+              "name": "redx-0.4.3-darwin-arm64.tar.gz",
+              "id": 655823659,
+              "size": 12450394,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.3/redx-0.4.3-darwin-arm64.tar.gz",
+              "updated_at": "2026-10-19T18:13:56Z",
+              "category": "mac",
+              "label": "RedX 0.4.3 (Mac, M1 chip) \u2014 Portable (.tar.gz)"
+            },
+            {
+              "name": "redx-0.4.3-linux-amd64.tar.gz",
+              "id": 655823720,
+              "size": 13278926,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.3/redx-0.4.3-linux-amd64.tar.gz",
+              "updated_at": "2026-10-19T18:13:57Z",
+              "category": "linux",
+              "label": "RedX 0.4.3 (Linux) \u2014 Portable (.tar.gz)"
+            },
+            {
+              "name": "redx-0.4.3-linux-arm64.tar.gz",
+              "id": 655823784,
+              "size": 12089536,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.3/redx-0.4.3-linux-arm64.tar.gz",
+              "updated_at": "2026-10-19T18:13:57Z",
+              "category": "linux",
+              "label": "RedX 0.4.3 (Linux, ARM64) \u2014 Portable (.tar.gz)"
+            },
+            {
+              "name": "redx-0.4.3-linux-armv7.tar.gz",
+              "id": 655823828,
+              "size": 12832533,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.3/redx-0.4.3-linux-armv7.tar.gz",
+              "updated_at": "2026-10-19T18:13:58Z",
+              "category": "linux",
+              "label": "RedX 0.4.3 (Linux, Raspberry Pi) \u2014 Portable (.tar.gz)"
+            },
+            {
+              "name": "redx-0.4.3-macos-amd64.dmg",
+              "id": 655823903,
+              "size": 14819419,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.3/redx-0.4.3-macos-amd64.dmg",
+              "updated_at": "2026-10-19T18:13:58Z",
+              "category": "mac",
+              "label": "RedX 0.4.3 (Mac, Intel chip) \u2014 Disk image (.dmg)"
+            },
+            {
+              "name": "redx-0.4.3-macos-amd64.pkg",
+              "id": 655823967,
+              "size": 23457771,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.3/redx-0.4.3-macos-amd64.pkg",
+              "updated_at": "2026-10-19T18:13:59Z",
+              "category": "mac",
+              "label": "RedX 0.4.3 (Mac, Intel chip) \u2014 Installer (.pkg)"
+            },
+            {
+              "name": "redx-0.4.3-macos-arm64.dmg",
+              "id": 655824027,
+              "size": 13420140,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.3/redx-0.4.3-macos-arm64.dmg",
+              "updated_at": "2026-10-19T18:13:59Z",
+              "category": "mac",
+              "label": "RedX 0.4.3 (Mac, M1 chip) \u2014 Disk image (.dmg)"
+            },
+            {
+              "name": "redx-0.4.3-macos-arm64.pkg",
+              "id": 655824072,
+              "size": 21484541,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.3/redx-0.4.3-macos-arm64.pkg",
+              "updated_at": "2026-10-19T18:14:00Z",
+              "category": "mac",
+              "label": "RedX 0.4.3 (Mac, M1 chip) \u2014 Installer (.pkg)"
+            },
+            {
+              "name": "redx-0.4.3-macos-universal.dmg",
+              "id": 655855300,
+              "size": 28671212,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.3/redx-0.4.3-macos-universal.dmg",
+              "updated_at": "2026-10-19T18:14:05Z",
+              "category": "mac",
+              "label": "RedX 0.4.3 (Mac, Universal) \u2014 Disk image (.dmg)"
+            },
+            {
+              "name": "redx-0.4.3-macos-universal.pkg",
+              "id": 655863616,
+              "size": 44371701,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.3/redx-0.4.3-macos-universal.pkg",
+              "updated_at": "2026-10-19T18:14:05Z",
+              "category": "mac",
+              "label": "RedX 0.4.3 (Mac, Universal) \u2014 Installer (.pkg)"
+            },
+            {
+              "name": "redx-0.4.3-windows-amd64-setup.exe",
+              "id": 655824362,
+              "size": 9013462,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.3/redx-0.4.3-windows-amd64-setup.exe",
+              "updated_at": "2026-10-19T18:14:00Z",
+              "category": "windows",
+              "label": "RedX 0.4.3 (Windows) \u2014 Installer (.exe)"
+            },
+            {
+              "name": "redx-0.4.3-windows-amd64.zip",
+              "id": 655824416,
+              "size": 13182658,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.3/redx-0.4.3-windows-amd64.zip",
+              "updated_at": "2026-10-19T18:14:01Z",
+              "category": "windows",
+              "label": "RedX 0.4.3 (Windows) \u2014 Portable (.zip)"
+            },
+            {
+              "name": "redx-0.4.3-windows-arm64-setup.exe",
+              "id": 655824475,
+              "size": 7691565,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.3/redx-0.4.3-windows-arm64-setup.exe",
+              "updated_at": "2026-10-19T18:14:02Z",
+              "category": "windows",
+              "label": "RedX 0.4.3 (Windows, ARM) \u2014 Installer (.exe)"
+            },
+            {
+              "name": "redx-0.4.3-windows-arm64.zip",
+              "id": 655824576,
+              "size": 11937159,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.3/redx-0.4.3-windows-arm64.zip",
+              "updated_at": "2026-10-19T18:14:02Z",
+              "category": "windows",
+              "label": "RedX 0.4.3 (Windows, ARM) \u2014 Portable (.zip)"
+            },
+            {
+              "name": "redx_0.4.3_amd64.deb",
+              "id": 655824668,
+              "size": 9051010,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.3/redx_0.4.3_amd64.deb",
+              "updated_at": "2026-10-19T18:14:03Z",
+              "category": "linux",
+              "label": "RedX 0.4.3 (Linux) \u2014 Debian package (.deb)"
+            },
+            {
+              "name": "redx_0.4.3_arm64.deb",
+              "id": 655824734,
+              "size": 7767188,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.3/redx_0.4.3_arm64.deb",
+              "updated_at": "2026-10-19T18:14:03Z",
+              "category": "linux",
+              "label": "RedX 0.4.3 (Linux, ARM64) \u2014 Debian package (.deb)"
+            },
+            {
+              "name": "redx_0.4.3_armhf.deb",
+              "id": 655824794,
+              "size": 8457014,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.3/redx_0.4.3_armhf.deb",
+              "updated_at": "2026-10-19T18:14:04Z",
+              "category": "linux",
+              "label": "RedX 0.4.3 (Linux, Raspberry Pi) \u2014 Debian package (.deb)"
+            },
+            {
+              "name": "SHA256SUMS",
+              "id": 655863743,
+              "size": 1701,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.3/SHA256SUMS",
+              "updated_at": "2026-10-19T18:09:10Z",
+              "category": "checksum",
+              "label": "RedX 0.4.3 \u2014 Checksums (SHA-256)"
+            }
+          ]
+        },
+        {
+          "id": 416983016,
+          "tag": "v0.3.0",
+          "name": "RedX 0.3.0",
+          "draft": false,
+          "prerelease": false,
+          "published_at": "2026-10-19T06:41:34Z",
+          "html_url": "https://github.com/grimvirusoffical-source/RedX/releases/tag/v0.3.0",
+          "assets": [
+            {
+              "name": "redx-0.3.0-darwin-amd64.tar.gz",
+              "id": 655465189,
+              "size": 8711827,
+              "content_type": "application/gzip",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.3.0/redx-0.3.0-darwin-amd64.tar.gz",
+              "updated_at": "2026-10-19T18:14:06Z",
+              "category": "mac",
+              "label": "RedX 0.3.0 (Mac, Intel chip)"
+            },
+            {
+              "name": "redx-0.3.0-darwin-arm64.tar.gz",
+              "id": 655465222,
+              "size": 7955362,
+              "content_type": "application/gzip",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.3.0/redx-0.3.0-darwin-arm64.tar.gz",
+              "updated_at": "2026-10-19T18:14:06Z",
+              "category": "mac",
+              "label": "RedX 0.3.0 (Mac, M1 chip)"
+            },
+            {
+              "name": "redx-0.3.0-linux-amd64.tar.gz",
+              "id": 655465268,
+              "size": 8604482,
+              "content_type": "application/gzip",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.3.0/redx-0.3.0-linux-amd64.tar.gz",
+              "updated_at": "2026-10-19T18:14:07Z",
+              "category": "linux",
+              "label": "RedX 0.3.0 (Linux)"
+            },
+            {
+              "name": "redx-0.3.0-linux-arm64.tar.gz",
+              "id": 655465324,
+              "size": 7694937,
+              "content_type": "application/gzip",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.3.0/redx-0.3.0-linux-arm64.tar.gz",
+              "updated_at": "2026-10-19T18:14:08Z",
+              "category": "linux",
+              "label": "RedX 0.3.0 (Linux, ARM64)"
+            },
+            {
+              "name": "redx-0.3.0-linux-armv7.tar.gz",
+              "id": 655465390,
+              "size": 8238749,
+              "content_type": "application/gzip",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.3.0/redx-0.3.0-linux-armv7.tar.gz",
+              "updated_at": "2026-10-19T18:14:08Z",
+              "category": "linux",
+              "label": "RedX 0.3.0 (Linux, Raspberry Pi)"
+            },
+            {
+              "name": "redx-0.3.0-windows-amd64.zip",
+              "id": 655465452,
+              "size": 8158867,
+              "content_type": "application/zip",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.3.0/redx-0.3.0-windows-amd64.zip",
+              "updated_at": "2026-10-19T18:14:09Z",
+              "category": "windows",
+              "label": "RedX 0.3.0 (Windows)"
+            },
+            {
+              "name": "redx-0.3.0-windows-arm64.zip",
+              "id": 655465514,
+              "size": 7240210,
+              "content_type": "application/zip",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.3.0/redx-0.3.0-windows-arm64.zip",
+              "updated_at": "2026-10-19T18:14:09Z",
+              "category": "windows",
+              "label": "RedX 0.3.0 (Windows, ARM)"
+            },
+            {
+              "name": "SHA256SUMS",
+              "id": 655465148,
+              "size": 672,
+              "content_type": "text/plain",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.3.0/SHA256SUMS",
+              "updated_at": "2026-10-19T18:09:15Z",
+              "category": "checksum",
+              "label": "RedX 0.3.0 \u2014 Checksums (SHA-256)"
+            }
+          ]
+        }
+      ]
+    },
+    "gendragoon-cloud-ssd": {
+      "releases": [
+        {
+          "id": 416165811,
+          "tag": "untagged-364997f7788ec684c9f2",
+          "name": "Gendragoon Beta 0.18.0 (RC 2) (withdrawn draft)",
+          "draft": true,
+          "prerelease": true,
+          "published_at": "2026-10-18T01:15:36Z",
+          "html_url": "https://github.com/grimvirusoffical-source/gendragoon-cloud-ssd/releases/tag/untagged-364997f7788ec684c9f2",
+          "assets": [
+            {
+              "name": "GenDragoon-Cloud-SSD-Mac-v0.18.0.zip",
+              "id": 652093738,
+              "size": 69722436,
+              "content_type": "application/zip",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/gendragoon-cloud-ssd/releases/download/untagged-364997f7788ec684c9f2/GenDragoon-Cloud-SSD-Mac-v0.18.0.zip",
+              "updated_at": "2026-10-19T18:14:10Z",
+              "category": "mac",
+              "label": "Gendragoon Beta 0.18.0 (Mac) \u2014 Portable (.zip)"
+            },
+            {
+              "name": "install-macos.py",
+              "id": 652093741,
+              "size": 28569,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/gendragoon-cloud-ssd/releases/download/untagged-364997f7788ec684c9f2/install-macos.py",
+              "updated_at": "2026-10-19T18:14:10Z",
+              "category": "mac",
+              "label": "Gendragoon Beta 0.18.0 (Mac) \u2014 Installer script (.py)"
+            },
+            {
+              "name": "Install.command",
+              "id": 652093749,
+              "size": 476,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/gendragoon-cloud-ssd/releases/download/untagged-364997f7788ec684c9f2/Install.command",
+              "updated_at": "2026-10-19T18:14:11Z",
+              "category": "other",
+              "label": "Gendragoon Beta 0.18.0 (Mac) \u2014 Installer launcher (.command)"
+            },
+            {
+              "name": "package-status.json",
+              "id": 652093740,
+              "size": 731,
+              "content_type": "application/json",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/gendragoon-cloud-ssd/releases/download/untagged-364997f7788ec684c9f2/package-status.json",
+              "updated_at": "2026-10-19T18:14:12Z",
+              "category": "other",
+              "label": "Gendragoon Beta 0.18.0 \u2014 Build status (.json)"
+            },
+            {
+              "name": "sha256.txt",
+              "id": 652093743,
+              "size": 103,
+              "content_type": "text/plain; charset=utf-8",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/gendragoon-cloud-ssd/releases/download/untagged-364997f7788ec684c9f2/sha256.txt",
+              "updated_at": "2026-10-19T18:07:47Z",
+              "category": "other",
+              "label": "Gendragoon Beta 0.18.0 \u2014 Checksums (SHA-256)"
+            }
+          ]
+        },
+        {
+          "id": 413777546,
+          "tag": "untagged-3022cfc7939e4ddf66ec",
+          "name": "Gendragoon 0.16.2 (draft)",
+          "draft": true,
+          "prerelease": false,
+          "published_at": null,
+          "html_url": "https://github.com/grimvirusoffical-source/gendragoon-cloud-ssd/releases/tag/untagged-3022cfc7939e4ddf66ec",
+          "assets": [
+            {
+              "name": "GenDragoon-Cloud-SSD-Mac-v0.16.2.zip",
+              "id": 643809069,
+              "size": 109663181,
+              "content_type": "application/zip",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/gendragoon-cloud-ssd/releases/download/untagged-3022cfc7939e4ddf66ec/GenDragoon-Cloud-SSD-Mac-v0.16.2.zip",
+              "updated_at": "2026-10-19T18:14:12Z",
+              "category": "mac",
+              "label": "Gendragoon 0.16.2 (Mac)"
+            },
+            {
+              "name": "sha256.txt",
+              "id": 643809066,
+              "size": 103,
+              "content_type": "text/plain; charset=utf-8",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/gendragoon-cloud-ssd/releases/download/untagged-3022cfc7939e4ddf66ec/sha256.txt",
+              "updated_at": "2026-10-19T18:07:49Z",
+              "category": "other",
+              "label": "Gendragoon 0.16.2 \u2014 Checksums (SHA-256)"
+            }
+          ]
+        },
+        {
+          "id": 413588767,
+          "tag": "untagged-2835c43a66cc075953e7",
+          "name": "Gendragoon 0.16.1 (draft)",
+          "draft": true,
+          "prerelease": false,
+          "published_at": null,
+          "html_url": "https://github.com/grimvirusoffical-source/gendragoon-cloud-ssd/releases/tag/untagged-2835c43a66cc075953e7",
+          "assets": [
+            {
+              "name": "GenDragoon-macOS-arm64-0.16.1.sha256",
+              "id": 643258915,
+              "size": 108,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/gendragoon-cloud-ssd/releases/download/untagged-2835c43a66cc075953e7/GenDragoon-macOS-arm64-0.16.1.sha256",
+              "updated_at": "2026-10-19T18:07:51Z",
+              "category": "checksum",
+              "label": "Gendragoon 0.16.1 \u2014 Checksums (SHA-256)"
+            },
+            {
+              "name": "GenDragoon-macOS-arm64-0.16.1.zip",
+              "id": 643258917,
+              "size": 110867279,
+              "content_type": "application/zip",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/gendragoon-cloud-ssd/releases/download/untagged-2835c43a66cc075953e7/GenDragoon-macOS-arm64-0.16.1.zip",
+              "updated_at": "2026-10-19T18:14:13Z",
+              "category": "mac",
+              "label": "Gendragoon 0.16.1 (Mac, M1 chip)"
+            }
+          ]
+        },
+        {
+          "id": 416180781,
+          "tag": "v0.18.0-rc.3",
+          "name": "Gendragoon Beta 0.18.0 (RC 3)",
+          "draft": false,
+          "prerelease": true,
+          "published_at": "2026-10-18T01:58:51Z",
+          "html_url": "https://github.com/grimvirusoffical-source/gendragoon-cloud-ssd/releases/tag/v0.18.0-rc.3",
+          "assets": [
+            {
+              "name": "GenDragoon-Cloud-SSD-Mac-v0.18.0.zip",
+              "id": 652180238,
+              "size": 69722465,
+              "content_type": "application/zip",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/gendragoon-cloud-ssd/releases/download/v0.18.0-rc.3/GenDragoon-Cloud-SSD-Mac-v0.18.0.zip",
+              "updated_at": "2026-10-19T18:14:13Z",
+              "category": "mac",
+              "label": "Gendragoon Beta 0.18.0 (Mac) \u2014 Portable (.zip)"
+            },
+            {
+              "name": "install-macos.py",
+              "id": 652180237,
+              "size": 28569,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/gendragoon-cloud-ssd/releases/download/v0.18.0-rc.3/install-macos.py",
+              "updated_at": "2026-10-19T18:14:14Z",
+              "category": "mac",
+              "label": "Gendragoon Beta 0.18.0 (Mac) \u2014 Installer script (.py)"
+            },
+            {
+              "name": "Install.command",
+              "id": 652180234,
+              "size": 476,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/gendragoon-cloud-ssd/releases/download/v0.18.0-rc.3/Install.command",
+              "updated_at": "2026-10-19T18:14:15Z",
+              "category": "other",
+              "label": "Gendragoon Beta 0.18.0 (Mac) \u2014 Installer launcher (.command)"
+            },
+            {
+              "name": "package-status.json",
+              "id": 652180235,
+              "size": 731,
+              "content_type": "application/json",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/gendragoon-cloud-ssd/releases/download/v0.18.0-rc.3/package-status.json",
+              "updated_at": "2026-10-19T18:14:15Z",
+              "category": "other",
+              "label": "Gendragoon Beta 0.18.0 \u2014 Build status (.json)"
+            },
+            {
+              "name": "sha256.txt",
+              "id": 652180232,
+              "size": 103,
+              "content_type": "text/plain; charset=utf-8",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/gendragoon-cloud-ssd/releases/download/v0.18.0-rc.3/sha256.txt",
+              "updated_at": "2026-10-19T18:07:55Z",
+              "category": "other",
+              "label": "Gendragoon Beta 0.18.0 \u2014 Checksums (SHA-256)"
+            }
+          ]
+        },
+        {
+          "id": 416146269,
+          "tag": "v0.18.0-rc.1",
+          "name": "Gendragoon Beta 0.18.0 (RC 1)",
+          "draft": false,
+          "prerelease": true,
+          "published_at": "2026-10-18T00:21:15Z",
+          "html_url": "https://github.com/grimvirusoffical-source/gendragoon-cloud-ssd/releases/tag/v0.18.0-rc.1",
+          "assets": [
+            {
+              "name": "GenDragoon-Cloud-SSD-Mac-v0.18.0.zip",
+              "id": 651983978,
+              "size": 69715030,
+              "content_type": "application/zip",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/gendragoon-cloud-ssd/releases/download/v0.18.0-rc.1/GenDragoon-Cloud-SSD-Mac-v0.18.0.zip",
+              "updated_at": "2026-10-19T18:14:16Z",
+              "category": "mac",
+              "label": "Gendragoon Beta 0.18.0 (Mac) \u2014 Portable (.zip)"
+            },
+            {
+              "name": "install-macos.py",
+              "id": 651983982,
+              "size": 28569,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/gendragoon-cloud-ssd/releases/download/v0.18.0-rc.1/install-macos.py",
+              "updated_at": "2026-10-19T18:14:17Z",
+              "category": "mac",
+              "label": "Gendragoon Beta 0.18.0 (Mac) \u2014 Installer script (.py)"
+            },
+            {
+              "name": "Install.command",
+              "id": 651983977,
+              "size": 476,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/gendragoon-cloud-ssd/releases/download/v0.18.0-rc.1/Install.command",
+              "updated_at": "2026-10-19T18:14:17Z",
+              "category": "other",
+              "label": "Gendragoon Beta 0.18.0 (Mac) \u2014 Installer launcher (.command)"
+            },
+            {
+              "name": "package-status.json",
+              "id": 651983983,
+              "size": 731,
+              "content_type": "application/json",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/gendragoon-cloud-ssd/releases/download/v0.18.0-rc.1/package-status.json",
+              "updated_at": "2026-10-19T18:14:18Z",
+              "category": "other",
+              "label": "Gendragoon Beta 0.18.0 \u2014 Build status (.json)"
+            },
+            {
+              "name": "sha256.txt",
+              "id": 651983981,
+              "size": 103,
+              "content_type": "text/plain; charset=utf-8",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/gendragoon-cloud-ssd/releases/download/v0.18.0-rc.1/sha256.txt",
+              "updated_at": "2026-10-19T18:07:59Z",
+              "category": "other",
+              "label": "Gendragoon Beta 0.18.0 \u2014 Checksums (SHA-256)"
+            }
+          ]
+        },
+        {
+          "id": 416042125,
+          "tag": "v0.17.0-rc.1",
+          "name": "Gendragoon Beta 0.17.0 (RC 1)",
+          "draft": false,
+          "prerelease": true,
+          "published_at": "2026-10-17T20:30:05Z",
+          "html_url": "https://github.com/grimvirusoffical-source/gendragoon-cloud-ssd/releases/tag/v0.17.0-rc.1",
+          "assets": [
+            {
+              "name": "GenDragoon-Cloud-SSD-Mac-v0.17.0.zip",
+              "id": 651522457,
+              "size": 69509769,
+              "content_type": "application/zip",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/gendragoon-cloud-ssd/releases/download/v0.17.0-rc.1/GenDragoon-Cloud-SSD-Mac-v0.17.0.zip",
+              "updated_at": "2026-10-19T18:14:18Z",
+              "category": "mac",
+              "label": "Gendragoon Beta 0.17.0 (Mac) \u2014 Portable (.zip)"
+            },
+            {
+              "name": "install-macos.py",
+              "id": 651522459,
+              "size": 28569,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/gendragoon-cloud-ssd/releases/download/v0.17.0-rc.1/install-macos.py",
+              "updated_at": "2026-10-19T18:14:19Z",
+              "category": "mac",
+              "label": "Gendragoon Beta 0.17.0 (Mac) \u2014 Installer script (.py)"
+            },
+            {
+              "name": "Install.command",
+              "id": 651522460,
+              "size": 476,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/gendragoon-cloud-ssd/releases/download/v0.17.0-rc.1/Install.command",
+              "updated_at": "2026-10-19T18:14:20Z",
+              "category": "other",
+              "label": "Gendragoon Beta 0.17.0 (Mac) \u2014 Installer launcher (.command)"
+            },
+            {
+              "name": "package-status.json",
+              "id": 651522456,
+              "size": 272,
+              "content_type": "application/json",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/gendragoon-cloud-ssd/releases/download/v0.17.0-rc.1/package-status.json",
+              "updated_at": "2026-10-19T18:14:21Z",
+              "category": "other",
+              "label": "Gendragoon Beta 0.17.0 \u2014 Build status (.json)"
+            },
+            {
+              "name": "ReleaseNotes.md",
+              "id": 651522491,
+              "size": 3575,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/gendragoon-cloud-ssd/releases/download/v0.17.0-rc.1/ReleaseNotes.md",
+              "updated_at": "2026-10-19T18:14:21Z",
+              "category": "other",
+              "label": "Gendragoon Beta 0.17.0 \u2014 Release notes (.md)"
+            },
+            {
+              "name": "sha256.txt",
+              "id": 651522458,
+              "size": 103,
+              "content_type": "text/plain; charset=utf-8",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/gendragoon-cloud-ssd/releases/download/v0.17.0-rc.1/sha256.txt",
+              "updated_at": "2026-10-19T18:08:04Z",
+              "category": "other",
+              "label": "Gendragoon Beta 0.17.0 \u2014 Checksums (SHA-256)"
+            }
+          ]
+        },
+        {
+          "id": 412134581,
+          "tag": "v0.4.0",
+          "name": "Gendragoon Beta 0.4.0",
+          "draft": false,
+          "prerelease": true,
+          "published_at": "2026-10-13T21:42:04Z",
+          "html_url": "https://github.com/grimvirusoffical-source/gendragoon-cloud-ssd/releases/tag/v0.4.0",
+          "assets": [
+            {
+              "name": "GenDragoon-Cloud-SSD-Mac-v0.4.0.zip",
+              "id": 638332089,
+              "size": 30357623,
+              "content_type": "application/zip",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/gendragoon-cloud-ssd/releases/download/v0.4.0/GenDragoon-Cloud-SSD-Mac-v0.4.0.zip",
+              "updated_at": "2026-10-19T18:14:22Z",
+              "category": "mac",
+              "label": "Gendragoon Beta 0.4.0 (Mac)"
+            },
+            {
+              "name": "sha256.txt",
+              "id": 638332084,
+              "size": 102,
+              "content_type": "text/plain; charset=utf-8",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/gendragoon-cloud-ssd/releases/download/v0.4.0/sha256.txt",
+              "updated_at": "2026-10-19T18:08:06Z",
+              "category": "other",
+              "label": "Gendragoon Beta 0.4.0 \u2014 Checksums (SHA-256)"
+            }
+          ]
+        }
+      ]
+    },
+    "gendragoon-apps": {
+      "releases": []
+    },
+    "Gendragoon-Releases": {
+      "releases": [
+        {
+          "id": 416897219,
+          "tag": "windows-x64-v0.1.0-unpacked",
+          "name": "Gendragoon Beta 0.1.0 (Windows x64, unpacked)",
+          "draft": false,
+          "prerelease": true,
+          "published_at": "2026-10-19T04:19:03Z",
+          "html_url": "https://github.com/grimvirusoffical-source/Gendragoon-Releases/releases/tag/windows-x64-v0.1.0-unpacked",
+          "assets": [
+            {
+              "name": "GenDragoon-Cloud-SSD-Windows-x64-unpacked-0.1.0.zip",
+              "id": 655219106,
+              "size": 116853343,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/Gendragoon-Releases/releases/download/windows-x64-v0.1.0-unpacked/GenDragoon-Cloud-SSD-Windows-x64-unpacked-0.1.0.zip",
+              "updated_at": "2026-10-19T18:14:22Z",
+              "category": "windows",
+              "label": "Gendragoon Beta 0.1.0 (Windows)"
+            },
+            {
+              "name": "SHA256SUMS",
+              "id": 655287689,
+              "size": 118,
+              "content_type": "text/plain",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/Gendragoon-Releases/releases/download/windows-x64-v0.1.0-unpacked/SHA256SUMS",
+              "updated_at": "2026-10-19T18:08:08Z",
+              "category": "checksum",
+              "label": "Gendragoon Beta 0.1.0 \u2014 Checksums (SHA-256)"
+            }
+          ]
+        },
+        {
+          "id": 416897274,
+          "tag": "desktop-companion-windows-linux-source-ce5665f",
+          "name": "Gendragoon Beta Desktop Companion (Windows & Linux, source)",
+          "draft": false,
+          "prerelease": true,
+          "published_at": "2026-10-19T04:19:11Z",
+          "html_url": "https://github.com/grimvirusoffical-source/Gendragoon-Releases/releases/tag/desktop-companion-windows-linux-source-ce5665f",
+          "assets": [
+            {
+              "name": "GenDragoon-Desktop-Companion-Windows-Linux-source.zip",
+              "id": 655219272,
+              "size": 24293,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/Gendragoon-Releases/releases/download/desktop-companion-windows-linux-source-ce5665f/GenDragoon-Desktop-Companion-Windows-Linux-source.zip",
+              "updated_at": "2026-10-19T18:14:23Z",
+              "category": "windows",
+              "label": "Gendragoon Beta (Windows & Linux) \u2014 Source code (.zip)"
+            },
+            {
+              "name": "SHA256SUMS",
+              "id": 655287715,
+              "size": 120,
+              "content_type": "text/plain",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/Gendragoon-Releases/releases/download/desktop-companion-windows-linux-source-ce5665f/SHA256SUMS",
+              "updated_at": "2026-10-19T18:08:10Z",
+              "category": "checksum",
+              "label": "Gendragoon Beta \u2014 Checksums (SHA-256)"
+            }
+          ]
+        },
+        {
+          "id": 416897202,
+          "tag": "android-v0.17.0-build20-debug",
+          "name": "Gendragoon Beta 0.17.0 build 20 (Android, debug)",
+          "draft": false,
+          "prerelease": true,
+          "published_at": "2026-10-19T04:19:00Z",
+          "html_url": "https://github.com/grimvirusoffical-source/Gendragoon-Releases/releases/tag/android-v0.17.0-build20-debug",
+          "assets": [
+            {
+              "name": "GenDragoon-Android-0.17.0-build20-debug.apk",
+              "id": 655219014,
+              "size": 9304649,
+              "content_type": "application/vnd.android.package-archive",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/Gendragoon-Releases/releases/download/android-v0.17.0-build20-debug/GenDragoon-Android-0.17.0-build20-debug.apk",
+              "updated_at": "2026-10-19T18:14:23Z",
+              "category": "android",
+              "label": "Gendragoon Beta 0.17.0 (Android) \u2014 Android app (.apk, debug)"
+            },
+            {
+              "name": "SHA256SUMS",
+              "id": 655287661,
+              "size": 110,
+              "content_type": "text/plain",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/Gendragoon-Releases/releases/download/android-v0.17.0-build20-debug/SHA256SUMS",
+              "updated_at": "2026-10-19T18:08:12Z",
+              "category": "checksum",
+              "label": "Gendragoon Beta 0.17.0 \u2014 Checksums (SHA-256)"
+            }
+          ]
+        },
+        {
+          "id": 416951054,
+          "tag": "all-platforms-2026-10-19",
+          "name": "Gendragoon Beta test builds, all platforms (2026-10-19)",
+          "draft": false,
+          "prerelease": true,
+          "published_at": "2026-10-19T05:59:49Z",
+          "html_url": "https://github.com/grimvirusoffical-source/Gendragoon-Releases/releases/tag/all-platforms-2026-10-19",
+          "assets": [
+            {
+              "name": "GenDragoon-Android-0.17.0-build20-DEBUG-signed.apk",
+              "id": 655386307,
+              "size": 10613746,
+              "content_type": "application/vnd.android.package-archive",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/Gendragoon-Releases/releases/download/all-platforms-2026-10-19/GenDragoon-Android-0.17.0-build20-DEBUG-signed.apk",
+              "updated_at": "2026-10-19T18:14:24Z",
+              "category": "android",
+              "label": "Gendragoon Beta 0.17.0 (Android) \u2014 Android app (.apk, debug)"
+            },
+            {
+              "name": "GenDragoon-Android-0.17.0-build20-release-UNSIGNED-placeholder-support.aab",
+              "id": 655386340,
+              "size": 6893281,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/Gendragoon-Releases/releases/download/all-platforms-2026-10-19/GenDragoon-Android-0.17.0-build20-release-UNSIGNED-placeholder-support.aab",
+              "updated_at": "2026-10-19T18:14:24Z",
+              "category": "android",
+              "label": "Gendragoon Beta 0.17.0 (Android) \u2014 App bundle (.aab, unsigned)"
+            },
+            {
+              "name": "GenDragoon-Cloud-SSD-0.1.0-linux-amd64.deb",
+              "id": 655386377,
+              "size": 76225544,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/Gendragoon-Releases/releases/download/all-platforms-2026-10-19/GenDragoon-Cloud-SSD-0.1.0-linux-amd64.deb",
+              "updated_at": "2026-10-19T18:14:25Z",
+              "category": "linux",
+              "label": "Gendragoon Beta 0.1.0 (Linux) \u2014 Debian package (.deb)"
+            },
+            {
+              "name": "GenDragoon-Cloud-SSD-0.1.0-linux-x64.tar.gz",
+              "id": 655386771,
+              "size": 104616999,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/Gendragoon-Releases/releases/download/all-platforms-2026-10-19/GenDragoon-Cloud-SSD-0.1.0-linux-x64.tar.gz",
+              "updated_at": "2026-10-19T18:14:25Z",
+              "category": "linux",
+              "label": "Gendragoon Beta 0.1.0 (Linux) \u2014 Portable (.tar.gz)"
+            },
+            {
+              "name": "GenDragoon-Cloud-SSD-0.1.0-linux-x86_64.AppImage",
+              "id": 655386995,
+              "size": 110725241,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/Gendragoon-Releases/releases/download/all-platforms-2026-10-19/GenDragoon-Cloud-SSD-0.1.0-linux-x86_64.AppImage",
+              "updated_at": "2026-10-19T18:14:26Z",
+              "category": "linux",
+              "label": "Gendragoon Beta 0.1.0 (Linux) \u2014 Portable (.AppImage)"
+            },
+            {
+              "name": "GenDragoon-Cloud-SSD-Windows-x64-unpacked-UNSIGNED-0.1.0.zip",
+              "id": 655387197,
+              "size": 117255366,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/Gendragoon-Releases/releases/download/all-platforms-2026-10-19/GenDragoon-Cloud-SSD-Windows-x64-unpacked-UNSIGNED-0.1.0.zip",
+              "updated_at": "2026-10-19T18:14:27Z",
+              "category": "windows",
+              "label": "Gendragoon Beta 0.1.0 (Windows)"
+            },
+            {
+              "name": "GenDragoon-Desktop-Companion-Windows-Linux-source.zip",
+              "id": 655387378,
+              "size": 23993,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/Gendragoon-Releases/releases/download/all-platforms-2026-10-19/GenDragoon-Desktop-Companion-Windows-Linux-source.zip",
+              "updated_at": "2026-10-19T18:14:27Z",
+              "category": "windows",
+              "label": "Gendragoon Beta 0.17.0 (Windows & Linux) \u2014 Source code (.zip)"
+            },
+            {
+              "name": "GenDragoon-Extension-chrome-0.2.0.zip",
+              "id": 655387415,
+              "size": 635827,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/Gendragoon-Releases/releases/download/all-platforms-2026-10-19/GenDragoon-Extension-chrome-0.2.0.zip",
+              "updated_at": "2026-10-19T18:08:19Z",
+              "category": "extension",
+              "label": "Gendragoon Beta 0.2.0 (Chrome extension)"
+            },
+            {
+              "name": "GenDragoon-Extension-edge-0.2.0.zip",
+              "id": 655387431,
+              "size": 635827,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/Gendragoon-Releases/releases/download/all-platforms-2026-10-19/GenDragoon-Extension-edge-0.2.0.zip",
+              "updated_at": "2026-10-19T18:08:19Z",
+              "category": "extension",
+              "label": "Gendragoon Beta 0.2.0 (Edge extension)"
+            },
+            {
+              "name": "GenDragoon-Extension-firefox-0.2.0.zip",
+              "id": 655387453,
+              "size": 635899,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/Gendragoon-Releases/releases/download/all-platforms-2026-10-19/GenDragoon-Extension-firefox-0.2.0.zip",
+              "updated_at": "2026-10-19T18:08:20Z",
+              "category": "extension",
+              "label": "Gendragoon Beta 0.2.0 (Firefox extension)"
+            },
+            {
+              "name": "GenDragoon-Extension-opera-0.2.0.zip",
+              "id": 655387469,
+              "size": 635834,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/Gendragoon-Releases/releases/download/all-platforms-2026-10-19/GenDragoon-Extension-opera-0.2.0.zip",
+              "updated_at": "2026-10-19T18:08:21Z",
+              "category": "extension",
+              "label": "Gendragoon Beta 0.2.0 (Opera extension)"
+            },
+            {
+              "name": "SHA256SUMS",
+              "id": 655387506,
+              "size": 1253,
+              "content_type": "application/octet-stream",
+              "browser_download_url": "https://github.com/grimvirusoffical-source/Gendragoon-Releases/releases/download/all-platforms-2026-10-19/SHA256SUMS",
+              "updated_at": "2026-10-19T18:14:28Z",
+              "category": "checksum",
+              "label": "Gendragoon Beta 0.17.0 \u2014 Checksums (SHA-256)"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "counts": {
+    "mac": 47,
+    "ios": 0,
+    "windows": 22,
+    "android": 3,
+    "linux": 29,
+    "extension": 5,
+    "checksum": 11,
+    "other": 15
+  },
+  "sign_on_mac": [
+    {
+      "repo": "RottenApple",
+      "tag": "v0.1.0-beta.1",
+      "draft": false,
+      "prerelease": true,
+      "asset": "rotten-apple-0.1.0-darwin-amd64.tar.gz",
+      "asset_id": 656400430,
+      "size": 23253462,
+      "url": "https://github.com/grimvirusoffical-source/RottenApple/releases/download/v0.1.0-beta.1/rotten-apple-0.1.0-darwin-amd64.tar.gz",
+      "category": "mac",
+      "label": "Rotten Apple Beta 0.1.0 (Mac, Intel chip)"
+    },
+    {
+      "repo": "RottenApple",
+      "tag": "v0.1.0-beta.1",
+      "draft": false,
+      "prerelease": true,
+      "asset": "rotten-apple-0.1.0-darwin-arm64.tar.gz",
+      "asset_id": 656400561,
+      "size": 21454437,
+      "url": "https://github.com/grimvirusoffical-source/RottenApple/releases/download/v0.1.0-beta.1/rotten-apple-0.1.0-darwin-arm64.tar.gz",
+      "category": "mac",
+      "label": "Rotten Apple Beta 0.1.0 (Mac, M1 chip)"
+    },
+    {
+      "repo": "RottenApple",
+      "tag": "v0.1.0-beta.1",
+      "draft": false,
+      "prerelease": true,
+      "asset": "rotten-apple-0.1.0-linux-amd64.tar.gz",
+      "asset_id": 656400653,
+      "size": 22917923,
+      "url": "https://github.com/grimvirusoffical-source/RottenApple/releases/download/v0.1.0-beta.1/rotten-apple-0.1.0-linux-amd64.tar.gz",
+      "category": "linux",
+      "label": "Rotten Apple Beta 0.1.0 (Linux)"
+    },
+    {
+      "repo": "RottenApple",
+      "tag": "v0.1.0-beta.1",
+      "draft": false,
+      "prerelease": true,
+      "asset": "rotten-apple-0.1.0-linux-arm64.tar.gz",
+      "asset_id": 656400723,
+      "size": 20722650,
+      "url": "https://github.com/grimvirusoffical-source/RottenApple/releases/download/v0.1.0-beta.1/rotten-apple-0.1.0-linux-arm64.tar.gz",
+      "category": "linux",
+      "label": "Rotten Apple Beta 0.1.0 (Linux, ARM64)"
+    },
+    {
+      "repo": "RottenApple",
+      "tag": "v0.1.0-beta.1",
+      "draft": false,
+      "prerelease": true,
+      "asset": "rotten-apple-extension-0.1.0.zip",
+      "asset_id": 656401030,
+      "size": 46700,
+      "url": "https://github.com/grimvirusoffical-source/RottenApple/releases/download/v0.1.0-beta.1/rotten-apple-extension-0.1.0.zip",
+      "category": "extension",
+      "label": "Rotten Apple Beta 0.1.0 (Browser extension)"
+    },
+    {
+      "repo": "quick-launch",
+      "tag": "v1.0.0-beta.1",
+      "draft": false,
+      "prerelease": true,
+      "asset": "QuickLaunch-1.0.0-beta.1-darwin-arm64.dmg",
+      "asset_id": 656361061,
+      "size": 113773412,
+      "url": "https://github.com/grimvirusoffical-source/quick-launch/releases/download/v1.0.0-beta.1/QuickLaunch-1.0.0-beta.1-darwin-arm64.dmg",
+      "category": "mac",
+      "label": "QuickLaunch Beta 1.0.0 (Mac, M1 chip) \u2014 Disk image (.dmg)"
+    },
+    {
+      "repo": "quick-launch",
+      "tag": "v1.0.0-beta.1",
+      "draft": false,
+      "prerelease": true,
+      "asset": "QuickLaunch-1.0.0-beta.1-darwin-arm64.pkg",
+      "asset_id": 656361425,
+      "size": 102662846,
+      "url": "https://github.com/grimvirusoffical-source/quick-launch/releases/download/v1.0.0-beta.1/QuickLaunch-1.0.0-beta.1-darwin-arm64.pkg",
+      "category": "mac",
+      "label": "QuickLaunch Beta 1.0.0 (Mac, M1 chip) \u2014 Installer (.pkg)"
+    },
+    {
+      "repo": "quick-launch",
+      "tag": "v1.0.0-beta.1",
+      "draft": false,
+      "prerelease": true,
+      "asset": "QuickLaunch-1.0.0-beta.1-darwin-arm64.zip",
+      "asset_id": 656361611,
+      "size": 102602873,
+      "url": "https://github.com/grimvirusoffical-source/quick-launch/releases/download/v1.0.0-beta.1/QuickLaunch-1.0.0-beta.1-darwin-arm64.zip",
+      "category": "mac",
+      "label": "QuickLaunch Beta 1.0.0 (Mac, M1 chip) \u2014 Portable (.zip)"
+    },
+    {
+      "repo": "quick-launch",
+      "tag": "v1.0.0-beta.1",
+      "draft": false,
+      "prerelease": true,
+      "asset": "QuickLaunch-1.0.0-beta.1-darwin-x64.dmg",
+      "asset_id": 656361851,
+      "size": 122782046,
+      "url": "https://github.com/grimvirusoffical-source/quick-launch/releases/download/v1.0.0-beta.1/QuickLaunch-1.0.0-beta.1-darwin-x64.dmg",
+      "category": "mac",
+      "label": "QuickLaunch Beta 1.0.0 (Mac, Intel chip) \u2014 Disk image (.dmg)"
+    },
+    {
+      "repo": "quick-launch",
+      "tag": "v1.0.0-beta.1",
+      "draft": false,
+      "prerelease": true,
+      "asset": "QuickLaunch-1.0.0-beta.1-darwin-x64.pkg",
+      "asset_id": 656362042,
+      "size": 110482377,
+      "url": "https://github.com/grimvirusoffical-source/quick-launch/releases/download/v1.0.0-beta.1/QuickLaunch-1.0.0-beta.1-darwin-x64.pkg",
+      "category": "mac",
+      "label": "QuickLaunch Beta 1.0.0 (Mac, Intel chip) \u2014 Installer (.pkg)"
+    },
+    {
+      "repo": "quick-launch",
+      "tag": "v1.0.0-beta.1",
+      "draft": false,
+      "prerelease": true,
+      "asset": "QuickLaunch-1.0.0-beta.1-darwin-x64.zip",
+      "asset_id": 656362238,
+      "size": 110430858,
+      "url": "https://github.com/grimvirusoffical-source/quick-launch/releases/download/v1.0.0-beta.1/QuickLaunch-1.0.0-beta.1-darwin-x64.zip",
+      "category": "mac",
+      "label": "QuickLaunch Beta 1.0.0 (Mac, Intel chip) \u2014 Portable (.zip)"
+    },
+    {
+      "repo": "quick-launch",
+      "tag": "v1.0.0-beta.1",
+      "draft": false,
+      "prerelease": true,
+      "asset": "QuickLaunch-1.0.0-beta.1-linux-x64.tar.gz",
+      "asset_id": 656362432,
+      "size": 111389411,
+      "url": "https://github.com/grimvirusoffical-source/quick-launch/releases/download/v1.0.0-beta.1/QuickLaunch-1.0.0-beta.1-linux-x64.tar.gz",
+      "category": "linux",
+      "label": "QuickLaunch Beta 1.0.0 (Linux) \u2014 Portable (.tar.gz)"
+    },
+    {
+      "repo": "quick-launch",
+      "tag": "v1.0.0-beta.1",
+      "draft": false,
+      "prerelease": true,
+      "asset": "quicklaunch-cli-1.0.0-beta.1-darwin-amd64",
+      "asset_id": 656362904,
+      "size": 12141488,
+      "url": "https://github.com/grimvirusoffical-source/quick-launch/releases/download/v1.0.0-beta.1/quicklaunch-cli-1.0.0-beta.1-darwin-amd64",
+      "category": "mac",
+      "label": "QuickLaunch Beta 1.0.0 (Mac, Intel chip) \u2014 Command-line tool"
+    },
+    {
+      "repo": "quick-launch",
+      "tag": "v1.0.0-beta.1",
+      "draft": false,
+      "prerelease": true,
+      "asset": "quicklaunch-cli-1.0.0-beta.1-darwin-arm64",
+      "asset_id": 656362983,
+      "size": 11149970,
+      "url": "https://github.com/grimvirusoffical-source/quick-launch/releases/download/v1.0.0-beta.1/quicklaunch-cli-1.0.0-beta.1-darwin-arm64",
+      "category": "mac",
+      "label": "QuickLaunch Beta 1.0.0 (Mac, M1 chip) \u2014 Command-line tool"
+    },
+    {
+      "repo": "quick-launch",
+      "tag": "v1.0.0-beta.1",
+      "draft": false,
+      "prerelease": true,
+      "asset": "quicklaunch-cli-1.0.0-beta.1-linux-amd64",
+      "asset_id": 656363087,
+      "size": 11878560,
+      "url": "https://github.com/grimvirusoffical-source/quick-launch/releases/download/v1.0.0-beta.1/quicklaunch-cli-1.0.0-beta.1-linux-amd64",
+      "category": "linux",
+      "label": "QuickLaunch Beta 1.0.0 (Linux) \u2014 Command-line tool"
+    },
+    {
+      "repo": "quick-launch",
+      "tag": "v1.0.0-beta.1",
+      "draft": false,
+      "prerelease": true,
+      "asset": "quicklaunch-cli-1.0.0-beta.1-linux-arm64",
+      "asset_id": 656363193,
+      "size": 10879136,
+      "url": "https://github.com/grimvirusoffical-source/quick-launch/releases/download/v1.0.0-beta.1/quicklaunch-cli-1.0.0-beta.1-linux-arm64",
+      "category": "linux",
+      "label": "QuickLaunch Beta 1.0.0 (Linux, ARM64) \u2014 Command-line tool"
+    },
+    {
+      "repo": "RedX",
+      "tag": "v0.4.5",
+      "draft": false,
+      "prerelease": false,
+      "asset": "redx-0.4.5-darwin-amd64.tar.gz",
+      "asset_id": 657040220,
+      "size": 13621672,
+      "url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.5/redx-0.4.5-darwin-amd64.tar.gz",
+      "category": "mac",
+      "label": "RedX 0.4.5 (Mac, Intel chip) \u2014 Archive (.tar.gz)"
+    },
+    {
+      "repo": "RedX",
+      "tag": "v0.4.5",
+      "draft": false,
+      "prerelease": false,
+      "asset": "redx-0.4.5-darwin-arm64.tar.gz",
+      "asset_id": 657040301,
+      "size": 12634667,
+      "url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.5/redx-0.4.5-darwin-arm64.tar.gz",
+      "category": "mac",
+      "label": "RedX 0.4.5 (Mac, M1 chip) \u2014 Archive (.tar.gz)"
+    },
+    {
+      "repo": "RedX",
+      "tag": "v0.4.5",
+      "draft": false,
+      "prerelease": false,
+      "asset": "redx-0.4.5-linux-amd64.tar.gz",
+      "asset_id": 657040378,
+      "size": 13467713,
+      "url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.5/redx-0.4.5-linux-amd64.tar.gz",
+      "category": "linux",
+      "label": "RedX 0.4.5 (Linux) \u2014 Archive (.tar.gz)"
+    },
+    {
+      "repo": "RedX",
+      "tag": "v0.4.5",
+      "draft": false,
+      "prerelease": false,
+      "asset": "redx-0.4.5-linux-arm64.tar.gz",
+      "asset_id": 657040506,
+      "size": 12263272,
+      "url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.5/redx-0.4.5-linux-arm64.tar.gz",
+      "category": "linux",
+      "label": "RedX 0.4.5 (Linux, ARM64) \u2014 Archive (.tar.gz)"
+    },
+    {
+      "repo": "RedX",
+      "tag": "v0.4.5",
+      "draft": false,
+      "prerelease": false,
+      "asset": "redx-0.4.5-linux-armv7.tar.gz",
+      "asset_id": 657040584,
+      "size": 13013351,
+      "url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.5/redx-0.4.5-linux-armv7.tar.gz",
+      "category": "linux",
+      "label": "RedX 0.4.5 (Linux, Raspberry Pi) \u2014 Archive (.tar.gz)"
+    },
+    {
+      "repo": "RedX",
+      "tag": "v0.4.5",
+      "draft": false,
+      "prerelease": false,
+      "asset": "redx-0.4.5-macos-amd64.dmg",
+      "asset_id": 657040704,
+      "size": 15112248,
+      "url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.5/redx-0.4.5-macos-amd64.dmg",
+      "category": "mac",
+      "label": "RedX 0.4.5 (Mac, Intel chip) \u2014 Disk image (.dmg)"
+    },
+    {
+      "repo": "RedX",
+      "tag": "v0.4.5",
+      "draft": false,
+      "prerelease": false,
+      "asset": "redx-0.4.5-macos-amd64.pkg",
+      "asset_id": 657040767,
+      "size": 24096699,
+      "url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.5/redx-0.4.5-macos-amd64.pkg",
+      "category": "mac",
+      "label": "RedX 0.4.5 (Mac, Intel chip) \u2014 Installer (.pkg)"
+    },
+    {
+      "repo": "RedX",
+      "tag": "v0.4.5",
+      "draft": false,
+      "prerelease": false,
+      "asset": "redx-0.4.5-macos-arm64.dmg",
+      "asset_id": 657040886,
+      "size": 13581847,
+      "url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.5/redx-0.4.5-macos-arm64.dmg",
+      "category": "mac",
+      "label": "RedX 0.4.5 (Mac, M1 chip) \u2014 Disk image (.dmg)"
+    },
+    {
+      "repo": "RedX",
+      "tag": "v0.4.5",
+      "draft": false,
+      "prerelease": false,
+      "asset": "redx-0.4.5-macos-arm64.pkg",
+      "asset_id": 657040970,
+      "size": 21717310,
+      "url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.5/redx-0.4.5-macos-arm64.pkg",
+      "category": "mac",
+      "label": "RedX 0.4.5 (Mac, M1 chip) \u2014 Installer (.pkg)"
+    },
+    {
+      "repo": "RedX",
+      "tag": "v0.4.5",
+      "draft": false,
+      "prerelease": false,
+      "asset": "redx-0.4.5-macos-universal.dmg",
+      "asset_id": 657041073,
+      "size": 28641191,
+      "url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.5/redx-0.4.5-macos-universal.dmg",
+      "category": "mac",
+      "label": "RedX 0.4.5 (Mac, Universal) \u2014 Disk image (.dmg)"
+    },
+    {
+      "repo": "RedX",
+      "tag": "v0.4.5",
+      "draft": false,
+      "prerelease": false,
+      "asset": "redx-0.4.5-macos-universal.pkg",
+      "asset_id": 657041183,
+      "size": 45099704,
+      "url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.5/redx-0.4.5-macos-universal.pkg",
+      "category": "mac",
+      "label": "RedX 0.4.5 (Mac, Universal) \u2014 Installer (.pkg)"
+    },
+    {
+      "repo": "RedX",
+      "tag": "v0.4.5",
+      "draft": false,
+      "prerelease": false,
+      "asset": "redx_0.4.5_amd64.deb",
+      "asset_id": 657041613,
+      "size": 9195702,
+      "url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.5/redx_0.4.5_amd64.deb",
+      "category": "linux",
+      "label": "RedX 0.4.5 (Linux) \u2014 Debian package (.deb)"
+    },
+    {
+      "repo": "RedX",
+      "tag": "v0.4.5",
+      "draft": false,
+      "prerelease": false,
+      "asset": "redx_0.4.5_arm64.deb",
+      "asset_id": 657041726,
+      "size": 8093572,
+      "url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.5/redx_0.4.5_arm64.deb",
+      "category": "linux",
+      "label": "RedX 0.4.5 (Linux, ARM64) \u2014 Debian package (.deb)"
+    },
+    {
+      "repo": "RedX",
+      "tag": "v0.4.5",
+      "draft": false,
+      "prerelease": false,
+      "asset": "redx_0.4.5_armhf.deb",
+      "asset_id": 657041779,
+      "size": 8600518,
+      "url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.5/redx_0.4.5_armhf.deb",
+      "category": "linux",
+      "label": "RedX 0.4.5 (Linux, Raspberry Pi) \u2014 Debian package (.deb)"
+    },
+    {
+      "repo": "RedX",
+      "tag": "v0.4.4",
+      "draft": false,
+      "prerelease": false,
+      "asset": "redx-0.4.4-darwin-amd64.tar.gz",
+      "asset_id": 656210579,
+      "size": 13431103,
+      "url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.4/redx-0.4.4-darwin-amd64.tar.gz",
+      "category": "mac",
+      "label": "RedX 0.4.4 (Mac, Intel chip) \u2014 Portable (.tar.gz)"
+    },
+    {
+      "repo": "RedX",
+      "tag": "v0.4.4",
+      "draft": false,
+      "prerelease": false,
+      "asset": "redx-0.4.4-darwin-arm64.tar.gz",
+      "asset_id": 656210619,
+      "size": 12452904,
+      "url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.4/redx-0.4.4-darwin-arm64.tar.gz",
+      "category": "mac",
+      "label": "RedX 0.4.4 (Mac, M1 chip) \u2014 Portable (.tar.gz)"
+    },
+    {
+      "repo": "RedX",
+      "tag": "v0.4.4",
+      "draft": false,
+      "prerelease": false,
+      "asset": "redx-0.4.4-linux-amd64.tar.gz",
+      "asset_id": 656210679,
+      "size": 13281954,
+      "url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.4/redx-0.4.4-linux-amd64.tar.gz",
+      "category": "linux",
+      "label": "RedX 0.4.4 (Linux) \u2014 Portable (.tar.gz)"
+    },
+    {
+      "repo": "RedX",
+      "tag": "v0.4.4",
+      "draft": false,
+      "prerelease": false,
+      "asset": "redx-0.4.4-linux-arm64.tar.gz",
+      "asset_id": 656210741,
+      "size": 12091515,
+      "url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.4/redx-0.4.4-linux-arm64.tar.gz",
+      "category": "linux",
+      "label": "RedX 0.4.4 (Linux, ARM64) \u2014 Portable (.tar.gz)"
+    },
+    {
+      "repo": "RedX",
+      "tag": "v0.4.4",
+      "draft": false,
+      "prerelease": false,
+      "asset": "redx-0.4.4-linux-armv7.tar.gz",
+      "asset_id": 656210788,
+      "size": 12837242,
+      "url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.4/redx-0.4.4-linux-armv7.tar.gz",
+      "category": "linux",
+      "label": "RedX 0.4.4 (Linux, Raspberry Pi) \u2014 Portable (.tar.gz)"
+    },
+    {
+      "repo": "RedX",
+      "tag": "v0.4.4",
+      "draft": false,
+      "prerelease": false,
+      "asset": "redx-0.4.4-macos-amd64.dmg",
+      "asset_id": 656210861,
+      "size": 14894863,
+      "url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.4/redx-0.4.4-macos-amd64.dmg",
+      "category": "mac",
+      "label": "RedX 0.4.4 (Mac, Intel chip) \u2014 Disk image (.dmg)"
+    },
+    {
+      "repo": "RedX",
+      "tag": "v0.4.4",
+      "draft": false,
+      "prerelease": false,
+      "asset": "redx-0.4.4-macos-amd64.pkg",
+      "asset_id": 656210931,
+      "size": 23717004,
+      "url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.4/redx-0.4.4-macos-amd64.pkg",
+      "category": "mac",
+      "label": "RedX 0.4.4 (Mac, Intel chip) \u2014 Installer (.pkg)"
+    },
+    {
+      "repo": "RedX",
+      "tag": "v0.4.4",
+      "draft": false,
+      "prerelease": false,
+      "asset": "redx-0.4.4-macos-arm64.dmg",
+      "asset_id": 656210976,
+      "size": 13390211,
+      "url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.4/redx-0.4.4-macos-arm64.dmg",
+      "category": "mac",
+      "label": "RedX 0.4.4 (Mac, M1 chip) \u2014 Disk image (.dmg)"
+    },
+    {
+      "repo": "RedX",
+      "tag": "v0.4.4",
+      "draft": false,
+      "prerelease": false,
+      "asset": "redx-0.4.4-macos-arm64.pkg",
+      "asset_id": 656211013,
+      "size": 21363939,
+      "url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.4/redx-0.4.4-macos-arm64.pkg",
+      "category": "mac",
+      "label": "RedX 0.4.4 (Mac, M1 chip) \u2014 Installer (.pkg)"
+    },
+    {
+      "repo": "RedX",
+      "tag": "v0.4.4",
+      "draft": false,
+      "prerelease": false,
+      "asset": "redx-0.4.4-macos-universal.dmg",
+      "asset_id": 656211062,
+      "size": 28231793,
+      "url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.4/redx-0.4.4-macos-universal.dmg",
+      "category": "mac",
+      "label": "RedX 0.4.4 (Mac, Universal) \u2014 Disk image (.dmg)"
+    },
+    {
+      "repo": "RedX",
+      "tag": "v0.4.4",
+      "draft": false,
+      "prerelease": false,
+      "asset": "redx-0.4.4-macos-universal.pkg",
+      "asset_id": 656211180,
+      "size": 44359638,
+      "url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.4/redx-0.4.4-macos-universal.pkg",
+      "category": "mac",
+      "label": "RedX 0.4.4 (Mac, Universal) \u2014 Installer (.pkg)"
+    },
+    {
+      "repo": "RedX",
+      "tag": "v0.4.4",
+      "draft": false,
+      "prerelease": false,
+      "asset": "redx_0.4.4_amd64.deb",
+      "asset_id": 656211465,
+      "size": 9052872,
+      "url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.4/redx_0.4.4_amd64.deb",
+      "category": "linux",
+      "label": "RedX 0.4.4 (Linux) \u2014 Debian package (.deb)"
+    },
+    {
+      "repo": "RedX",
+      "tag": "v0.4.4",
+      "draft": false,
+      "prerelease": false,
+      "asset": "redx_0.4.4_arm64.deb",
+      "asset_id": 656211500,
+      "size": 7770832,
+      "url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.4/redx_0.4.4_arm64.deb",
+      "category": "linux",
+      "label": "RedX 0.4.4 (Linux, ARM64) \u2014 Debian package (.deb)"
+    },
+    {
+      "repo": "RedX",
+      "tag": "v0.4.4",
+      "draft": false,
+      "prerelease": false,
+      "asset": "redx_0.4.4_armhf.deb",
+      "asset_id": 656211559,
+      "size": 8459234,
+      "url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.4/redx_0.4.4_armhf.deb",
+      "category": "linux",
+      "label": "RedX 0.4.4 (Linux, Raspberry Pi) \u2014 Debian package (.deb)"
+    },
+    {
+      "repo": "RedX",
+      "tag": "v0.4.3",
+      "draft": false,
+      "prerelease": false,
+      "asset": "redx-0.4.3-darwin-amd64.tar.gz",
+      "asset_id": 655823592,
+      "size": 13428315,
+      "url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.3/redx-0.4.3-darwin-amd64.tar.gz",
+      "category": "mac",
+      "label": "RedX 0.4.3 (Mac, Intel chip) \u2014 Portable (.tar.gz)"
+    },
+    {
+      "repo": "RedX",
+      "tag": "v0.4.3",
+      "draft": false,
+      "prerelease": false,
+      "asset": "redx-0.4.3-darwin-arm64.tar.gz",
+      "asset_id": 655823659,
+      "size": 12450394,
+      "url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.3/redx-0.4.3-darwin-arm64.tar.gz",
+      "category": "mac",
+      "label": "RedX 0.4.3 (Mac, M1 chip) \u2014 Portable (.tar.gz)"
+    },
+    {
+      "repo": "RedX",
+      "tag": "v0.4.3",
+      "draft": false,
+      "prerelease": false,
+      "asset": "redx-0.4.3-linux-amd64.tar.gz",
+      "asset_id": 655823720,
+      "size": 13278926,
+      "url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.3/redx-0.4.3-linux-amd64.tar.gz",
+      "category": "linux",
+      "label": "RedX 0.4.3 (Linux) \u2014 Portable (.tar.gz)"
+    },
+    {
+      "repo": "RedX",
+      "tag": "v0.4.3",
+      "draft": false,
+      "prerelease": false,
+      "asset": "redx-0.4.3-linux-arm64.tar.gz",
+      "asset_id": 655823784,
+      "size": 12089536,
+      "url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.3/redx-0.4.3-linux-arm64.tar.gz",
+      "category": "linux",
+      "label": "RedX 0.4.3 (Linux, ARM64) \u2014 Portable (.tar.gz)"
+    },
+    {
+      "repo": "RedX",
+      "tag": "v0.4.3",
+      "draft": false,
+      "prerelease": false,
+      "asset": "redx-0.4.3-linux-armv7.tar.gz",
+      "asset_id": 655823828,
+      "size": 12832533,
+      "url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.3/redx-0.4.3-linux-armv7.tar.gz",
+      "category": "linux",
+      "label": "RedX 0.4.3 (Linux, Raspberry Pi) \u2014 Portable (.tar.gz)"
+    },
+    {
+      "repo": "RedX",
+      "tag": "v0.4.3",
+      "draft": false,
+      "prerelease": false,
+      "asset": "redx-0.4.3-macos-amd64.dmg",
+      "asset_id": 655823903,
+      "size": 14819419,
+      "url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.3/redx-0.4.3-macos-amd64.dmg",
+      "category": "mac",
+      "label": "RedX 0.4.3 (Mac, Intel chip) \u2014 Disk image (.dmg)"
+    },
+    {
+      "repo": "RedX",
+      "tag": "v0.4.3",
+      "draft": false,
+      "prerelease": false,
+      "asset": "redx-0.4.3-macos-amd64.pkg",
+      "asset_id": 655823967,
+      "size": 23457771,
+      "url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.3/redx-0.4.3-macos-amd64.pkg",
+      "category": "mac",
+      "label": "RedX 0.4.3 (Mac, Intel chip) \u2014 Installer (.pkg)"
+    },
+    {
+      "repo": "RedX",
+      "tag": "v0.4.3",
+      "draft": false,
+      "prerelease": false,
+      "asset": "redx-0.4.3-macos-arm64.dmg",
+      "asset_id": 655824027,
+      "size": 13420140,
+      "url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.3/redx-0.4.3-macos-arm64.dmg",
+      "category": "mac",
+      "label": "RedX 0.4.3 (Mac, M1 chip) \u2014 Disk image (.dmg)"
+    },
+    {
+      "repo": "RedX",
+      "tag": "v0.4.3",
+      "draft": false,
+      "prerelease": false,
+      "asset": "redx-0.4.3-macos-arm64.pkg",
+      "asset_id": 655824072,
+      "size": 21484541,
+      "url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.3/redx-0.4.3-macos-arm64.pkg",
+      "category": "mac",
+      "label": "RedX 0.4.3 (Mac, M1 chip) \u2014 Installer (.pkg)"
+    },
+    {
+      "repo": "RedX",
+      "tag": "v0.4.3",
+      "draft": false,
+      "prerelease": false,
+      "asset": "redx-0.4.3-macos-universal.dmg",
+      "asset_id": 655855300,
+      "size": 28671212,
+      "url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.3/redx-0.4.3-macos-universal.dmg",
+      "category": "mac",
+      "label": "RedX 0.4.3 (Mac, Universal) \u2014 Disk image (.dmg)"
+    },
+    {
+      "repo": "RedX",
+      "tag": "v0.4.3",
+      "draft": false,
+      "prerelease": false,
+      "asset": "redx-0.4.3-macos-universal.pkg",
+      "asset_id": 655863616,
+      "size": 44371701,
+      "url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.3/redx-0.4.3-macos-universal.pkg",
+      "category": "mac",
+      "label": "RedX 0.4.3 (Mac, Universal) \u2014 Installer (.pkg)"
+    },
+    {
+      "repo": "RedX",
+      "tag": "v0.4.3",
+      "draft": false,
+      "prerelease": false,
+      "asset": "redx_0.4.3_amd64.deb",
+      "asset_id": 655824668,
+      "size": 9051010,
+      "url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.3/redx_0.4.3_amd64.deb",
+      "category": "linux",
+      "label": "RedX 0.4.3 (Linux) \u2014 Debian package (.deb)"
+    },
+    {
+      "repo": "RedX",
+      "tag": "v0.4.3",
+      "draft": false,
+      "prerelease": false,
+      "asset": "redx_0.4.3_arm64.deb",
+      "asset_id": 655824734,
+      "size": 7767188,
+      "url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.3/redx_0.4.3_arm64.deb",
+      "category": "linux",
+      "label": "RedX 0.4.3 (Linux, ARM64) \u2014 Debian package (.deb)"
+    },
+    {
+      "repo": "RedX",
+      "tag": "v0.4.3",
+      "draft": false,
+      "prerelease": false,
+      "asset": "redx_0.4.3_armhf.deb",
+      "asset_id": 655824794,
+      "size": 8457014,
+      "url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.3/redx_0.4.3_armhf.deb",
+      "category": "linux",
+      "label": "RedX 0.4.3 (Linux, Raspberry Pi) \u2014 Debian package (.deb)"
+    },
+    {
+      "repo": "RedX",
+      "tag": "v0.3.0",
+      "draft": false,
+      "prerelease": false,
+      "asset": "redx-0.3.0-darwin-amd64.tar.gz",
+      "asset_id": 655465189,
+      "size": 8711827,
+      "url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.3.0/redx-0.3.0-darwin-amd64.tar.gz",
+      "category": "mac",
+      "label": "RedX 0.3.0 (Mac, Intel chip)"
+    },
+    {
+      "repo": "RedX",
+      "tag": "v0.3.0",
+      "draft": false,
+      "prerelease": false,
+      "asset": "redx-0.3.0-darwin-arm64.tar.gz",
+      "asset_id": 655465222,
+      "size": 7955362,
+      "url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.3.0/redx-0.3.0-darwin-arm64.tar.gz",
+      "category": "mac",
+      "label": "RedX 0.3.0 (Mac, M1 chip)"
+    },
+    {
+      "repo": "RedX",
+      "tag": "v0.3.0",
+      "draft": false,
+      "prerelease": false,
+      "asset": "redx-0.3.0-linux-amd64.tar.gz",
+      "asset_id": 655465268,
+      "size": 8604482,
+      "url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.3.0/redx-0.3.0-linux-amd64.tar.gz",
+      "category": "linux",
+      "label": "RedX 0.3.0 (Linux)"
+    },
+    {
+      "repo": "RedX",
+      "tag": "v0.3.0",
+      "draft": false,
+      "prerelease": false,
+      "asset": "redx-0.3.0-linux-arm64.tar.gz",
+      "asset_id": 655465324,
+      "size": 7694937,
+      "url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.3.0/redx-0.3.0-linux-arm64.tar.gz",
+      "category": "linux",
+      "label": "RedX 0.3.0 (Linux, ARM64)"
+    },
+    {
+      "repo": "RedX",
+      "tag": "v0.3.0",
+      "draft": false,
+      "prerelease": false,
+      "asset": "redx-0.3.0-linux-armv7.tar.gz",
+      "asset_id": 655465390,
+      "size": 8238749,
+      "url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.3.0/redx-0.3.0-linux-armv7.tar.gz",
+      "category": "linux",
+      "label": "RedX 0.3.0 (Linux, Raspberry Pi)"
+    },
+    {
+      "repo": "gendragoon-cloud-ssd",
+      "tag": "untagged-364997f7788ec684c9f2",
+      "draft": true,
+      "prerelease": true,
+      "asset": "GenDragoon-Cloud-SSD-Mac-v0.18.0.zip",
+      "asset_id": 652093738,
+      "size": 69722436,
+      "url": "https://github.com/grimvirusoffical-source/gendragoon-cloud-ssd/releases/download/untagged-364997f7788ec684c9f2/GenDragoon-Cloud-SSD-Mac-v0.18.0.zip",
+      "category": "mac",
+      "label": "Gendragoon Beta 0.18.0 (Mac) \u2014 Portable (.zip)"
+    },
+    {
+      "repo": "gendragoon-cloud-ssd",
+      "tag": "untagged-364997f7788ec684c9f2",
+      "draft": true,
+      "prerelease": true,
+      "asset": "install-macos.py",
+      "asset_id": 652093741,
+      "size": 28569,
+      "url": "https://github.com/grimvirusoffical-source/gendragoon-cloud-ssd/releases/download/untagged-364997f7788ec684c9f2/install-macos.py",
+      "category": "mac",
+      "label": "Gendragoon Beta 0.18.0 (Mac) \u2014 Installer script (.py)"
+    },
+    {
+      "repo": "gendragoon-cloud-ssd",
+      "tag": "untagged-3022cfc7939e4ddf66ec",
+      "draft": true,
+      "prerelease": false,
+      "asset": "GenDragoon-Cloud-SSD-Mac-v0.16.2.zip",
+      "asset_id": 643809069,
+      "size": 109663181,
+      "url": "https://github.com/grimvirusoffical-source/gendragoon-cloud-ssd/releases/download/untagged-3022cfc7939e4ddf66ec/GenDragoon-Cloud-SSD-Mac-v0.16.2.zip",
+      "category": "mac",
+      "label": "Gendragoon 0.16.2 (Mac)"
+    },
+    {
+      "repo": "gendragoon-cloud-ssd",
+      "tag": "untagged-2835c43a66cc075953e7",
+      "draft": true,
+      "prerelease": false,
+      "asset": "GenDragoon-macOS-arm64-0.16.1.zip",
+      "asset_id": 643258917,
+      "size": 110867279,
+      "url": "https://github.com/grimvirusoffical-source/gendragoon-cloud-ssd/releases/download/untagged-2835c43a66cc075953e7/GenDragoon-macOS-arm64-0.16.1.zip",
+      "category": "mac",
+      "label": "Gendragoon 0.16.1 (Mac, M1 chip)"
+    },
+    {
+      "repo": "gendragoon-cloud-ssd",
+      "tag": "v0.18.0-rc.3",
+      "draft": false,
+      "prerelease": true,
+      "asset": "GenDragoon-Cloud-SSD-Mac-v0.18.0.zip",
+      "asset_id": 652180238,
+      "size": 69722465,
+      "url": "https://github.com/grimvirusoffical-source/gendragoon-cloud-ssd/releases/download/v0.18.0-rc.3/GenDragoon-Cloud-SSD-Mac-v0.18.0.zip",
+      "category": "mac",
+      "label": "Gendragoon Beta 0.18.0 (Mac) \u2014 Portable (.zip)"
+    },
+    {
+      "repo": "gendragoon-cloud-ssd",
+      "tag": "v0.18.0-rc.3",
+      "draft": false,
+      "prerelease": true,
+      "asset": "install-macos.py",
+      "asset_id": 652180237,
+      "size": 28569,
+      "url": "https://github.com/grimvirusoffical-source/gendragoon-cloud-ssd/releases/download/v0.18.0-rc.3/install-macos.py",
+      "category": "mac",
+      "label": "Gendragoon Beta 0.18.0 (Mac) \u2014 Installer script (.py)"
+    },
+    {
+      "repo": "gendragoon-cloud-ssd",
+      "tag": "v0.18.0-rc.1",
+      "draft": false,
+      "prerelease": true,
+      "asset": "GenDragoon-Cloud-SSD-Mac-v0.18.0.zip",
+      "asset_id": 651983978,
+      "size": 69715030,
+      "url": "https://github.com/grimvirusoffical-source/gendragoon-cloud-ssd/releases/download/v0.18.0-rc.1/GenDragoon-Cloud-SSD-Mac-v0.18.0.zip",
+      "category": "mac",
+      "label": "Gendragoon Beta 0.18.0 (Mac) \u2014 Portable (.zip)"
+    },
+    {
+      "repo": "gendragoon-cloud-ssd",
+      "tag": "v0.18.0-rc.1",
+      "draft": false,
+      "prerelease": true,
+      "asset": "install-macos.py",
+      "asset_id": 651983982,
+      "size": 28569,
+      "url": "https://github.com/grimvirusoffical-source/gendragoon-cloud-ssd/releases/download/v0.18.0-rc.1/install-macos.py",
+      "category": "mac",
+      "label": "Gendragoon Beta 0.18.0 (Mac) \u2014 Installer script (.py)"
+    },
+    {
+      "repo": "gendragoon-cloud-ssd",
+      "tag": "v0.17.0-rc.1",
+      "draft": false,
+      "prerelease": true,
+      "asset": "GenDragoon-Cloud-SSD-Mac-v0.17.0.zip",
+      "asset_id": 651522457,
+      "size": 69509769,
+      "url": "https://github.com/grimvirusoffical-source/gendragoon-cloud-ssd/releases/download/v0.17.0-rc.1/GenDragoon-Cloud-SSD-Mac-v0.17.0.zip",
+      "category": "mac",
+      "label": "Gendragoon Beta 0.17.0 (Mac) \u2014 Portable (.zip)"
+    },
+    {
+      "repo": "gendragoon-cloud-ssd",
+      "tag": "v0.17.0-rc.1",
+      "draft": false,
+      "prerelease": true,
+      "asset": "install-macos.py",
+      "asset_id": 651522459,
+      "size": 28569,
+      "url": "https://github.com/grimvirusoffical-source/gendragoon-cloud-ssd/releases/download/v0.17.0-rc.1/install-macos.py",
+      "category": "mac",
+      "label": "Gendragoon Beta 0.17.0 (Mac) \u2014 Installer script (.py)"
+    },
+    {
+      "repo": "gendragoon-cloud-ssd",
+      "tag": "v0.4.0",
+      "draft": false,
+      "prerelease": true,
+      "asset": "GenDragoon-Cloud-SSD-Mac-v0.4.0.zip",
+      "asset_id": 638332089,
+      "size": 30357623,
+      "url": "https://github.com/grimvirusoffical-source/gendragoon-cloud-ssd/releases/download/v0.4.0/GenDragoon-Cloud-SSD-Mac-v0.4.0.zip",
+      "category": "mac",
+      "label": "Gendragoon Beta 0.4.0 (Mac)"
+    },
+    {
+      "repo": "Gendragoon-Releases",
+      "tag": "all-platforms-2026-10-19",
+      "draft": false,
+      "prerelease": true,
+      "asset": "GenDragoon-Cloud-SSD-0.1.0-linux-amd64.deb",
+      "asset_id": 655386377,
+      "size": 76225544,
+      "url": "https://github.com/grimvirusoffical-source/Gendragoon-Releases/releases/download/all-platforms-2026-10-19/GenDragoon-Cloud-SSD-0.1.0-linux-amd64.deb",
+      "category": "linux",
+      "label": "Gendragoon Beta 0.1.0 (Linux) \u2014 Debian package (.deb)"
+    },
+    {
+      "repo": "Gendragoon-Releases",
+      "tag": "all-platforms-2026-10-19",
+      "draft": false,
+      "prerelease": true,
+      "asset": "GenDragoon-Cloud-SSD-0.1.0-linux-x64.tar.gz",
+      "asset_id": 655386771,
+      "size": 104616999,
+      "url": "https://github.com/grimvirusoffical-source/Gendragoon-Releases/releases/download/all-platforms-2026-10-19/GenDragoon-Cloud-SSD-0.1.0-linux-x64.tar.gz",
+      "category": "linux",
+      "label": "Gendragoon Beta 0.1.0 (Linux) \u2014 Portable (.tar.gz)"
+    },
+    {
+      "repo": "Gendragoon-Releases",
+      "tag": "all-platforms-2026-10-19",
+      "draft": false,
+      "prerelease": true,
+      "asset": "GenDragoon-Cloud-SSD-0.1.0-linux-x86_64.AppImage",
+      "asset_id": 655386995,
+      "size": 110725241,
+      "url": "https://github.com/grimvirusoffical-source/Gendragoon-Releases/releases/download/all-platforms-2026-10-19/GenDragoon-Cloud-SSD-0.1.0-linux-x86_64.AppImage",
+      "category": "linux",
+      "label": "Gendragoon Beta 0.1.0 (Linux) \u2014 Portable (.AppImage)"
+    },
+    {
+      "repo": "Gendragoon-Releases",
+      "tag": "all-platforms-2026-10-19",
+      "draft": false,
+      "prerelease": true,
+      "asset": "GenDragoon-Extension-chrome-0.2.0.zip",
+      "asset_id": 655387415,
+      "size": 635827,
+      "url": "https://github.com/grimvirusoffical-source/Gendragoon-Releases/releases/download/all-platforms-2026-10-19/GenDragoon-Extension-chrome-0.2.0.zip",
+      "category": "extension",
+      "label": "Gendragoon Beta 0.2.0 (Chrome extension)"
+    },
+    {
+      "repo": "Gendragoon-Releases",
+      "tag": "all-platforms-2026-10-19",
+      "draft": false,
+      "prerelease": true,
+      "asset": "GenDragoon-Extension-edge-0.2.0.zip",
+      "asset_id": 655387431,
+      "size": 635827,
+      "url": "https://github.com/grimvirusoffical-source/Gendragoon-Releases/releases/download/all-platforms-2026-10-19/GenDragoon-Extension-edge-0.2.0.zip",
+      "category": "extension",
+      "label": "Gendragoon Beta 0.2.0 (Edge extension)"
+    },
+    {
+      "repo": "Gendragoon-Releases",
+      "tag": "all-platforms-2026-10-19",
+      "draft": false,
+      "prerelease": true,
+      "asset": "GenDragoon-Extension-firefox-0.2.0.zip",
+      "asset_id": 655387453,
+      "size": 635899,
+      "url": "https://github.com/grimvirusoffical-source/Gendragoon-Releases/releases/download/all-platforms-2026-10-19/GenDragoon-Extension-firefox-0.2.0.zip",
+      "category": "extension",
+      "label": "Gendragoon Beta 0.2.0 (Firefox extension)"
+    },
+    {
+      "repo": "Gendragoon-Releases",
+      "tag": "all-platforms-2026-10-19",
+      "draft": false,
+      "prerelease": true,
+      "asset": "GenDragoon-Extension-opera-0.2.0.zip",
+      "asset_id": 655387469,
+      "size": 635834,
+      "url": "https://github.com/grimvirusoffical-source/Gendragoon-Releases/releases/download/all-platforms-2026-10-19/GenDragoon-Extension-opera-0.2.0.zip",
+      "category": "extension",
+      "label": "Gendragoon Beta 0.2.0 (Opera extension)"
+    }
+  ],
+  "deferred_windows_android": [
+    {
+      "repo": "RottenApple",
+      "tag": "v0.1.0-beta.1",
+      "draft": false,
+      "prerelease": true,
+      "asset": "rotten-apple-0.1.0-windows-amd64.zip",
+      "asset_id": 656400808,
+      "size": 23604645,
+      "url": "https://github.com/grimvirusoffical-source/RottenApple/releases/download/v0.1.0-beta.1/rotten-apple-0.1.0-windows-amd64.zip",
+      "category": "windows",
+      "label": "Rotten Apple Beta 0.1.0 (Windows)"
+    },
+    {
+      "repo": "RottenApple",
+      "tag": "v0.1.0-beta.1",
+      "draft": false,
+      "prerelease": true,
+      "asset": "rotten-apple-0.1.0-windows-arm64.zip",
+      "asset_id": 656400924,
+      "size": 21123381,
+      "url": "https://github.com/grimvirusoffical-source/RottenApple/releases/download/v0.1.0-beta.1/rotten-apple-0.1.0-windows-arm64.zip",
+      "category": "windows",
+      "label": "Rotten Apple Beta 0.1.0 (Windows, ARM)"
+    },
+    {
+      "repo": "quick-launch",
+      "tag": "v1.0.0-beta.1",
+      "draft": false,
+      "prerelease": true,
+      "asset": "QuickLaunch-1.0.0-beta.1-win32-x64.zip",
+      "asset_id": 656362647,
+      "size": 120569151,
+      "url": "https://github.com/grimvirusoffical-source/quick-launch/releases/download/v1.0.0-beta.1/QuickLaunch-1.0.0-beta.1-win32-x64.zip",
+      "category": "windows",
+      "label": "QuickLaunch Beta 1.0.0 (Windows) \u2014 Portable (.zip)"
+    },
+    {
+      "repo": "quick-launch",
+      "tag": "v1.0.0-beta.1",
+      "draft": false,
+      "prerelease": true,
+      "asset": "quicklaunch-cli-1.0.0-beta.1-windows-amd64.exe",
+      "asset_id": 656363271,
+      "size": 12281856,
+      "url": "https://github.com/grimvirusoffical-source/quick-launch/releases/download/v1.0.0-beta.1/quicklaunch-cli-1.0.0-beta.1-windows-amd64.exe",
+      "category": "windows",
+      "label": "QuickLaunch Beta 1.0.0 (Windows) \u2014 Command-line tool (.exe)"
+    },
+    {
+      "repo": "RedX",
+      "tag": "v0.4.5",
+      "draft": false,
+      "prerelease": false,
+      "asset": "redx-0.4.5-windows-amd64-setup.exe",
+      "asset_id": 657041308,
+      "size": 9159845,
+      "url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.5/redx-0.4.5-windows-amd64-setup.exe",
+      "category": "windows",
+      "label": "RedX 0.4.5 (Windows) \u2014 Installer (.exe)"
+    },
+    {
+      "repo": "RedX",
+      "tag": "v0.4.5",
+      "draft": false,
+      "prerelease": false,
+      "asset": "redx-0.4.5-windows-amd64.zip",
+      "asset_id": 657041367,
+      "size": 13385301,
+      "url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.5/redx-0.4.5-windows-amd64.zip",
+      "category": "windows",
+      "label": "RedX 0.4.5 (Windows) \u2014 Portable (.zip)"
+    },
+    {
+      "repo": "RedX",
+      "tag": "v0.4.5",
+      "draft": false,
+      "prerelease": false,
+      "asset": "redx-0.4.5-windows-arm64-setup.exe",
+      "asset_id": 657041431,
+      "size": 7883255,
+      "url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.5/redx-0.4.5-windows-arm64-setup.exe",
+      "category": "windows",
+      "label": "RedX 0.4.5 (Windows, ARM) \u2014 Installer (.exe)"
+    },
+    {
+      "repo": "RedX",
+      "tag": "v0.4.5",
+      "draft": false,
+      "prerelease": false,
+      "asset": "redx-0.4.5-windows-arm64.zip",
+      "asset_id": 657041497,
+      "size": 12121216,
+      "url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.5/redx-0.4.5-windows-arm64.zip",
+      "category": "windows",
+      "label": "RedX 0.4.5 (Windows, ARM) \u2014 Portable (.zip)"
+    },
+    {
+      "repo": "RedX",
+      "tag": "v0.4.4",
+      "draft": false,
+      "prerelease": false,
+      "asset": "redx-0.4.4-windows-amd64-setup.exe",
+      "asset_id": 656211282,
+      "size": 9017362,
+      "url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.4/redx-0.4.4-windows-amd64-setup.exe",
+      "category": "windows",
+      "label": "RedX 0.4.4 (Windows) \u2014 Installer (.exe)"
+    },
+    {
+      "repo": "RedX",
+      "tag": "v0.4.4",
+      "draft": false,
+      "prerelease": false,
+      "asset": "redx-0.4.4-windows-amd64.zip",
+      "asset_id": 656211344,
+      "size": 13186040,
+      "url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.4/redx-0.4.4-windows-amd64.zip",
+      "category": "windows",
+      "label": "RedX 0.4.4 (Windows) \u2014 Portable (.zip)"
+    },
+    {
+      "repo": "RedX",
+      "tag": "v0.4.4",
+      "draft": false,
+      "prerelease": false,
+      "asset": "redx-0.4.4-windows-arm64-setup.exe",
+      "asset_id": 656211376,
+      "size": 7694610,
+      "url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.4/redx-0.4.4-windows-arm64-setup.exe",
+      "category": "windows",
+      "label": "RedX 0.4.4 (Windows, ARM) \u2014 Installer (.exe)"
+    },
+    {
+      "repo": "RedX",
+      "tag": "v0.4.4",
+      "draft": false,
+      "prerelease": false,
+      "asset": "redx-0.4.4-windows-arm64.zip",
+      "asset_id": 656211417,
+      "size": 11941605,
+      "url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.4/redx-0.4.4-windows-arm64.zip",
+      "category": "windows",
+      "label": "RedX 0.4.4 (Windows, ARM) \u2014 Portable (.zip)"
+    },
+    {
+      "repo": "RedX",
+      "tag": "v0.4.3",
+      "draft": false,
+      "prerelease": false,
+      "asset": "redx-0.4.3-windows-amd64-setup.exe",
+      "asset_id": 655824362,
+      "size": 9013462,
+      "url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.3/redx-0.4.3-windows-amd64-setup.exe",
+      "category": "windows",
+      "label": "RedX 0.4.3 (Windows) \u2014 Installer (.exe)"
+    },
+    {
+      "repo": "RedX",
+      "tag": "v0.4.3",
+      "draft": false,
+      "prerelease": false,
+      "asset": "redx-0.4.3-windows-amd64.zip",
+      "asset_id": 655824416,
+      "size": 13182658,
+      "url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.3/redx-0.4.3-windows-amd64.zip",
+      "category": "windows",
+      "label": "RedX 0.4.3 (Windows) \u2014 Portable (.zip)"
+    },
+    {
+      "repo": "RedX",
+      "tag": "v0.4.3",
+      "draft": false,
+      "prerelease": false,
+      "asset": "redx-0.4.3-windows-arm64-setup.exe",
+      "asset_id": 655824475,
+      "size": 7691565,
+      "url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.3/redx-0.4.3-windows-arm64-setup.exe",
+      "category": "windows",
+      "label": "RedX 0.4.3 (Windows, ARM) \u2014 Installer (.exe)"
+    },
+    {
+      "repo": "RedX",
+      "tag": "v0.4.3",
+      "draft": false,
+      "prerelease": false,
+      "asset": "redx-0.4.3-windows-arm64.zip",
+      "asset_id": 655824576,
+      "size": 11937159,
+      "url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.4.3/redx-0.4.3-windows-arm64.zip",
+      "category": "windows",
+      "label": "RedX 0.4.3 (Windows, ARM) \u2014 Portable (.zip)"
+    },
+    {
+      "repo": "RedX",
+      "tag": "v0.3.0",
+      "draft": false,
+      "prerelease": false,
+      "asset": "redx-0.3.0-windows-amd64.zip",
+      "asset_id": 655465452,
+      "size": 8158867,
+      "url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.3.0/redx-0.3.0-windows-amd64.zip",
+      "category": "windows",
+      "label": "RedX 0.3.0 (Windows)"
+    },
+    {
+      "repo": "RedX",
+      "tag": "v0.3.0",
+      "draft": false,
+      "prerelease": false,
+      "asset": "redx-0.3.0-windows-arm64.zip",
+      "asset_id": 655465514,
+      "size": 7240210,
+      "url": "https://github.com/grimvirusoffical-source/RedX/releases/download/v0.3.0/redx-0.3.0-windows-arm64.zip",
+      "category": "windows",
+      "label": "RedX 0.3.0 (Windows, ARM)"
+    },
+    {
+      "repo": "Gendragoon-Releases",
+      "tag": "windows-x64-v0.1.0-unpacked",
+      "draft": false,
+      "prerelease": true,
+      "asset": "GenDragoon-Cloud-SSD-Windows-x64-unpacked-0.1.0.zip",
+      "asset_id": 655219106,
+      "size": 116853343,
+      "url": "https://github.com/grimvirusoffical-source/Gendragoon-Releases/releases/download/windows-x64-v0.1.0-unpacked/GenDragoon-Cloud-SSD-Windows-x64-unpacked-0.1.0.zip",
+      "category": "windows",
+      "label": "Gendragoon Beta 0.1.0 (Windows)"
+    },
+    {
+      "repo": "Gendragoon-Releases",
+      "tag": "desktop-companion-windows-linux-source-ce5665f",
+      "draft": false,
+      "prerelease": true,
+      "asset": "GenDragoon-Desktop-Companion-Windows-Linux-source.zip",
+      "asset_id": 655219272,
+      "size": 24293,
+      "url": "https://github.com/grimvirusoffical-source/Gendragoon-Releases/releases/download/desktop-companion-windows-linux-source-ce5665f/GenDragoon-Desktop-Companion-Windows-Linux-source.zip",
+      "category": "windows",
+      "label": "Gendragoon Beta (Windows & Linux) \u2014 Source code (.zip)"
+    },
+    {
+      "repo": "Gendragoon-Releases",
+      "tag": "android-v0.17.0-build20-debug",
+      "draft": false,
+      "prerelease": true,
+      "asset": "GenDragoon-Android-0.17.0-build20-debug.apk",
+      "asset_id": 655219014,
+      "size": 9304649,
+      "url": "https://github.com/grimvirusoffical-source/Gendragoon-Releases/releases/download/android-v0.17.0-build20-debug/GenDragoon-Android-0.17.0-build20-debug.apk",
+      "category": "android",
+      "label": "Gendragoon Beta 0.17.0 (Android) \u2014 Android app (.apk, debug)"
+    },
+    {
+      "repo": "Gendragoon-Releases",
+      "tag": "all-platforms-2026-10-19",
+      "draft": false,
+      "prerelease": true,
+      "asset": "GenDragoon-Android-0.17.0-build20-DEBUG-signed.apk",
+      "asset_id": 655386307,
+      "size": 10613746,
+      "url": "https://github.com/grimvirusoffical-source/Gendragoon-Releases/releases/download/all-platforms-2026-10-19/GenDragoon-Android-0.17.0-build20-DEBUG-signed.apk",
+      "category": "android",
+      "label": "Gendragoon Beta 0.17.0 (Android) \u2014 Android app (.apk, debug)"
+    },
+    {
+      "repo": "Gendragoon-Releases",
+      "tag": "all-platforms-2026-10-19",
+      "draft": false,
+      "prerelease": true,
+      "asset": "GenDragoon-Android-0.17.0-build20-release-UNSIGNED-placeholder-support.aab",
+      "asset_id": 655386340,
+      "size": 6893281,
+      "url": "https://github.com/grimvirusoffical-source/Gendragoon-Releases/releases/download/all-platforms-2026-10-19/GenDragoon-Android-0.17.0-build20-release-UNSIGNED-placeholder-support.aab",
+      "category": "android",
+      "label": "Gendragoon Beta 0.17.0 (Android) \u2014 App bundle (.aab, unsigned)"
+    },
+    {
+      "repo": "Gendragoon-Releases",
+      "tag": "all-platforms-2026-10-19",
+      "draft": false,
+      "prerelease": true,
+      "asset": "GenDragoon-Cloud-SSD-Windows-x64-unpacked-UNSIGNED-0.1.0.zip",
+      "asset_id": 655387197,
+      "size": 117255366,
+      "url": "https://github.com/grimvirusoffical-source/Gendragoon-Releases/releases/download/all-platforms-2026-10-19/GenDragoon-Cloud-SSD-Windows-x64-unpacked-UNSIGNED-0.1.0.zip",
+      "category": "windows",
+      "label": "Gendragoon Beta 0.1.0 (Windows)"
+    },
+    {
+      "repo": "Gendragoon-Releases",
+      "tag": "all-platforms-2026-10-19",
+      "draft": false,
+      "prerelease": true,
+      "asset": "GenDragoon-Desktop-Companion-Windows-Linux-source.zip",
+      "asset_id": 655387378,
+      "size": 23993,
+      "url": "https://github.com/grimvirusoffical-source/Gendragoon-Releases/releases/download/all-platforms-2026-10-19/GenDragoon-Desktop-Companion-Windows-Linux-source.zip",
+      "category": "windows",
+      "label": "Gendragoon Beta 0.17.0 (Windows & Linux) \u2014 Source code (.zip)"
+    }
+  ]
+}
