@@ -34,6 +34,18 @@ type opts struct {
 
 var o opts
 
+// cleanups run before every exit (os.Exit skips defers): a disk image must never stay mounted.
+var cleanups []func()
+
+func onExit(f func()) { cleanups = append(cleanups, f) }
+
+func runCleanups() {
+	for i := len(cleanups) - 1; i >= 0; i-- {
+		cleanups[i]()
+	}
+	cleanups = nil
+}
+
 func main() {
 	args := os.Args[1:]
 	if len(args) == 0 || args[0] == "-h" || args[0] == "--help" || args[0] == "help" {
@@ -56,6 +68,7 @@ func main() {
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
+	defer runCleanups()
 	dir := core.SupportDir()
 	if cmd == "version" {
 		out(map[string]string{"version": core.Version}, func() { fmt.Println("rottencore", core.Version) })
@@ -106,7 +119,7 @@ func main() {
 		need(rest, 1)
 		in, err := c.Inspect(ctx, rest[0], nil)
 		check(err)
-		defer in.Close()
+		onExit(in.Close)
 		out(in, func() { printInspection(in) })
 	case "install":
 		need(rest, 1)
@@ -133,7 +146,7 @@ func main() {
 			in, err = c.Inspect(ctx, target, nil)
 		}
 		check(err)
-		defer in.Close()
+		onExit(in.Close)
 		install(ctx, c, in, dest)
 	case "list":
 		l, err := c.State.List()
@@ -179,7 +192,7 @@ func main() {
 		}
 		in, err := c.PrepareUpdate(ctx, rest[0], progress())
 		check(err)
-		defer in.Close()
+		onExit(in.Close)
 		if CompareVersionsOK(in.Version, e.Version) {
 			install(ctx, c, in, "")
 		} else {
@@ -343,6 +356,7 @@ func check(err error) {
 }
 
 func fail(err error, code int) {
+	runCleanups()
 	if o.json {
 		name := map[int]string{1: "error", 2: "usage", 3: "untrusted", 4: "refused"}[code]
 		json.NewEncoder(os.Stdout).Encode(map[string]interface{}{"ok": false, "error": err.Error(), "code": name})

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 )
@@ -184,9 +185,16 @@ func (e *Engine) Mount(ctx context.Context, dmg, tmp string) (string, func(), er
 	if err != nil {
 		return "", nil, err
 	}
-	if _, err := e.R.Run(ctx, "/usr/bin/hdiutil", "attach", "-nobrowse", "-readonly", "-noautoopen", "-noverify", "-mountpoint", mp, dmg); err != nil {
+	out, err := e.R.Run(ctx, "/usr/bin/hdiutil", "attach", "-plist", "-nobrowse", "-readonly", "-noautoopen", "-noverify", "-mountpoint", mp, dmg)
+	if err != nil {
 		os.Remove(mp)
 		return "", nil, fmt.Errorf("could not open the disk image: %w", err)
+	}
+	// An image that is already attached comes back at its existing mount point.
+	if m := mountPointRe.FindStringSubmatch(string(out)); m != nil && m[1] != mp {
+		os.Remove(mp)
+		real := m[1]
+		return real, func() {}, nil // not ours to detach
 	}
 	return mp, func() {
 		if _, err := e.R.Run(context.Background(), "/usr/bin/hdiutil", "detach", mp); err != nil {
@@ -195,6 +203,8 @@ func (e *Engine) Mount(ctx context.Context, dmg, tmp string) (string, func(), er
 		os.Remove(mp)
 	}, nil
 }
+
+var mountPointRe = regexp.MustCompile(`<key>mount-point</key>\s*<string>([^<]+)</string>`)
 
 // Unzip extracts a zip with ditto (keeps bundle metadata) into a fresh folder.
 func (e *Engine) Unzip(ctx context.Context, zip, tmp string) (string, error) {
