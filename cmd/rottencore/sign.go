@@ -81,17 +81,41 @@ func runSign(ctx context.Context, cmd string, rest []string) bool {
 		if o.json {
 			out(arts, func() {})
 		}
+	case "signing":
+		// `rottencore signing setup --bundle PATH --label LABEL` writes config.json signing so the
+		// app hand-off works without hand-editing (QA v2 M1).
+		need(rest, 1)
+		sub := rest[0]
+		if sub != "setup" {
+			fail(fmt.Errorf("unknown signing subcommand %q (want setup)", sub), 2)
+		}
+		if signBundle == "" || signLabel == "" {
+			fail(errors.New("signing setup needs --bundle PATH and --label LABEL (Keychain account)"), 2)
+		}
+		dir := core.SupportDir()
+		cfg, err := core.LoadConfig(dir)
+		check(err)
+		cfg.Signing = &core.SigningConfig{Bundle: signBundle, Label: signLabel, Service: signService}
+		check(core.SaveConfig(dir, cfg))
+		out(cfg.Signing, func() {
+			fmt.Printf("saved signing config\n  bundle: %s\n  label:  %s\n  file:   %s/config.json\n",
+				signBundle, signLabel, dir)
+		})
 	case "build-inbox":
 		need(rest, 1)
 		req, targets, path, err := builder.OpenInboxRequest(core.SupportDir(), rest[0])
 		check(err)
 		if !o.yes {
 			// N3: never start a URL-handed build without an explicit confirmation (the app shows a sheet).
+			// --json (app confirm sheet) exits 0 with the filled-in commands (L5); interactive exits 2.
 			prev := builder.MakePreview(req, targets, path)
 			out(prev, func() {
 				fmt.Printf("confirm build %s (%s %s) in %s — re-run with --yes after the user confirms\n",
 					prev.ID, prev.App, prev.Version, prev.Dir)
 			})
+			if o.json {
+				return true
+			}
 			fail(builder.ErrConfirmRequired, 2)
 		}
 		runBuild(ctx, req, targets, path)
@@ -118,6 +142,14 @@ func deferredList(d []builder.Target) []map[string]string {
 // cannot be replayed; the scoped build API key is kept for Rotten Core's own API calls only and is never
 // exported into child build processes (builder.scrubBuildEnv).
 func runBuild(ctx context.Context, req *builder.Request, targets []builder.Target, inboxPath string) {
+	// L2: always consume the inbox request (and drop the scoped key) on success *or* failure so a
+	// failed build cannot leave the key sitting in the inbox for a retry attack.
+	if inboxPath != "" {
+		onExit(func() {
+			_ = builder.ConsumeRequest(inboxPath)
+			_ = os.Unsetenv("ROTTENCORE_BUILD_API_KEY")
+		})
+	}
 	k, chain := loadSigner()
 	if req.BuildAPIKey != "" {
 		// Scoped build key for our own API calls (dev-hub / uploader). Not exported to build commands.
@@ -144,9 +176,6 @@ func runBuild(ctx context.Context, req *builder.Request, targets []builder.Targe
 		IconsRoot: iconsRoot(), Emit: progressEmitter()}
 	res, err := b.Run(ctx, req, buildable)
 	check(err)
-	if inboxPath != "" {
-		_ = builder.ConsumeRequest(inboxPath)
-	}
 	out(map[string]interface{}{"result": res, "deferred": deferredList(deferred)}, func() {
 		for _, a := range res.Artifacts {
 			fmt.Printf("built %s -> %s\n", a.Label, a.Filename)

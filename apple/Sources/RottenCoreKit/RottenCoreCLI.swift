@@ -152,6 +152,21 @@ public final class RottenCoreCLI {
         return Outcome(kind: .success, title: "Build finished", detail: "Request \(id) built and signed. \(sums)")
     }
 
+    /// Writes signing.bundle / signing.label into Rotten Core's config.json (`rottencore signing setup`).
+    public func signingSetup(bundle: String, label: String, service: String? = nil) async throws -> SigningSetupResult {
+        var c = ["signing", "setup", "--bundle", bundle, "--label", label]
+        if let service, !service.isEmpty { c += ["--service", service] }
+        return try await run(c, as: SigningSetupResult.self)
+    }
+
+    /// Preview a build-inbox request (no --yes): filled-in commands for the confirm sheet (QA v2 L5).
+    public func previewBuildInbox(id: String) async throws -> BuildConfirmPreview {
+        guard BuildInbox.validateID(id) else {
+            throw RottenCoreError.refused("build id must be 8-64 characters of [A-Za-z0-9_-]")
+        }
+        return try await run(["build-inbox", id], as: BuildConfirmPreview.self)
+    }
+
     /// Live rollback of a hosted rollout through `rottencore host rollback <id>` (the updater's rollout card).
     /// The host URL and key come from the environment (RA_HOST_URL / RA_HOST_KEY); the key is never shown.
     public func hostRollback(_ rolloutID: String, reason: String? = nil) async throws -> HostRollbackResult {
@@ -163,5 +178,43 @@ public final class RottenCoreCLI {
     /// One hosted app's live rollout status (`rottencore host rollout <id>`).
     public func hostRollout(_ rolloutID: String) async throws -> HostRollout {
         try await run(["host", "rollout", rolloutID], as: HostRollout.self)
+    }
+}
+
+public struct SigningSetupResult: Codable, Equatable {
+    public var bundle: String?
+    public var label: String?
+    public var service: String?
+}
+
+/// Go builder.Preview JSON from build-inbox without --yes (filled-in commands).
+public struct BuildConfirmPreview: Codable, Equatable, Identifiable {
+    public var id: String
+    public var app: String
+    public var appId: String
+    public var version: String
+    public var channel: String?
+    public var dir: String
+    public var targets: [BuildConfirmTarget]
+    public var sdks: [String]?
+    public var path: String?
+    public var message: String?
+
+    public init(id: String, app: String, appId: String, version: String, channel: String? = nil, dir: String,
+                targets: [BuildConfirmTarget], sdks: [String]? = nil, path: String? = nil, message: String? = nil) {
+        self.id = id; self.app = app; self.appId = appId; self.version = version; self.channel = channel
+        self.dir = dir; self.targets = targets; self.sdks = sdks; self.path = path; self.message = message
+    }
+}
+
+public struct BuildConfirmTarget: Codable, Equatable {
+    public var platform: String
+    public var command: [String]?
+    public var env: [String]?
+    public var prebuilt: String?
+    public var artifact: String?
+
+    public init(platform: String, command: [String]? = nil, env: [String]? = nil, prebuilt: String? = nil, artifact: String? = nil) {
+        self.platform = platform; self.command = command; self.env = env; self.prebuilt = prebuilt; self.artifact = artifact
     }
 }

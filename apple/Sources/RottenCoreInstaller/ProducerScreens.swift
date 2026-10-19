@@ -175,18 +175,18 @@ struct LabeledRow<Content: View>: View {
 
 /// Confirmation sheet before a URL-handed build runs (QA v2 N3): app, targets, commands, project dir.
 struct BuildConfirmSheet: View {
-    let preview: BuildPreview
+    let preview: BuildConfirmPreview
     var onConfirm: () -> Void
     var onCancel: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text("Confirm build").font(.title2).bold()
-            Text("\(preview.project.name) \(preview.project.version)")
+            Text("\(preview.app) \(preview.version)")
                 .font(.headline)
-            LabeledRow("App ID") { Text(preview.project.id) }
-            LabeledRow("Project dir") { Text(preview.project.dir).lineLimit(2) }
-            if let channel = preview.project.channel, !channel.isEmpty {
+            LabeledRow("App ID") { Text(preview.appId) }
+            LabeledRow("Project dir") { Text(preview.dir).lineLimit(2) }
+            if let channel = preview.channel, !channel.isEmpty {
                 LabeledRow("Channel") { Text(channel) }
             }
             Text("Targets").font(.headline)
@@ -194,7 +194,8 @@ struct BuildConfirmSheet: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(t.platform).font(.callout).bold()
                     if let cmd = t.command, !cmd.isEmpty {
-                        Text(cmd.joined(separator: " ")).font(.caption).foregroundColor(.secondary)
+                        let envPrefix = (t.env?.isEmpty == false) ? (t.env!.joined(separator: " ") + " ") : ""
+                        Text(envPrefix + cmd.joined(separator: " ")).font(.caption).foregroundColor(.secondary)
                     } else if let pre = t.prebuilt {
                         Text("prebuilt: \(pre)").font(.caption).foregroundColor(.secondary)
                     }
@@ -215,4 +216,3 @@ struct BuildConfirmSheet: View {
     }
 }
 
-extension BuildPreview: Identifiable {}

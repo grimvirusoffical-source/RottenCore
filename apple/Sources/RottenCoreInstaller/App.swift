@@ -62,7 +62,7 @@ final class AppModel: ObservableObject {
     @Published var rollouts: [HostRollout] = []
     @Published var uploads: [Outcome] = []
     @Published var builds: [Outcome] = []
-    @Published var pendingBuild: BuildPreview?
+    @Published var pendingBuild: BuildConfirmPreview?
     @Published var pendingBuildURL: URL?
     let accounts: AccountProvider = RedXAIAccountsStub()
     private var cli: RottenCoreCLI?
@@ -100,14 +100,38 @@ final class AppModel: ObservableObject {
     /// Nothing is built until the user confirms; the CLI is then called with --yes.
     func openBuildRequest(id: String) async {
         section = .build
+        guard BuildInbox.validateID(id) else {
+            error = "build id must be 8-64 characters of [A-Za-z0-9_-]"
+            return
+        }
+        // Resolve path first (N3 checks); then ask Go for the filled-in preview (L5).
         do {
-            let (url, preview) = try BuildInbox.resolveRequest(id: id)
+            let (url, _) = try BuildInbox.resolveRequest(id: id)
             pendingBuildURL = url
-            pendingBuild = preview
-            builds.insert(Outcome(kind: .info, title: "Confirm this build",
-                                  detail: "\(preview.project.name) \(preview.project.version) — review the targets and project dir, then confirm."), at: 0)
         } catch {
             self.error = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            return
+        }
+        guard let cli = cli else { return }
+        do {
+            // build-inbox without --yes returns the preview then exits 2; decode still gets the preview
+            // when the engine prints ok:true first. Fall back to local JSON if the CLI errors.
+            let preview = try await cli.previewBuildInbox(id: id)
+            pendingBuild = preview
+            builds.insert(Outcome(kind: .info, title: "Confirm this build",
+                                  detail: "\(preview.app) \(preview.version) — review the targets and project dir, then confirm."), at: 0)
+        } catch {
+            // Local fallback: show file contents (commands may be empty until Go FillDefaults).
+            if let url = pendingBuildURL, let data = try? Data(contentsOf: url),
+               let file = try? JSONDecoder().decode(BuildPreview.self, from: data) {
+                pendingBuild = BuildConfirmPreview(
+                    id: file.id, app: file.project.name, appId: file.project.id,
+                    version: file.project.version, channel: file.project.channel, dir: file.project.dir,
+                    targets: file.targets.map { BuildConfirmTarget(platform: $0.platform, command: $0.command, prebuilt: $0.prebuilt, artifact: $0.artifact) },
+                    sdks: file.sdks, path: url.path, message: nil)
+            } else {
+                self.error = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            }
         }
     }
 
@@ -129,6 +153,13 @@ final class AppModel: ObservableObject {
     func cancelPendingBuild() {
         pendingBuild = nil
         pendingBuildURL = nil
+    }
+
+    /// Persists signing.bundle / signing.label via `rottencore signing setup` (QA v2 M1).
+    func saveSigningSetup(bundle: String, label: String) async {
+        guard let cli = cli else { return }
+        _ = await work("Saving signing setup…") { try await cli.signingSetup(bundle: bundle, label: label) }
+        message = "Signing setup saved."
     }
 
     func pickFile() {
@@ -492,6 +523,10 @@ struct StoreView: View {
 struct SettingsView: View {
     @EnvironmentObject var model: AppModel
     @AppStorage("theme") private var theme: String = Theme.dark.rawValue
+    @State private var signBundle: String = ""
+    @State private var signLabel: String = ""
+    @State private var signSaved: String?
+
     var body: some View {
         Form {
             Picker("Appearance", selection: $theme) {
@@ -505,11 +540,34 @@ struct SettingsView: View {
                     .disabled(!model.accounts.isAvailable)
                 Text("Coming soon").foregroundColor(.secondary)
             }
+            Section(header: Text("Signing (build hand-off)")) {
+                Text("Saved after device pairing so Finder / rottencore:// launches can sign without shell variables.")
+                    .font(.caption).foregroundColor(.secondary)
+                LabeledRow("Bundle") {
+                    TextField("path to .bundle.json", text: $signBundle)
+                }
+                LabeledRow("Keychain label") {
+                    TextField("e.g. josh-mega", text: $signLabel)
+                }
+                HStack {
+                    Button("Save signing setup") {
+                        Task { await model.saveSigningSetup(bundle: signBundle, label: signLabel) }
+                        signSaved = "Saved to config.json"
+                    }
+                    .disabled(signBundle.isEmpty || signLabel.isEmpty)
+                    if let signSaved { Text(signSaved).foregroundColor(.secondary).font(.caption) }
+                }
+            }
             Text("Rotten Core sends no telemetry. The store address and account settings live in ~/Library/Application Support/RottenCore/config.json.")
                 .font(.caption).foregroundColor(.secondary)
             Text("Rotten Core is developed and maintained by Red-XAI LLC. Red-XAI LLC is wholly owned by GRIM-VIRUS, an independent recording artist who leads development under the alias MainDirectory. © Red-XAI LLC. All rights reserved.")
                 .font(.caption).foregroundColor(.secondary)
         }
         .padding(24)
+        .onAppear {
+            let s = SigningConfig.resolve()
+            if signBundle.isEmpty { signBundle = s.bundle ?? "" }
+            if signLabel.isEmpty { signLabel = s.label ?? "" }
+        }
     }
 }

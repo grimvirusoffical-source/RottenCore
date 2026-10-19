@@ -3,7 +3,7 @@ import Foundation
 /// Strict build-id format shared with Go `builder.BuildIDRe` (QA v2 N3). Anything with path separators,
 /// dots or spaces is refused before it touches the disk.
 public enum BuildInbox {
-    public static let idPattern = "^[A-Za-z0-9_-]{8,64}$"
+    public static let idPattern = "\\A[A-Za-z0-9_-]{8,64}\\z"
     private static let idRegex = try! NSRegularExpression(pattern: idPattern)
 
     public static func validateID(_ id: String) -> Bool {
@@ -23,8 +23,7 @@ public enum BuildInbox {
         let url = inbox.appendingPathComponent(id + ".json", isDirectory: false)
         let inboxPath = inbox.resolvingSymlinksInPath().standardizedFileURL.path
         // Refuse if the leaf itself is a symlink (EvalSymlinks on the file would chase it outside).
-        var isLink: ObjCBool = false
-        if fm.fileExists(atPath: url.path, isDirectory: nil) {
+        if fm.fileExists(atPath: url.path) {
             if let attrs = try? fm.attributesOfItem(atPath: url.path),
                let t = attrs[.type] as? FileAttributeType, t == .typeSymbolicLink {
                 throw RottenCoreError.refused("build request must not be a symlink")
