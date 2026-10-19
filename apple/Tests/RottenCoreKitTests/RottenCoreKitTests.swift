@@ -6,7 +6,7 @@ final class RottenCoreKitTests: XCTestCase {
     {"ok":true,"result":{"path":"/tmp/RedX.dmg","kind":"dmg","appId":"com.redxai.redx","name":"RedX","version":"0.4.3","source":"github",
      "detectedBy":["manifest:embedded:dmg"],"manifest":{"schema":1},"github":{"owner":"grimvirusoffical-source","repo":"RedX","tag":"v0.4.3"},
      "verdict":{"sha256":"ab","bytes":10,"expected":[{"from":"github-sha256sums","sha256":"ab"}],"checksum":"match","trusted":false,
-     "warning":"RottenCore doesn't trust this app: it isn't from the Rotten Apple store.","reasons":["matches the SHA256SUMS of the GitHub release"],"refuse":false},
+     "warning":"Rotten Core doesn't trust this app: it isn't from the Rotten Apple store.","reasons":["matches the SHA256SUMS of the GitHub release"],"refuse":false},
      "problems":[]}}
     """
 

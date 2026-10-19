@@ -22,7 +22,7 @@ import (
 //     is a hard refusal, accepted or not.
 
 // UntrustedWarning is shown, word for word, before an untrusted install.
-const UntrustedWarning = "RottenCore doesn't trust this app: it isn't from the Rotten Apple store."
+const UntrustedWarning = "Rotten Core doesn't trust this app: it isn't from the Rotten Apple store."
 
 // attestDomain matches the Rotten Apple store (rarxai/attest.go).
 const attestDomain = "ROTTENCORE-ATTEST-v1\x00"

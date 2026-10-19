@@ -108,11 +108,74 @@ public enum InstallGate: Equatable {
     case needsAcceptance(String)  // untrusted: the person must accept the warning
     case ready
 
-    public static let untrustedWarning = "RottenCore doesn't trust this app: it isn't from the Rotten Apple store."
+    public static let untrustedWarning = "Rotten Core doesn't trust this app: it isn't from the Rotten Apple store."
 
     public static func evaluate(_ v: Verdict, accepted: Bool) -> InstallGate {
         if v.refuse { return .refused("The file's checksum does not match. It was changed or damaged and will not be installed.") }
         if !v.trusted && !accepted { return .needsAcceptance(v.warning ?? untrustedWarning) }
         return .ready
+    }
+}
+
+// MARK: - Hosted updates (M4) — mirrors core.HostRollout / RolloutHealth in the Go client.
+
+/// Health rates are nullable: when the host has not reported yet they are nil and the UI shows
+/// "awaiting health data" instead of promoting anything (core.RolloutHealth.Known()).
+public struct RolloutHealth: Codable, Equatable {
+    public var successRate: Double?
+    public var errorRate: Double?
+    public var crashRate: Double?
+    public var samples: Int?
+
+    public init(successRate: Double? = nil, errorRate: Double? = nil, crashRate: Double? = nil, samples: Int? = nil) {
+        self.successRate = successRate; self.errorRate = errorRate; self.crashRate = crashRate; self.samples = samples
+    }
+
+    /// True only when the host has reported real rates. Mirrors Go RolloutHealth.Known().
+    public var known: Bool { successRate != nil && errorRate != nil && crashRate != nil }
+}
+
+/// One app's hosted rollout. `awaitingHealthData` means nothing auto-promotes yet.
+public struct HostRollout: Codable, Equatable, Identifiable {
+    public var id: String { appId }
+    public var appId: String
+    public var version: String
+    public var phase: String        // staged | rolling | promoted | rolledback | failed
+    public var fromVersion: String?
+    public var health: RolloutHealth
+    public var updatedAt: String?
+
+    public init(appId: String, version: String, phase: String, fromVersion: String? = nil, health: RolloutHealth = RolloutHealth(), updatedAt: String? = nil) {
+        self.appId = appId; self.version = version; self.phase = phase; self.fromVersion = fromVersion; self.health = health; self.updatedAt = updatedAt
+    }
+
+    /// Mirrors Go HostRollout.AwaitingHealthData: rolling but no health reported yet.
+    public var awaitingHealthData: Bool { phase == "rolling" && !health.known }
+
+    public var healthSummary: String {
+        if !health.known { return "awaiting health data" }
+        func pct(_ v: Double?) -> String { v.map { String(format: "%.1f%%", $0 * 100) } ?? "—" }
+        return "success \(pct(health.successRate)) · error \(pct(health.errorRate)) · crash \(pct(health.crashRate))"
+    }
+}
+
+/// Where an update may come from. On a hosted app the picker offers all three; GitHub is untrusted.
+public enum UpdateSource: String, CaseIterable, Identifiable, Codable {
+    case host = "Rotten Apple store"
+    case github = "GitHub release"
+    case both = "Store, then GitHub"
+    public var id: String { rawValue }
+}
+
+/// The result card shown after an install, update, upload or rollout step.
+public struct Outcome: Identifiable, Equatable {
+    public enum Kind: Equatable { case success, failure, info, awaiting }
+    public var id = UUID()
+    public var kind: Kind
+    public var title: String
+    public var detail: String
+
+    public init(kind: Kind, title: String, detail: String) {
+        self.kind = kind; self.title = title; self.detail = detail
     }
 }

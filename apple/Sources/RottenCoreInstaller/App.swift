@@ -9,7 +9,7 @@ struct RottenCoreInstallerApp: App {
     @AppStorage("theme") private var theme: String = Theme.dark.rawValue
 
     var body: some Scene {
-        WindowGroup("RottenCore Installer") {
+        WindowGroup("Rotten Core") {
             ContentView()
                 .environmentObject(model)
                 .preferredColorScheme(scheme)
@@ -33,13 +33,15 @@ struct RottenCoreInstallerApp: App {
 }
 
 enum SidebarItem: String, CaseIterable, Identifiable {
-    case install = "Install", installed = "Installed", updates = "Updates", store = "Store", settings = "Settings"
+    case install = "Install", installed = "Installed", updates = "Updates", upload = "Upload", build = "Build", store = "Store", settings = "Settings"
     var id: String { rawValue }
     var icon: String {
         switch self {
         case .install: return "square.and.arrow.down"
         case .installed: return "square.grid.2x2"
         case .updates: return "arrow.triangle.2.circlepath"
+        case .upload: return "square.and.arrow.up.on.square"
+        case .build: return "hammer"
         case .store: return "bag"
         case .settings: return "gearshape"
         }
@@ -57,6 +59,9 @@ final class AppModel: ObservableObject {
     @Published var installed: [InstalledApp] = []
     @Published var updates: [UpdateInfo] = []
     @Published var results: [Listing] = []
+    @Published var rollouts: [HostRollout] = []
+    @Published var uploads: [Outcome] = []
+    @Published var builds: [Outcome] = []
     let accounts: AccountProvider = RedXAIAccountsStub()
     private var cli: RottenCoreCLI?
 
@@ -122,6 +127,12 @@ final class AppModel: ObservableObject {
         }
     }
 
+    /// Rolls back one hosted app's rollout. The host restores only this app's own state (M4);
+    /// wiring to `rottencore host rollback` lands with the hosted CLI.
+    func rollback(_ r: HostRollout) async {
+        message = "Rollback requested for \(r.appId). Hosted rollout control is wired through the Rotten Apple store."
+    }
+
     func uninstall(_ a: InstalledApp) async {
         guard let cli = cli else { return }
         if await work("Removing \(a.name)…", { try await cli.uninstall(a.appId) }) != nil {
@@ -156,6 +167,8 @@ struct ContentView: View {
         case .install: InstallView()
         case .installed: InstalledView()
         case .updates: UpdatesView()
+        case .upload: UploadView()
+        case .build: BuildView()
         case .store: StoreView()
         case .settings: SettingsView()
         }
@@ -177,10 +190,10 @@ struct StatusBar: View {
 struct Brand: View {
     var body: some View {
         HStack(spacing: 10) {
-            Image(systemName: "shippingbox.fill").font(.system(size: 30)).foregroundColor(.red)
+            Image(systemName: "applelogo").font(.system(size: 28)).foregroundColor(.primary)
             VStack(alignment: .leading) {
-                Text("RottenCore Installer").font(.title2).bold()
-                Text("One installer for every Red-XAI app").font(.callout).foregroundColor(.secondary)
+                Text("Rotten Core").font(.title2).bold()
+                Text("Install · update · upload · build — every Red-XAI app").font(.callout).foregroundColor(.secondary)
             }
         }
     }
@@ -330,23 +343,52 @@ struct InstalledView: View {
 struct UpdatesView: View {
     @EnvironmentObject var model: AppModel
     @State private var accept = false
+    @State private var source: UpdateSource = .host
     var body: some View {
-        VStack(alignment: .leading) {
-            HStack {
-                Button("Check for Updates") { Task { await model.checkUpdates() } }
-                Toggle("Accept the untrusted-source warning for GitHub updates", isOn: $accept)
-            }
-            .padding()
-            List(model.updates) { u in
+        ScrollView {
+            VStack(alignment: .leading, spacing: 16) {
                 HStack {
-                    Text(u.name).bold()
-                    Text(u.newer ? "\(u.installed) → \(u.available ?? "")" : "\(u.installed) (up to date)").foregroundColor(.secondary)
-                    if let e = u.error { Text(e).foregroundColor(.orange).font(.caption) }
+                    Button("Check for Updates") { Task { await model.checkUpdates() } }
                     Spacer()
-                    if u.newer { Button("Update") { Task { await model.update(u, acceptUntrusted: accept) } } }
+                }
+                SourcePicker(source: $source, acceptUntrusted: $accept)
+
+                if model.updates.isEmpty {
+                    OutcomeCard(outcome: Outcome(kind: .info, title: "No updates checked yet",
+                                                detail: "Press Check for Updates to compare installed apps against \(source.rawValue)."))
+                } else {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Installed apps").font(.headline)
+                        ForEach(model.updates) { u in updateRow(u) }
+                    }
+                }
+
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("Hosted rollouts").font(.headline)
+                    if model.rollouts.isEmpty {
+                        OutcomeCard(outcome: Outcome(kind: .info, title: "No hosted rollouts",
+                                                    detail: "Rollouts you start through the Rotten Apple store appear here with their health and a rollback control."))
+                    } else {
+                        ForEach(model.rollouts) { r in
+                            RolloutCard(rollout: r) { Task { await model.rollback(r) } }
+                        }
+                    }
                 }
             }
+            .padding()
         }
+    }
+
+    @ViewBuilder func updateRow(_ u: UpdateInfo) -> some View {
+        HStack {
+            Text(u.name).bold()
+            Text(u.newer ? "\(u.installed) → \(u.available ?? "")" : "\(u.installed) (up to date)").foregroundColor(.secondary)
+            if let e = u.error { Text(e).foregroundColor(.orange).font(.caption) }
+            Spacer()
+            if u.newer { Button("Update") { Task { await model.update(u, acceptUntrusted: source != .host && accept) } } }
+        }
+        .padding(10)
+        .background(RoundedRectangle(cornerRadius: 8).fill(Color.secondary.opacity(0.06)))
     }
 }
 
@@ -399,9 +441,9 @@ struct SettingsView: View {
                     .disabled(!model.accounts.isAvailable)
                 Text("Coming soon").foregroundColor(.secondary)
             }
-            Text("RottenCore sends no telemetry. The store address and account settings live in ~/Library/Application Support/RottenCore/config.json.")
+            Text("Rotten Core sends no telemetry. The store address and account settings live in ~/Library/Application Support/RottenCore/config.json.")
                 .font(.caption).foregroundColor(.secondary)
-            Text("RottenCore is developed and maintained by Red-XAI LLC. Red-XAI LLC is wholly owned by GRIM-VIRUS, an independent recording artist who leads development under the alias MainDirectory. © Red-XAI LLC. All rights reserved.")
+            Text("Rotten Core is developed and maintained by Red-XAI LLC. Red-XAI LLC is wholly owned by GRIM-VIRUS, an independent recording artist who leads development under the alias MainDirectory. © Red-XAI LLC. All rights reserved.")
                 .font(.caption).foregroundColor(.secondary)
         }
         .padding(24)
