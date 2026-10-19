@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -21,8 +22,14 @@ func TestPublishDryRunExpectations(t *testing.T) {
 	}
 	src := rolloutScriptsDir(t)
 	dir := t.TempDir()
+	_, thisFile, _, _ := runtime.Caller(0)
+	repoScripts := filepath.Join(filepath.Dir(thisFile), "..", "scripts", "rollout")
 	for _, f := range []string{"publish.sh", "inventory.json", "inventory.full.json"} {
-		b, err := os.ReadFile(filepath.Join(src, f))
+		from := filepath.Join(src, f)
+		if _, err := os.Stat(from); err != nil && f == "inventory.full.json" {
+			from = filepath.Join(repoScripts, f) // box-only file, not shipped in the Mac tgz
+		}
+		b, err := os.ReadFile(from)
 		if err != nil {
 			t.Fatal(err)
 		}
