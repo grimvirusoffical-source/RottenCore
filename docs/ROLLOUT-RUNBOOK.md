@@ -35,8 +35,11 @@ Canonical copies for QA live under `/workspace/rollout/` and are also committed 
 - **No Mac copies:** signed files go to a temporary staging dir, packed into
   `rottencore-signed.tgz`. QA runs `mac-cleanup.sh` only after the box verifies that
   tarball's sha256. Keychain keys stay.
-- **Mega subject ids:** `mac-sign.sh` requires `ROTTEN_DEV_ID` and `ROTTEN_TEAM_ID`
-  (Red-XAI Accounts ids. ROTTEN_DEV_ID is `^rxa_[A-Z2-7]{26}$`. ROTTEN_TEAM_ID is the owner's rxa_ for an individual context or `^rxt_[A-Z2-7]{26}$`, PENDING. Old A<n>/T<n> ids are refused. The Mega cert subject must equal ra-core's returned subject byte for byte.). It refuses to run if unset. Keygen failures stop the script;
+- **Mega subject ids:** nothing is hand-fed. The Mega cert subject must equal the subject ra-core returns
+  for the Accounts key (byte for byte), and Josh confirms it by typing `yes`. `ROTTEN_DEV_ID`/`ROTTEN_TEAM_ID` are
+  optional. If set, they're validated (`^rxa_[A-Z2-7]{26}$`; team rxa_ (individual, == dev) or `^rxt_[A-Z2-7]{26}$`, PENDING) and
+  must match ra-core exactly (fail closed). `rottencore-ca issue --mega` takes the ids from the signed request
+  subject. Keygen failures stop the script;
   existing Keychain labels are detected with `security find-generic-password` (no `|| true`).
 - **Older → draft:** after the latest release's assets are replaced, `publish.sh` converts
   every other release in those repos to a draft (tags kept) when backups under

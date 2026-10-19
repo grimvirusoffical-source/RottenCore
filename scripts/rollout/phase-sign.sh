@@ -18,10 +18,7 @@ require_mac_terminal
 # QA B3: MANIFEST.json ships in the rollout tgz (default: the ceremony folder). Missing or not the pinned
 # sha256 = stop before anything is downloaded or signed.
 require_backup_manifest
-if [[ -n "${ROTTEN_DEV_ID:-}${ROTTEN_TEAM_ID:-}" ]]; then
-  validate_rotten_ids "${ROTTEN_DEV_ID:-}" "${ROTTEN_TEAM_ID:-}"
-  export ROTTEN_DEV_ID ROTTEN_TEAM_ID   # public ids; rottencore cross-checks them against ra-core
-fi
+optional_id_crosscheck   # not required; identity comes from ra-core + your yes
 load_github_token
 
 ROOT_HEX=$(python3 -c 'import json,base64,binascii; c=json.load(open("'"$ROOT_DIR"'/root.cert.json")); pk=c["publicKey"]; raw=base64.b64decode(pk) if isinstance(pk,str) else bytes(pk); print(binascii.hexlify(raw).decode())')

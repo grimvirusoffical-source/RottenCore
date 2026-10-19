@@ -427,3 +427,23 @@ func TestSigningIdentityCheck(t *testing.T) {
 		t.Fatal("empty --trust-root accepted")
 	}
 }
+
+// TestServerSubjectCrossCheckOptional: with no ids the ra-core subject alone decides; set ids fail closed.
+func TestServerSubjectCrossCheckOptional(t *testing.T) {
+	who := &devhub.AccountIdentity{Name: "Josh Franklinn", Email: "e", Subject: joshSubject()}
+	if err := checkServerSubject(who, "", ""); err != nil {
+		t.Fatalf("no ids must not be required: %v", err)
+	}
+	if err := checkServerSubject(who, joshRXA, ""); err != nil {
+		t.Fatalf("dev-only cross-check: %v", err)
+	}
+	if err := checkServerSubject(who, "rxa_K2O7MTOWXQKPJSKNYG7RUUG2IR", ""); err == nil {
+		t.Fatal("dev cross-check mismatch accepted")
+	}
+	if err := checkServerSubject(who, "", "rxt_ABCDEFGHIJKLMNOPQRSTUVWX27"); err == nil {
+		t.Fatal("team cross-check mismatch accepted")
+	}
+	if err := checkServerSubject(&devhub.AccountIdentity{}, "", ""); err == nil {
+		t.Fatal("missing server subject accepted")
+	}
+}

@@ -28,19 +28,21 @@ Josh's plan:
 - mac-sign is phased.
 - Latest releases only.
 - No permanent signed copies stay on the Mac.
-- The Mega cert's subject must equal, **byte for byte**, the subject ra-core returns for the Accounts key, both at pairing and at signing. It must also be for our Mega public key and chain to the ceremony root. `ROTTEN_DEV_ID` / `ROTTEN_TEAM_ID` are a further exact cross-check against ra-core's fields.
+- The Mega cert's subject must equal, **byte for byte**, the subject ra-core returns for the Accounts key, both at pairing and at signing. It must also be for our Mega public key and chain to the ceremony root. **No hand-fed ids:** identity comes only from that ra-core subject, which you confirm by typing `yes`.
 
 Hub: `https://api.rottenapplestore.org` (ra-core 0.2.0). Clients send `X-RA-Launcher: 0.2.0`.
 
 ## Prerequisites
 
 - Josh at the Mac (`xlr1-mac`), with Terminal open locally.
-- `ROTTEN_DEV_ID` is the **Red-XAI Accounts id** (OIDC sub). It must match `^rxa_[A-Z2-7]{26}$`. Josh's primary
-  (grimvirusoffical@gmail.com) is `rxa_LVWECFKVPN6XMPISHYONVY6WUB`. Other accounts, such as support@, use their own rxa_ id.
-- `ROTTEN_TEAM_ID` is the owner's own rxa_ id for an individual context (it must then equal `ROTTEN_DEV_ID`), or a team id
-  matching `^rxt_[A-Z2-7]{26}$`. **PENDING:** the team format isn't final yet. The patterns live in `core/ids.go`
-  (`TeamIDPatterns`) and `lib.sh` (`ROTTEN_TEAM_ID_PATTERNS`), and a test keeps the two in sync.
-- Old `A<n>` / `T<n>` ids, lower-case ids, ids of the wrong length, and an rxa_ id in a team slot that isn't the owner are all refused.
+- **Ids are NOT required.** Don't export anything to say who you are. ra-core returns the subject for the Accounts
+  key, and the phases print its name, email and subject for you to confirm with `yes`.
+- *Optional* extra cross-check: if `ROTTEN_DEV_ID` and/or `ROTTEN_TEAM_ID` are set, they're validated and ra-core's subject must
+  also match them exactly, otherwise the run stops (fail closed). The phases print that this check is optional. Formats:
+  - dev: `^rxa_[A-Z2-7]{26}$` (Red-XAI Accounts sub; Josh's primary is `rxa_LVWECFKVPN6XMPISHYONVY6WUB`)
+  - team: the owner's rxa_ for an individual context (it must then equal the dev id), or `^rxt_[A-Z2-7]{26}$`. **PENDING:** the patterns
+    live in `core/ids.go` (`TeamIDPatterns`) and `lib.sh` (`ROTTEN_TEAM_ID_PATTERNS`), and a test keeps the two in sync.
+  - Old `A<n>`/`T<n>` ids, lower-case ids, ids of the wrong length, and someone else's rxa_ in the team slot are refused.
 - **GitHub token (required for phase-sign):** stored as Keychain account `github-token` (service
   `com.redx.rottencore.ca`), or typed at the hidden prompt. It is kept in an unexported shell variable and sent to curl as `-H @-` on stdin, never on argv.
   `publish.sh`/`restore.sh` (box) read `GITHUB_TOKEN`. They drop it from the environment before calling curl and send it on stdin.
@@ -75,8 +77,9 @@ On the Mac: `mkdir -p ~/redx-ceremony && tar -xzf ~/rottencore-mac-rollout.tgz -
 
 ```bash
 export ROTTEN_CEREMONY_DIR="$HOME/redx-ceremony"
-export ROTTEN_DEV_ID='rxa_LVWECFKVPN6XMPISHYONVY6WUB'   # Red-XAI Accounts id, required for pair
-export ROTTEN_TEAM_ID='rxa_LVWECFKVPN6XMPISHYONVY6WUB'  # individual context (== dev); or rxt_… for a team (PENDING)
+# No ids to export: identity comes from ra-core's subject, which you confirm by typing yes.
+# Optional extra cross-check only (fails closed on mismatch):
+#   export ROTTEN_DEV_ID='rxa_…'   ROTTEN_TEAM_ID='rxa_… (individual) | rxt_…'
 # Do NOT export the Accounts key. rottencore asks for it at a hidden prompt.
 cd "$ROTTEN_CEREMONY_DIR"
 

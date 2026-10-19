@@ -18,9 +18,12 @@ require_darwin
 setup_rollout_env
 require_mac_terminal
 
-[[ -n "${ROTTEN_DEV_ID:-}" ]] || die "ROTTEN_DEV_ID is not set (Red-XAI Accounts id: rxa_ + 26 of A-Z2-7)"
-[[ -n "${ROTTEN_TEAM_ID:-}" ]] || die "ROTTEN_TEAM_ID is not set (the owner's rxa_ id for an individual context, or rxt_ + 26 for a team)"
-validate_rotten_ids "$ROTTEN_DEV_ID" "$ROTTEN_TEAM_ID"
+# No hand-fed identity: the cert's subject comes from ra-core and Josh confirms it by typing yes.
+# ROTTEN_DEV_ID / ROTTEN_TEAM_ID are NOT required; if set they are an optional extra cross-check.
+CROSS_ARGS=()
+optional_id_crosscheck
+[[ -n "${ROTTEN_DEV_ID:-}" ]] && CROSS_ARGS+=(--dev "$ROTTEN_DEV_ID")
+[[ -n "${ROTTEN_TEAM_ID:-}" ]] && CROSS_ARGS+=(--team "$ROTTEN_TEAM_ID")
 [[ -x "$ROTTENCORE" ]] || die "rottencore not at $ROTTENCORE"
 [[ -f "$ROOT_DIR/root.cert.json" ]] || die "root.cert.json missing — run phase-root first"
 # Keep the build key out of the environment of everything we start.
@@ -39,8 +42,7 @@ else
   log "=== phase-pair: rottencore devhub-pair (Go; keys go straight into the Keychain) ==="
   keychain_prompt_notice "rottencore-device / josh-mega / ra-build-api-key"
   echo ">> You will also be asked for the Red-XAI Accounts full-access key (hidden; not stored) and to type yes." >&2
-  "$ROTTENCORE" devhub-pair \
-    --dev "$ROTTEN_DEV_ID" --team "$ROTTEN_TEAM_ID" \
+  "$ROTTENCORE" devhub-pair ${CROSS_ARGS[@]+"${CROSS_ARGS[@]}"} \
     --device-label rottencore-device --label josh-mega \
     --service "$KEYCHAIN_SERVICE" \
     --name "${ROTTEN_DEVICE_NAME:-xlr1-mac}" \
@@ -57,7 +59,7 @@ fi
 echo
 echo "===== phase-pair OK ====="
 echo "MEGA_BUNDLE_JSON=$BUNDLE"
-echo "Device paired and Mega cert issued for dev=$ROTTEN_DEV_ID team=$ROTTEN_TEAM_ID (exact subject match)"
+echo "Device paired; Mega cert subject == the ra-core subject you confirmed (byte for byte)"
 echo "NEXT: run phase-sign"
 echo "===== END ====="
 log "phase-pair finished OK"

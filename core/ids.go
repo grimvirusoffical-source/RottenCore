@@ -143,3 +143,21 @@ func SanityCheckSubject(serverSubject json.RawMessage) (CertSubject, TeamKind, e
 	k, err := ValidateIDPair(dev, team)
 	return s, k, err
 }
+
+// ValidateCrossCheckIDs validates the OPTIONAL ids Josh may export (ROTTEN_DEV_ID / ROTTEN_TEAM_ID).
+// Identity comes only from the ra-core subject Josh confirms; these are an extra exact cross-check that
+// fails closed on mismatch. Both empty is fine (no cross-check); anything set must be well formed.
+func ValidateCrossCheckIDs(dev, team string) error {
+	switch {
+	case dev == "" && team == "":
+		return nil
+	case dev != "" && team != "":
+		_, err := ValidateIDPair(dev, team)
+		return err
+	case dev != "":
+		return ValidateDevID(dev)
+	default:
+		_, err := TeamKindOf(team)
+		return err
+	}
+}

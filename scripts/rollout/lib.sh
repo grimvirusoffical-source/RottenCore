@@ -62,18 +62,36 @@ curl_github() {
 ROTTEN_DEV_ID_PATTERN='^rxa_[A-Z2-7]{26}$'
 ROTTEN_TEAM_ID_PATTERNS=('^rxa_[A-Z2-7]{26}$' '^rxt_[A-Z2-7]{26}$')
 
-# validate_rotten_ids DEV TEAM — strict anchored checks; an rxa_ team must be the owner (== DEV).
+# validate_rotten_ids DEV TEAM — strict anchored checks of whichever is set; an rxa_ team must be the
+# owner (== DEV) when both are set. Empty values are skipped (the ids are optional).
 validate_rotten_ids() {
   local dev="$1" team="$2" p ok=""
-  [[ "$dev" =~ $ROTTEN_DEV_ID_PATTERN ]] \
-    || die "ROTTEN_DEV_ID '$dev' is not a Red-XAI Accounts id (rxa_ + 26 of A-Z2-7); old A<n> ids are refused"
-  for p in "${ROTTEN_TEAM_ID_PATTERNS[@]}"; do
-    [[ "$team" =~ $p ]] && ok=1
-  done
-  [[ -n "$ok" ]] || die "ROTTEN_TEAM_ID '$team' matches no accepted team format (${ROTTEN_TEAM_ID_PATTERNS[*]}); old T<n> ids are refused"
-  if [[ "$team" == rxa_* && "$team" != "$dev" ]]; then
+  if [[ -n "$dev" ]]; then
+    [[ "$dev" =~ $ROTTEN_DEV_ID_PATTERN ]] \
+      || die "ROTTEN_DEV_ID '$dev' is not a Red-XAI Accounts id (rxa_ + 26 of A-Z2-7); old A<n> ids are refused"
+  fi
+  if [[ -n "$team" ]]; then
+    for p in "${ROTTEN_TEAM_ID_PATTERNS[@]}"; do
+      [[ "$team" =~ $p ]] && ok=1
+    done
+    [[ -n "$ok" ]] || die "ROTTEN_TEAM_ID '$team' matches no accepted team format (${ROTTEN_TEAM_ID_PATTERNS[*]}); old T<n> ids are refused"
+  fi
+  if [[ -n "$dev" && "$team" == rxa_* && "$team" != "$dev" ]]; then
     die "ROTTEN_TEAM_ID is an rxa_ id but not ROTTEN_DEV_ID: an rxa_ team is only valid for the owner's individual context"
   fi
+}
+
+# optional_id_crosscheck — ROTTEN_DEV_ID / ROTTEN_TEAM_ID are NOT required. Identity comes only from the
+# subject ra-core returns, which Josh confirms by typing yes. If either is set it is validated and passed
+# on as an extra exact cross-check that fails closed on mismatch.
+optional_id_crosscheck() {
+  if [[ -z "${ROTTEN_DEV_ID:-}${ROTTEN_TEAM_ID:-}" ]]; then
+    echo ">> identity: from ra-core's subject (you confirm it by typing yes). ROTTEN_DEV_ID/ROTTEN_TEAM_ID not set: no extra cross-check." >&2
+    return 0
+  fi
+  validate_rotten_ids "${ROTTEN_DEV_ID:-}" "${ROTTEN_TEAM_ID:-}"
+  echo ">> OPTIONAL cross-check: ROTTEN_DEV_ID/ROTTEN_TEAM_ID are set, so ra-core's subject must also match them exactly (not required)." >&2
+  export ROTTEN_DEV_ID ROTTEN_TEAM_ID   # public ids only; rottencore compares them to ra-core's subject
 }
 
 # The Red-XAI Accounts full-access key is typed at rottencore's hidden /dev/tty prompt ONLY. Refuse if

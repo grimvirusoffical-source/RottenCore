@@ -50,8 +50,8 @@ func main() {
 	name := fs.String("name", "", "subject name")
 	kind := fs.String("kind", core.CertKindDeveloper, "developer | update-signer")
 	reqPath := fs.String("req", "", "request file")
-	dev := fs.String("dev", "", "developer id")
-	team := fs.String("team", "", "team id")
+	dev := fs.String("dev", "", "issue: developer id (non-Mega); with --mega an OPTIONAL cross-check of the request subject devId")
+	team := fs.String("team", "", "issue/certify-host: team id; with --mega an OPTIONAL cross-check of the request subject teamId")
 	role := fs.String("role", "developer", "developer | owner | admin")
 	mega := fs.Bool("mega", false, "account holds a Mega license")
 	pub := fs.String("pub", "", "host public key (base64)")
@@ -119,19 +119,21 @@ func main() {
 		writeJSON(*out, r)
 	case "issue":
 		need(*dir, *reqPath, *out)
-		if *mega {
-			// Mega certs carry Red-XAI Accounts ids (core/ids.go); old A<n>/T<n> ids are refused.
-			if _, err := core.ValidateIDPair(*dev, *team); err != nil {
-				check(err)
-			}
-		}
 		iss := loadAuthority(*dir, "issuing", firstNonEmpty(*label, "rottencore-issuing"), *keychain, *service, tiers, mixer)
 		var r ca.Request
 		readJSON(*reqPath, &r)
-		leaf, chain, err := iss.Issue(&r, ca.Account{DevID: *dev, TeamID: *team, Name: *name, Role: *role, Mega: *mega})
+		acctDev, acctTeam := *dev, *team
+		if *mega {
+			// Mega certs take their ids from the (proof-of-possession signed) server request subject, never
+			// from flags or env. --dev/--team, if given, are an optional exact cross-check (fail closed).
+			var err error
+			acctDev, acctTeam, err = megaIDsFromRequest(&r, *dev, *team)
+			check(err)
+		}
+		leaf, chain, err := iss.Issue(&r, ca.Account{DevID: acctDev, TeamID: acctTeam, Name: *name, Role: *role, Mega: *mega})
 		check(err)
 		check(ca.WriteBundle(*out, ca.CertBundle{Chain: chain, Tier: ca.TierForRole(*role, *mega)}))
-		audit(*dir, "issue", map[string]string{"fingerprint": leaf.Fingerprint(), "team": *team, "dev": *dev, "alg": r.Alg})
+		audit(*dir, "issue", map[string]string{"fingerprint": leaf.Fingerprint(), "team": acctTeam, "dev": acctDev, "alg": r.Alg})
 		fmt.Println("issued", leaf.Fingerprint())
 	case "certify-host":
 		need(*dir, *pub, *host, *out)
@@ -325,4 +327,23 @@ func check(err error) {
 func usage() {
 	fmt.Fprintln(os.Stderr, errors.New("usage: rottencore-ca ceremony-root|issuing-csr|sign-intermediate|init-root|intermediate|keygen|request|issue|certify-host|revoke|root-hex [flags] (see source header)"))
 	os.Exit(2)
+}
+
+// megaIDsFromRequest returns the dev/team ids for a Mega cert from the request subject (core.SubjectIDs,
+// the one PENDING layout place), validated with core.ValidateIDPair. Optional flag values must match.
+func megaIDsFromRequest(r *ca.Request, crossDev, crossTeam string) (string, string, error) {
+	dev, team := core.SubjectIDs(r.Subject)
+	if _, err := core.ValidateIDPair(dev, team); err != nil {
+		return "", "", fmt.Errorf("Mega request subject: %w", err)
+	}
+	if err := core.ValidateCrossCheckIDs(crossDev, crossTeam); err != nil {
+		return "", "", err
+	}
+	if crossDev != "" && crossDev != dev {
+		return "", "", fmt.Errorf("optional cross-check failed: request devId %q != --dev %q", dev, crossDev)
+	}
+	if crossTeam != "" && crossTeam != team {
+		return "", "", fmt.Errorf("optional cross-check failed: request teamId %q != --team %q", team, crossTeam)
+	}
+	return dev, team, nil
 }

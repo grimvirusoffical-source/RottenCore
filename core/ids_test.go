@@ -107,3 +107,18 @@ func TestSanityCheckSubject(t *testing.T) {
 		}
 	}
 }
+
+func TestValidateCrossCheckIDsOptional(t *testing.T) {
+	ok := [][2]string{{"", ""}, {joshRXA, ""}, {"", someRXT}, {"", joshRXA}, {joshRXA, joshRXA}, {joshRXA, someRXT}}
+	for _, c := range ok {
+		if err := ValidateCrossCheckIDs(c[0], c[1]); err != nil {
+			t.Errorf("ValidateCrossCheckIDs(%q,%q) refused: %v", c[0], c[1], err)
+		}
+	}
+	bad := [][2]string{{"A7", ""}, {"", "T3"}, {"A7", "T3"}, {joshRXA, supportRXA}, {someRXT, ""}, {"rxa_lower", ""}, {"", "rxt_ABC"}}
+	for _, c := range bad {
+		if err := ValidateCrossCheckIDs(c[0], c[1]); err == nil {
+			t.Errorf("ValidateCrossCheckIDs(%q,%q) accepted", c[0], c[1])
+		}
+	}
+}

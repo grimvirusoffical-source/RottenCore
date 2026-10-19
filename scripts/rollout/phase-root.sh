@@ -38,7 +38,7 @@ if ! done_p ceremony-root; then
     --keychain --label rottencore-root \
     --alg ed25519 \
     --tiers "$TIERS" \
-    "${MIC_ARGS[@]}" \
+    ${MIC_ARGS[@]+"${MIC_ARGS[@]}"} \
     --dir "$ROOT_DIR" \
     --out "$ROOT_DIR/root.cert.json"
   mark ceremony-root

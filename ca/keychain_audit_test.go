@@ -192,6 +192,28 @@ func TestMacSignScriptKeepsKeyMaterialOffArgv(t *testing.T) {
 	if !strings.Contains(string(pair), "devhub-pair") {
 		t.Fatal("phase-pair.sh must call rottencore devhub-pair")
 	}
+	// No hand-fed ids: no script may require ROTTEN_DEV_ID / ROTTEN_TEAM_ID or pass them unconditionally.
+	requireIDRe := regexp.MustCompile(`ROTTEN_(DEV|TEAM)_ID:-\}?"?\s*\]\]\s*\|\|\s*die|ROTTEN_(DEV|TEAM)_ID:\?|ROTTEN_(DEV|TEAM)_ID is not set|-z "\$\{ROTTEN_(DEV|TEAM)_ID:-\}" \]\] && die`)
+	uncondPassRe := regexp.MustCompile(`--(dev|team) "\$ROTTEN_(DEV|TEAM)_ID"\s*\\?$`)
+	for _, path := range entries {
+		b, _ := os.ReadFile(path)
+		for i, line := range strings.Split(string(b), "\n") {
+			trim := strings.TrimSpace(line)
+			if strings.HasPrefix(trim, "#") {
+				continue
+			}
+			if requireIDRe.MatchString(trim) {
+				t.Errorf("%s:%d requires a hand-fed id (ids are an optional cross-check only): %s", filepath.Base(path), i+1, trim)
+			}
+			if uncondPassRe.MatchString(trim) && !strings.HasPrefix(trim, "[[") {
+				t.Errorf("%s:%d passes ROTTEN_*_ID unconditionally: %s", filepath.Base(path), i+1, trim)
+			}
+		}
+	}
+	lib, _ := os.ReadFile(filepath.Join(dir, "lib.sh"))
+	if !strings.Contains(string(lib), "optional_id_crosscheck()") || !strings.Contains(string(lib), "OPTIONAL cross-check") {
+		t.Error("lib.sh must offer optional_id_crosscheck and say the check is optional")
+	}
 }
 
 // TestRolloutAuditCatchesLeaks proves the audit is not toothless (QA M2): each of these must fail it.

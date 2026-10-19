@@ -155,8 +155,8 @@ func confirmAccount(who *devhub.AccountIdentity, what string) error {
 	return nil
 }
 
-// checkServerSubject is the loose sanity check on the server's subject plus the optional exact cross-check
-// with the ids Josh exported (ROTTEN_DEV_ID / ROTTEN_TEAM_ID).
+// checkServerSubject is the loose sanity check on the server's subject plus the OPTIONAL exact cross-check
+// with ids Josh may have exported (ROTTEN_DEV_ID / ROTTEN_TEAM_ID); empty wants skip the cross-check.
 func checkServerSubject(who *devhub.AccountIdentity, wantDev, wantTeam string) error {
 	if who == nil || len(bytes.TrimSpace(who.Subject)) == 0 {
 		return errors.New("ra-core returned no account subject (PENDING API shape)")
@@ -210,7 +210,15 @@ func signingIdentityCheck(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("ra-core account status: %w", err)
 	}
-	if err := checkServerSubject(who, os.Getenv("ROTTEN_DEV_ID"), os.Getenv("ROTTEN_TEAM_ID")); err != nil {
+	// OPTIONAL cross-check (identity comes from ra-core + Josh's yes); fails closed on mismatch.
+	xDev, xTeam := os.Getenv("ROTTEN_DEV_ID"), os.Getenv("ROTTEN_TEAM_ID")
+	if err := core.ValidateCrossCheckIDs(xDev, xTeam); err != nil {
+		return err
+	}
+	if xDev != "" || xTeam != "" {
+		fmt.Fprintln(os.Stderr, "optional cross-check: ROTTEN_DEV_ID/ROTTEN_TEAM_ID must match ra-core's subject exactly")
+	}
+	if err := checkServerSubject(who, xDev, xTeam); err != nil {
 		return err
 	}
 	if err := core.EqualSubjectBytes(leafJSON, who.Subject); err != nil {

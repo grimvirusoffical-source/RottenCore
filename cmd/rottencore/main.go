@@ -81,7 +81,7 @@ func main() {
 	fs.StringVar(&devTeam, "team", "", "device approve: team id (omit with --individual)")
 	fs.BoolVar(&devIndividual, "individual", false, "device approve: approve under an individual account")
 	fs.StringVar(&hostBase, "host", "", "host: Red-XAI Host origin for `rottencore host ...` (or RA_HOST_URL)")
-	fs.StringVar(&pairDevID, "dev", "", "devhub-pair: exact expected certificate subject devId (ROTTEN_DEV_ID)")
+	fs.StringVar(&pairDevID, "dev", "", "devhub-pair: OPTIONAL cross-check of ra-core's subject devId (identity comes from ra-core + your yes)")
 	fs.StringVar(&pairDeviceLabel, "device-label", "", "devhub-pair: Keychain label of the device key (default rottencore-device)")
 	fs.StringVar(&pairName, "name", "", "devhub-pair: device name shown in the dashboard (default xlr1-mac)")
 	fs.StringVar(&pairState, "state", "", "devhub-pair: pairing state file (code + poll secret, 0600)")

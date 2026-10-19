@@ -20,7 +20,7 @@ import (
 
 // devhub-pair flags.
 var (
-	pairDevID       string // expected subject devId (ROTTEN_DEV_ID, rxa_…); cross-checked against ra-core
+	pairDevID       string // OPTIONAL cross-check of ra-core's subject devId (ROTTEN_DEV_ID); never the identity source
 	pairDeviceLabel string // Keychain label of the device key (default rottencore-device)
 	pairName        string // device name shown in the dashboard
 	pairState       string // pairing state file (code + poll secret, 0600)
@@ -39,7 +39,7 @@ var pairKeychain interface {
 
 // runDevhubPair is `rottencore devhub-pair` (QA F1/M1): Phase 2 of the rollout entirely in Go.
 //
-//	rottencore devhub-pair --dev rxa_… --team rxa_…|rxt_… --trust-root <hex> --out josh-mega.bundle.json --state work/pairing.json
+//	rottencore devhub-pair --trust-root <hex> --out josh-mega.bundle.json --state work/pairing.json [--dev rxa_… --team …  (optional cross-check)]
 //	    [--label josh-mega] [--device-label rottencore-device] [--name xlr1-mac] [--api-key-stdin]
 //
 // The Red-XAI Accounts full-access key is typed at a hidden /dev/tty prompt (never stored, never env/argv)
@@ -52,11 +52,13 @@ var pairKeychain interface {
 // Keychain (security -i over stdin); the private keys never leave this process except into the Keychain.
 // The build API key comes from the Keychain (account ra-build-api-key) or stdin; never argv or env.
 func runDevhubPair(ctx context.Context) {
-	if pairDevID == "" || devTeam == "" {
-		fail(errors.New("devhub-pair needs --dev <devId> and --team <teamId> (exact subject values)"), 2)
-	}
-	if _, err := core.ValidateIDPair(pairDevID, devTeam); err != nil {
+	// No hand-fed identity: who the cert is for comes only from the subject ra-core returns, which Josh
+	// confirms by typing yes. --dev/--team are an OPTIONAL extra cross-check (fail closed on mismatch).
+	if err := core.ValidateCrossCheckIDs(pairDevID, devTeam); err != nil {
 		fail(err, 2)
+	}
+	if pairDevID != "" || devTeam != "" {
+		fmt.Fprintln(os.Stderr, "optional cross-check: ra-core's subject must also match --dev/--team exactly (identity still comes from ra-core)")
 	}
 	if strings.TrimSpace(trustRootHex) == "" {
 		fail(errors.New("devhub-pair needs --trust-root <ceremony root public key hex>: the issued chain must verify to it"), 2)
