@@ -143,13 +143,25 @@ The latest **published** release for each repo, Gendragoon included. Windows and
 - **Header:** `X-RedX-Accounts-Key` (as `devhub.AccountsKeyHeader`). The key is a ra-core-issued "Red-XAI Accounts
   key" for the linked account: Dev page → API keys → *Red-XAI Accounts key* (`POST /v1/keys {"accounts":true}`,
   shown once, `ra_sk_live_…`, kind `accounts`, no API access of its own). No token exchange.
-  - pairings: binds the pairing to that account (only it can approve); pairings/status: ignored on the request;
+  - pairings: binds the pairing to that account; only that account can approve or deny it on the Dev page. Anyone
+    else (even an admin of the same team) gets `403 pairing_account_mismatch` and the pairing stays pending;
+    pairings/status: ignored on the request;
   - challenge / certs: the build key (`Authorization: Bearer $RA_API_KEY`) is still required; the Accounts key must
-    be the same account's (`403 accounts_key_mismatch`);
-  - account-status: the Accounts key alone.
+    be the same account's (`403 accounts_key_mismatch`; nothing is issued);
+  - account-status: the Accounts key alone. Without it (for example the build key sent as Bearer instead):
+    `401 accounts_key_required`;
+  - a key of the wrong kind (a build key in `X-RedX-Accounts-Key`, an Accounts key as Bearer), a revoked key or a
+    malformed one: the generic `401 unauthorized` ("authentication failed"), which never says which part failed.
 - **Signing-time path:** `GET` or `POST /v1/devhub/account-status` (as `devhub.AccountStatusPath`).
 - **Response:** `account: {id, sub, name, email, rxaLinked, subject}` in account-status and in `/pairings/status`
   once approved (when the pairing was started with the header). `subject` is a JSON object whose bytes equal the
   `subject` member of the certificate `POST /v1/devhub/certs` returns. `name` is the Red-XAI Accounts username.
   account-status also returns `cert {devId, teamId, subject, ready}` and `contexts` (exactly one: the key's team).
+- **Missing id:** while an id is missing (the account is not linked to Red-XAI Accounts yet, or a legacy team has no
+  TeamID until its first certificate), `account.subject` is JSON `null`, `cert.subject` is `""` and `cert.ready` is
+  `false`. RottenCore then stops with "no account subject"; fix the link on ra-core (`ra-core rxa-link`) and run again.
+- **Byte equality** is between the bytes the HTTP API serves (account-status `subject` vs the certificate's
+  `subject` member as returned by `POST /v1/devhub/certs`). The signed TBS form is not HTML-escaped while the HTTP
+  responses are, so for names with `& < >` do not compare against re-encoded or TBS bytes (no effect for
+  `Josh Franklinn`).
 - **One Mega cert per request**, for the key's single developer context.
