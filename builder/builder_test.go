@@ -277,7 +277,7 @@ func TestBuilderContextGatesDeviceSDKAndSignsManifest(t *testing.T) {
 	}
 }
 
-func Testbuilder.PlatformFromName(t *testing.T) {
+func TestPlatformFromName(t *testing.T) {
 	cases := map[string]string{
 		"rotten-apple-0.1.0-darwin-arm64.tar.gz": "macos-arm64",
 		"rotten-apple-0.1.0-darwin-amd64.tar.gz": "macos-intel",
