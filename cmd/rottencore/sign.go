@@ -51,11 +51,20 @@ func runSign(ctx context.Context, cmd string, rest []string) bool {
 		out(art, func() {
 			fmt.Printf("signed %s (%s)\n  %s\n  SHA256SUMS regenerated in %s\n", art.Filename, builder.Label(builder.Project{Name: signApp, Version: signVersion}, art.Platform), art.SigPath, filepath.Dir(art.Path))
 		})
+	case "build-inbox":
+		need(rest, 1)
+		path := builder.InboxPath(core.SupportDir(), rest[0])
+		rest = []string{path}
+		fallthrough
 	case "build":
 		need(rest, 1)
 		k, chain := loadSigner()
 		req, targets, err := builder.ReadRequest(rest[0])
 		check(err)
+		if req.BuildAPIKey != "" {
+			// QuickLaunch passed the build API key in the 0600 inbox file; expose it for this process only.
+			_ = os.Setenv("RA_API_KEY", req.BuildAPIKey)
+		}
 		host := signHost
 		if host == "" {
 			host = builder.HostOS()

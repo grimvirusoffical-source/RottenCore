@@ -23,16 +23,30 @@ type Config struct {
 // DefaultStoreURL is the planned Rotten Apple store API (not live yet).
 const DefaultStoreURL = "https://api.rottenapplestore.org"
 
-// SupportDir is where RottenCore keeps its files.
+// SupportDir is where Rotten Core (and QuickLaunch's hand-off inbox) keep their files.
+// Override with ROTTENCORE_HOME on every OS. Defaults:
+//   macOS:   ~/Library/Application Support/RottenCore
+//   Windows: %APPDATA%\RottenCore
+//   Linux:   $XDG_DATA_HOME/rottencore or ~/.local/share/rottencore
 func SupportDir() string {
 	if d := os.Getenv("ROTTENCORE_HOME"); d != "" {
 		return d
 	}
 	h, _ := os.UserHomeDir()
-	if runtime.GOOS == "darwin" {
+	switch runtime.GOOS {
+	case "darwin":
 		return filepath.Join(h, "Library", "Application Support", "RottenCore")
+	case "windows":
+		if d := os.Getenv("APPDATA"); d != "" {
+			return filepath.Join(d, "RottenCore")
+		}
+		return filepath.Join(h, "AppData", "Roaming", "RottenCore")
+	default:
+		if d := os.Getenv("XDG_DATA_HOME"); d != "" {
+			return filepath.Join(d, "rottencore")
+		}
+		return filepath.Join(h, ".local", "share", "rottencore")
 	}
-	return filepath.Join(h, ".local", "share", "rottencore")
 }
 
 // LoadConfig reads config.json; ROTTENCORE_STORE_URL overrides the store origin.

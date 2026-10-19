@@ -1,0 +1,20 @@
+{
+  "createdMs": 1,
+  "id": "quicklaunch-1-0-0",
+  "project": {
+    "dir": ".",
+    "id": "com.redx.quicklaunch",
+    "name": "QuickLaunch",
+    "version": "1.0.0"
+  },
+  "requestedBy": "quicklaunch",
+  "schema": "rottencore.build-request/v1",
+  "targets": [
+    {
+      "platform": "macos-arm64"
+    },
+    {
+      "platform": "linux"
+    }
+  ]
+}

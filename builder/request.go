@@ -32,6 +32,8 @@ type Request struct {
 	Targets     []Target  `json:"targets"`
 	SDKs        []string  `json:"sdks,omitempty"`   // SDKs this build declares; validated against the store selection
 	Upload      *UploadTo `json:"upload,omitempty"` // nil = build and sign only
+	// BuildAPIKey is the Rotten Apple build API key QuickLaunch passes through (file mode 0600). Never log it.
+	BuildAPIKey string `json:"buildApiKey,omitempty"`
 }
 
 // Project names the thing being built and the label the assets carry.
@@ -134,6 +136,7 @@ func ReadRequest(path string) (*Request, []Target, error) {
 	if err := json.Unmarshal(b, &r); err != nil {
 		return nil, nil, err
 	}
+	r.FillDefaults() // QuickLaunch may send platform-only targets; fill the agreed default commands
 	targets, err := r.Validate()
 	if err != nil {
 		return nil, nil, err

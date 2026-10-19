@@ -19,6 +19,7 @@ let package = Package(
                 // AppIcon.icns is also copied so a SwiftPM package step can set CFBundleIconFile.
                 .process("Resources/Assets.xcassets"),
                 .copy("Resources/AppIcon.icns"),
+                .copy("Resources/Info.plist"),
             ]
         ),
         .testTarget(name: "RottenCoreKitTests", dependencies: ["RottenCoreKit"]),

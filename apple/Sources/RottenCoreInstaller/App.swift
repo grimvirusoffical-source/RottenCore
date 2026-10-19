@@ -74,7 +74,50 @@ final class AppModel: ObservableObject {
         Task { await refresh() }
     }
 
-    func open(_ url: URL) { if url.isFileURL { Task { await inspect(url) } } }
+    func open(_ url: URL) {
+        if url.isFileURL {
+            Task { await inspect(url) }
+            return
+        }
+        // QuickLaunch hand-off: rottencore://build?id=<request-id>
+        guard url.scheme == "rottencore" else { return }
+        let host = (url.host ?? "").lowercased()
+        let path = url.path.lowercased()
+        if host == "build" || path == "/build" || path.hasPrefix("/build") {
+            let id = URLComponents(url: url, resolvingAgainstBaseURL: false)?
+                .queryItems?.first(where: { $0.name == "id" })?.value
+            guard let id, !id.isEmpty else {
+                error = "rottencore://build needs an id query parameter"
+                return
+            }
+            Task { await openBuildRequest(id: id) }
+        }
+    }
+
+    /// Loads a QuickLaunch build request from the inbox by id and switches to the Build screen.
+    func openBuildRequest(id: String) async {
+        section = .build
+        let env = ProcessInfo.processInfo.environment
+        let support: String
+        if let home = env["ROTTENCORE_HOME"], !home.isEmpty {
+            support = home
+        } else {
+            support = FileManager.default.homeDirectoryForCurrentUser
+                .appendingPathComponent("Library/Application Support/RottenCore").path
+        }
+        let inbox = support + "/build-requests/" + id.lowercased() + ".json"
+        guard FileManager.default.fileExists(atPath: inbox) else {
+            error = "No build request \"\(id)\" in the Rotten Core inbox."
+            return
+        }
+        builds.insert(Outcome(kind: .info, title: "Build request loaded",
+                              detail: "QuickLaunch handed off \(id). Starting the build…"), at: 0)
+        guard let cli = cli else { return }
+        if let outcome = await work("Building \(id)…", { try await cli.buildInbox(id: id) }) {
+            builds.insert(outcome, at: 0)
+            message = outcome.detail
+        }
+    }
 
     func pickFile() {
         let p = NSOpenPanel()

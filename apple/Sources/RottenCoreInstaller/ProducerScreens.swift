@@ -48,12 +48,12 @@ struct UploadView: View {
                     Spacer()
                     Button {
                         model.uploads.insert(Outcome(kind: .info, title: "Upload queued",
-                                                     detail: "\\(appId) \\(version) — the Go uploader streams the artifact in resumable chunks."), at: 0)
+                                                     detail: "\(appId) \(version) — the Go uploader streams the artifact in resumable chunks."), at: 0)
                     } label: { Label("Upload", systemImage: "square.and.arrow.up") }
                     .disabled(appId.isEmpty || version.isEmpty || artifact.isEmpty)
                     Button {
                         model.uploads.insert(Outcome(kind: .failure, title: "Publish blocked",
-                                                     detail: "QA has not signed off on \\(appId) \\(version)."), at: 0)
+                                                     detail: "QA has not signed off on \(appId) \(version)."), at: 0)
                     } label: { Label("Publish", systemImage: "paperplane") }
                     .disabled(!qaSignedOff)
                 }
@@ -122,7 +122,7 @@ struct BuildView: View {
                     Spacer()
                     Button {
                         model.builds.insert(Outcome(kind: .success, title: "Build started",
-                                                    detail: "\\(projectName) \\(version) → \\(selected.sorted().joined(separator: ", "))"), at: 0)
+                                                    detail: "\(projectName) \(version) → \(selected.sorted().joined(separator: ", "))"), at: 0)
                     } label: { Label("Build", systemImage: "hammer") }
                     .disabled(!hasBuildKey || projectName.isEmpty || appId.isEmpty || version.isEmpty || selected.isEmpty)
                 }
