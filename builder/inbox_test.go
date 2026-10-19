@@ -168,3 +168,45 @@ func TestScrubBuildEnvDropsAPIKeys(t *testing.T) {
 		t.Fatalf("lost unrelated env: %v", out)
 	}
 }
+
+func TestOpenInboxRejectsHardlink(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("no Unix nlink")
+	}
+	support, proj, outside := t.TempDir(), t.TempDir(), t.TempDir()
+	os.WriteFile(filepath.Join(proj, "app"), []byte("x"), 0o644)
+	body := validBody(proj)
+	body["id"] = "hardlink1"
+	raw, _ := json.Marshal(body)
+	src := filepath.Join(outside, "evil.json")
+	os.WriteFile(src, raw, 0o600)
+	inbox := filepath.Join(support, "build-requests")
+	os.MkdirAll(inbox, 0o700)
+	dst := filepath.Join(inbox, "hardlink1.json")
+	if err := os.Link(src, dst); err != nil {
+		t.Skip("link not permitted:", err)
+	}
+	_, _, _, err := builder.OpenInboxRequest(support, "hardlink1")
+	if !errors.Is(err, builder.ErrInboxPerms) {
+		t.Fatalf("want ErrInboxPerms for hardlink, got %v", err)
+	}
+}
+
+func TestOpenInboxRejectsSymlinkedInboxDir(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("symlink")
+	}
+	support, real, proj := t.TempDir(), t.TempDir(), t.TempDir()
+	os.WriteFile(filepath.Join(proj, "app"), []byte("x"), 0o644)
+	os.MkdirAll(filepath.Join(real, "build-requests"), 0o700)
+	body := validBody(proj)
+	writeInbox(t, real, "symdir001", body, 0o600)
+	// Point support/build-requests at real/build-requests via symlink.
+	if err := os.Symlink(filepath.Join(real, "build-requests"), filepath.Join(support, "build-requests")); err != nil {
+		t.Fatal(err)
+	}
+	_, _, _, err := builder.OpenInboxRequest(support, "symdir001")
+	if !errors.Is(err, builder.ErrInboxEscape) && !errors.Is(err, builder.ErrInboxPerms) {
+		t.Fatalf("want escape/perms for symlinked inbox dir, got %v", err)
+	}
+}

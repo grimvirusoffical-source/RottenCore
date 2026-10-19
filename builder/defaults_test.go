@@ -81,12 +81,31 @@ func TestDefaultGoCommandSetsGOOSGOARCH(t *testing.T) {
 	}
 	for plat, ga := range want {
 		cmd, _ := builder.DefaultCommand(plat, dir)
-		joined := strings.Join(cmd, " ")
+		if len(cmd) < 2 || cmd[0] != "go" || cmd[1] != "build" {
+			t.Fatalf("%s: expected go build argv (no env wrapper), got %v", plat, cmd)
+		}
+		for _, a := range cmd {
+			if strings.HasPrefix(a, "GOOS=") || a == "env" {
+				t.Fatalf("%s: GOOS/GOARCH must not be in the command argv (Windows has no env(1)): %v", plat, cmd)
+			}
+		}
+		env := builder.GoBuildEnv(plat)
+		joined := strings.Join(env, " ")
 		if !strings.Contains(joined, "GOOS="+ga[0]) || !strings.Contains(joined, "GOARCH="+ga[1]) || !strings.Contains(joined, "CGO_ENABLED=0") {
-			t.Fatalf("%s: expected env GOOS=%s GOARCH=%s CGO_ENABLED=0, got %v", plat, ga[0], ga[1], cmd)
+			t.Fatalf("%s: GoBuildEnv want GOOS=%s GOARCH=%s CGO_ENABLED=0, got %v", plat, ga[0], ga[1], env)
 		}
-		if !strings.Contains(joined, "go build") {
-			t.Fatalf("%s: expected go build, got %v", plat, cmd)
-		}
+	}
+}
+
+func TestFillDefaultsSetsGoEnv(t *testing.T) {
+	dir := t.TempDir()
+	os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module m\n"), 0o644)
+	req := &builder.Request{Project: builder.Project{Dir: dir}, Targets: []builder.Target{{Platform: builder.PlatformLinux}}}
+	req.FillDefaults()
+	if len(req.Targets[0].Env) == 0 || !strings.Contains(strings.Join(req.Targets[0].Env, " "), "GOOS=linux") {
+		t.Fatalf("FillDefaults must set Target.Env for Go builds, got %v", req.Targets[0].Env)
+	}
+	if req.Targets[0].Command[0] == "env" {
+		t.Fatal("command must not start with env")
 	}
 }

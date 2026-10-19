@@ -51,6 +51,9 @@ type Target struct {
 	Command  []string `json:"command"`  // build command; empty -> Prebuilt must be set
 	Prebuilt string   `json:"prebuilt"` // path to an already-built artifact (skip the command)
 	Artifact string   `json:"artifact"` // path the command leaves the artifact at (relative to Project.Dir)
+	// Env is KEY=VAL pairs merged into the build process (QA v2 M2): GOOS/GOARCH for default Go builds.
+	// Never put secrets here; scrubBuildEnv still drops API keys.
+	Env []string `json:"env,omitempty"`
 }
 
 // UploadTo picks the store for a successful build (handled by package uploader).

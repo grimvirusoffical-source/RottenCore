@@ -175,3 +175,35 @@ func VerifyArtifactPlatform(path, platform string, requireBinary bool) error {
 	}
 	return &ErrPlatformMismatch{Platform: platform, Want: wantDesc, Got: got}
 }
+
+// VerifyContainer ensures a packaged file's magic matches the extension we are about to ship (M3).
+func VerifyContainer(path, container, platform string) error {
+	if container == "" || container == ContainerBinary {
+		return nil
+	}
+	got, ok := DetectContainer(path)
+	if !ok {
+		// Windows .exe we just copied: DetectContainer sees MZ.
+		if container == ContainerExe {
+			info, isBin, err := DetectBinary(path)
+			if err != nil {
+				return err
+			}
+			if !isBin || info.Format != FormatPE {
+				return &ErrPlatformMismatch{Platform: platform, Want: "PE executable (.exe)", Got: "not a PE"}
+			}
+			return nil
+		}
+		return &ErrPlatformMismatch{Platform: platform, Want: container + " container", Got: "unrecognised file"}
+	}
+	if got != container && !(container == ContainerDMG && got == ContainerDMG) {
+		// gzip-detected tar.gz is fine
+		if container == ContainerTarGz && got == ContainerTarGz {
+			return nil
+		}
+		if got != container {
+			return &ErrPlatformMismatch{Platform: platform, Want: container, Got: got}
+		}
+	}
+	return nil
+}

@@ -60,6 +60,9 @@ func OpenInboxRequest(supportDir, id string) (req *Request, targets []Target, pa
 	if err != nil {
 		return nil, nil, "", err
 	}
+	if err := assertInboxDir(supportDir); err != nil {
+		return nil, nil, "", err
+	}
 	if err := assertInsideInbox(supportDir, path); err != nil {
 		return nil, nil, "", err
 	}
@@ -105,6 +108,7 @@ type Preview struct {
 type PreviewTarget struct {
 	Platform string   `json:"platform"`
 	Command  []string `json:"command,omitempty"`
+	Env      []string `json:"env,omitempty"`
 	Prebuilt string   `json:"prebuilt,omitempty"`
 	Artifact string   `json:"artifact,omitempty"`
 }
@@ -113,7 +117,7 @@ type PreviewTarget struct {
 func MakePreview(req *Request, targets []Target, path string) Preview {
 	pt := make([]PreviewTarget, 0, len(targets))
 	for _, t := range targets {
-		pt = append(pt, PreviewTarget{Platform: t.Platform, Command: t.Command, Prebuilt: t.Prebuilt, Artifact: t.Artifact})
+		pt = append(pt, PreviewTarget{Platform: t.Platform, Command: t.Command, Env: t.Env, Prebuilt: t.Prebuilt, Artifact: t.Artifact})
 	}
 	return Preview{
 		ID: req.ID, App: req.Project.Name, AppID: req.Project.ID, Version: req.Project.Version,
@@ -175,6 +179,34 @@ func assertInboxPerms(path string) error {
 			if int(st.Uid) != os.Getuid() {
 				return fmt.Errorf("%w (wrong owner)", ErrInboxPerms)
 			}
+			if st.Nlink > 1 {
+				return fmt.Errorf("%w (hardlinked, nlink=%d)", ErrInboxPerms, st.Nlink)
+			}
+		}
+	}
+	return nil
+}
+
+// assertInboxDir requires <support>/build-requests to be a real directory (not a symlink), owned by
+// this user with mode 0700 (QA v2 L1).
+func assertInboxDir(supportDir string) error {
+	dir := InboxDir(supportDir)
+	fi, err := os.Lstat(dir)
+	if err != nil {
+		return err
+	}
+	if fi.Mode()&os.ModeSymlink != 0 {
+		return fmt.Errorf("%w: inbox directory must not be a symlink", ErrInboxEscape)
+	}
+	if !fi.IsDir() {
+		return fmt.Errorf("%w: inbox is not a directory", ErrInboxPerms)
+	}
+	if runtime.GOOS != "windows" {
+		if fi.Mode().Perm()&0o077 != 0 {
+			return fmt.Errorf("%w: inbox directory must be mode 0700 (mode %04o)", ErrInboxPerms, fi.Mode().Perm())
+		}
+		if st, ok := fi.Sys().(*syscall.Stat_t); ok && int(st.Uid) != os.Getuid() {
+			return fmt.Errorf("%w: inbox directory wrong owner", ErrInboxPerms)
 		}
 	}
 	return nil

@@ -1,6 +1,7 @@
 package builder
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -138,7 +139,7 @@ func (b *Builder) one(ctx context.Context, p Project, t Target) (*Artifact, erro
 		if !filepath.IsAbs(out) {
 			out = filepath.Join(p.Dir, out)
 		}
-		if err := b.build(ctx, p.Dir, t.Command); err != nil {
+		if err := b.build(ctx, p.Dir, t.Command, t.Env); err != nil {
 			return nil, err
 		}
 		src = out
@@ -147,18 +148,42 @@ func (b *Builder) one(ctx context.Context, p Project, t Target) (*Artifact, erro
 	if err := VerifyArtifactPlatform(src, t.Platform, requireBin); err != nil {
 		return nil, err
 	}
+	// M3: package a raw Go binary so the download name matches the bytes (.dmg/.zip/.tar.gz/.exe),
+	// never a Mach-O named .dmg or an ELF named .AppImage.
+	packSrc := src
 	name := Filename(p, t.Platform)
+	kind := Kind(t.Platform)
+	if requireBin {
+		base := slug(p.Name) + "-" + p.Version + "-" + t.Platform
+		pr, err := PackageNative(src, t.Platform, b.OutDir, base)
+		if err != nil {
+			return nil, fmt.Errorf("package %s: %w", t.Platform, err)
+		}
+		packSrc = pr.Path
+		name = FilenamePacked(p, t.Platform, pr.Ext)
+		kind = strings.TrimPrefix(pr.Ext, ".")
+		if err := VerifyContainer(packSrc, pr.Container, t.Platform); err != nil {
+			return nil, err
+		}
+	}
 	dst := filepath.Join(b.OutDir, name)
 	// ENCRYPTION-HOOK: builder.package -- packaging the built artifact for distribution. The bytes are
 	// copied through the seal Sealer so an encrypter can be plugged in here later; the default Sealer is a
 	// no-op and the file is copied verbatim. DON'T ENCRYPT ANYTHING by default.
-	sum, n, err := sealCopy(src, dst, seal.BuildArtifact)
+	var sum string
+	var n int64
+	var err error
+	if filepath.Clean(packSrc) == filepath.Clean(dst) {
+		sum, n, err = sealHash(packSrc, seal.BuildArtifact)
+	} else {
+		sum, n, err = sealCopy(packSrc, dst, seal.BuildArtifact)
+	}
 	if err != nil {
 		return nil, err
 	}
 	var doc core.FileSigDoc
 	doc.AppID, doc.Version = p.ID, labelVersion(p)
-	doc.Artifact.Name, doc.Artifact.Kind, doc.Artifact.SHA256, doc.Artifact.Bytes = name, Kind(t.Platform), sum, n
+	doc.Artifact.Name, doc.Artifact.Kind, doc.Artifact.SHA256, doc.Artifact.Bytes = name, kind, sum, n
 	doc.SignedMs = b.now().UnixMilli()
 	sig, err := core.SignFileDocWith(b.Signer, b.Chain, doc)
 	if err != nil {
@@ -186,17 +211,17 @@ func (b *Builder) one(ctx context.Context, p Project, t Target) (*Artifact, erro
 	return art, nil
 }
 
-func (b *Builder) build(ctx context.Context, dir string, command []string) error {
+func (b *Builder) build(ctx context.Context, dir string, command, extraEnv []string) error {
 	cmd := exec.CommandContext(ctx, command[0], command[1:]...)
 	cmd.Dir = dir
 	cmd.Stdout, cmd.Stderr = os.Stderr, os.Stderr
 	// N4: never let the build API key (or a general store key) leak into npm scripts / install hooks.
-	// Build a clean env from the process, dropping RA_API_KEY / ROTTENCORE_BUILD_API_KEY.
-	cmd.Env = scrubBuildEnv(os.Environ())
+	// M2: GOOS/GOARCH/CGO_ENABLED come from extraEnv (Target.Env), not an `env` argv wrapper.
+	cmd.Env = append(scrubBuildEnv(os.Environ()), extraEnv...)
 	return cmd.Run()
 }
 
-// isGoBuildCommand reports whether the command is the default go build (possibly wrapped in env).
+// isGoBuildCommand reports whether the command is a go build (argv starts at "go" "build").
 func isGoBuildCommand(command []string) bool {
 	for i, a := range command {
 		if a == "go" && i+1 < len(command) && command[i+1] == "build" {
@@ -257,6 +282,24 @@ func sealCopy(src, dst string, purpose seal.Purpose) (string, int64, error) {
 	}
 	if err := os.WriteFile(dst, sealed, 0o644); err != nil {
 		return "", 0, err
+	}
+	h := sha256.Sum256(sealed)
+	return hex.EncodeToString(h[:]), int64(len(sealed)), nil
+}
+
+func sealHash(path string, purpose seal.Purpose) (string, int64, error) {
+	in, err := os.ReadFile(path)
+	if err != nil {
+		return "", 0, err
+	}
+	sealed, err := seal.Current().Seal(purpose, in, []byte("artifact:"+filepath.Base(path)))
+	if err != nil {
+		return "", 0, err
+	}
+	if !bytes.Equal(sealed, in) {
+		if err := os.WriteFile(path, sealed, 0o644); err != nil {
+			return "", 0, err
+		}
 	}
 	h := sha256.Sum256(sealed)
 	return hex.EncodeToString(h[:]), int64(len(sealed)), nil

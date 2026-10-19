@@ -5,10 +5,9 @@ import (
 	"path/filepath"
 )
 
-// goTarget is GOOS/GOARCH (and CGO_ENABLED=0) for the default Go build of each desktop target (QA v2 N5).
-// Without these the host binary is labelled as another platform: a Mac builds a Mach-O for "linux", and
-// Apple Silicon produces an arm64 binary labelled Intel. The builder verifies the real headers after the
-// command before labelling and signing (VerifyArtifactPlatform).
+// goTarget is GOOS/GOARCH for the default Go build of each desktop target (QA v2 N5 / M2).
+// The values are applied on cmd.Env in Builder.build — never as an `env` argv prefix, which does
+// not exist on stock Windows.
 func goTarget(platform string) (goos, goarch string) {
 	switch platform {
 	case PlatformMacArm64:
@@ -23,51 +22,55 @@ func goTarget(platform string) (goos, goarch string) {
 	return "", ""
 }
 
+// GoBuildEnv returns CGO_ENABLED=0 GOOS=… GOARCH=… for a default Go build of platform.
+func GoBuildEnv(platform string) []string {
+	goos, goarch := goTarget(platform)
+	if goos == "" {
+		return nil
+	}
+	return []string{"CGO_ENABLED=0", "GOOS=" + goos, "GOARCH=" + goarch}
+}
+
 // DefaultCommand returns the agreed per-platform build command when QuickLaunch (or another client)
 // sends a target with neither command nor prebuilt. Both repos use this convention
 // (docs/BUILDER.md §Defaults; quick-launch/internal/rottencore.DefaultCommand).
 //
 // Detection is by project files in dir:
 //   - package.json  → npm/electron-builder style
-//   - go.mod        → go build with GOOS/GOARCH (and CGO_ENABLED=0) for the target
+//   - go.mod        → go build (GOOS/GOARCH go on Target.Env / cmd.Env, not an `env` wrapper)
 //   - otherwise     → a clearly-named stub that fails loudly
 func DefaultCommand(platform, dir string) (command []string, artifact string) {
 	hasPkg := fileExists(filepath.Join(dir, "package.json"))
 	hasGo := fileExists(filepath.Join(dir, "go.mod"))
 	out := filepath.Join("dist", platform)
-	goos, goarch := goTarget(platform)
-	goCmd := func(bin string) []string {
-		return []string{"env", "CGO_ENABLED=0", "GOOS=" + goos, "GOARCH=" + goarch,
-			"go", "build", "-o", filepath.Join(out, bin), "."}
-	}
 	switch platform {
 	case PlatformMacArm64:
 		if hasPkg {
 			return []string{"npm", "run", "build:mac-arm64", "--if-present"}, filepath.Join(out, "app.dmg")
 		}
 		if hasGo {
-			return goCmd("app"), filepath.Join(out, "app")
+			return []string{"go", "build", "-o", filepath.Join(out, "app"), "."}, filepath.Join(out, "app")
 		}
 	case PlatformMacIntel:
 		if hasPkg {
 			return []string{"npm", "run", "build:mac-x64", "--if-present"}, filepath.Join(out, "app.dmg")
 		}
 		if hasGo {
-			return goCmd("app"), filepath.Join(out, "app")
+			return []string{"go", "build", "-o", filepath.Join(out, "app"), "."}, filepath.Join(out, "app")
 		}
 	case PlatformWindows:
 		if hasPkg {
 			return []string{"npm", "run", "build:win", "--if-present"}, filepath.Join(out, "app.exe")
 		}
 		if hasGo {
-			return goCmd("app.exe"), filepath.Join(out, "app.exe")
+			return []string{"go", "build", "-o", filepath.Join(out, "app.exe"), "."}, filepath.Join(out, "app.exe")
 		}
 	case PlatformLinux:
 		if hasPkg {
 			return []string{"npm", "run", "build:linux", "--if-present"}, filepath.Join(out, "app.AppImage")
 		}
 		if hasGo {
-			return goCmd("app"), filepath.Join(out, "app")
+			return []string{"go", "build", "-o", filepath.Join(out, "app"), "."}, filepath.Join(out, "app")
 		}
 	case PlatformExtensions:
 		if hasPkg {
@@ -82,7 +85,6 @@ func DefaultCommand(platform, dir string) (command []string, artifact string) {
 			return []string{"npm", "run", "build:ios", "--if-present"}, filepath.Join(out, "app.ipa")
 		}
 	}
-	// Last resort: a command that fails with a clear name so the loading screen shows what happened.
 	return []string{"sh", "-c", "echo 'rottencore: no default build command for this project type; set command or prebuilt in the request' >&2; exit 1"}, ""
 }
 
@@ -91,7 +93,7 @@ func fileExists(p string) bool {
 	return err == nil && fi.Mode().IsRegular()
 }
 
-// FillDefaults sets Command/Artifact on any target that has neither a command nor a prebuilt path,
+// FillDefaults sets Command/Artifact/Env on any target that has neither a command nor a prebuilt path,
 // using DefaultCommand against Project.Dir. Safe to call before Validate.
 func (r *Request) FillDefaults() {
 	if r == nil {
@@ -110,6 +112,9 @@ func (r *Request) FillDefaults() {
 		t.Command = cmd
 		if t.Artifact == "" {
 			t.Artifact = art
+		}
+		if isGoBuildCommand(cmd) {
+			t.Env = GoBuildEnv(t.Platform)
 		}
 	}
 }
