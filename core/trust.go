@@ -27,11 +27,23 @@ const UntrustedWarning = "RottenCore doesn't trust this app: it isn't from the R
 // attestDomain matches the Rotten Apple store (rarxai/attest.go).
 const attestDomain = "ROTTENCORE-ATTEST-v1\x00"
 
-// PinnedStoreKeys are the Rotten Apple store's attestation public keys. EMPTY in v0.1.0: Red-XAI has not
-// provisioned the production store signing key, so no app verifies as store-trusted yet. Adding a key is
-// a code change and a new RottenCore release; it can never come from a file, an environment variable or
-// a manifest.
-var PinnedStoreKeys = []ed25519.PublicKey{}
+// StoreKeyHex is the production Rotten Apple store (ra-core) public key, the one that signs store
+// attestations, review receipts and the revocation status ticket (`ra-core store-keygen`; on the server
+// in /etc/ra-core/store.pub.txt, documented in deploy/kamatera-runbook.md). It is public. The private half
+// never leaves the server.
+const StoreKeyHex = "b596fafa7a639598f371a897b151c9de6018c38e323024fc759b216d4b6ae9d1"
+
+// PinnedStoreKeys are the Rotten Apple store's public keys. Adding or rotating one is a code change and a
+// new RottenCore release; it can never come from a file, an environment variable or a manifest.
+var PinnedStoreKeys = []ed25519.PublicKey{mustHexKey(StoreKeyHex)}
+
+func mustHexKey(h string) ed25519.PublicKey {
+	b, err := hex.DecodeString(h)
+	if err != nil || len(b) != ed25519.PublicKeySize {
+		panic("bad pinned key")
+	}
+	return b
+}
 
 // Signed is the store's envelope (the same as rarxai.Signed in the store).
 type Signed struct {

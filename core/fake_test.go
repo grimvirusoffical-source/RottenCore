@@ -120,6 +120,9 @@ func (f *fakeRunner) Run(ctx context.Context, name string, args ...string) ([]by
 		}
 		return []byte("(\n    \"" + strings.Join(u, "\",\n    \"") + "\"\n)"), nil
 	case "xattr":
+		if args[0] == "-dr" {
+			return nil, nil
+		}
 		return nil, errors.New("no such xattr")
 	case "rottencore":
 		return nil, nil // pkg-remove as root: covered by Engine.RemovePkg tests

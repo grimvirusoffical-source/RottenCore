@@ -2,7 +2,6 @@ package core
 
 import (
 	"bytes"
-	"crypto/ed25519"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -24,19 +23,25 @@ import (
 // UpdateManifestSchema is the only schema RottenCore accepts.
 const UpdateManifestSchema = "redx.update-manifest/v1"
 
-// UpdateKey is one entry of GET /v1/updates/keys.
+// UpdateKey is one entry of GET /v1/updates/keys. Chain is the ra-core certificate chain for the key
+// (leaf kind "update-signer", leaf public key = Pub): hosts share the one Red-XAI chain of trust and the
+// one revocation list. A key without a valid, unrevoked chain is never used.
 type UpdateKey struct {
 	KID      string `json:"kid"`
 	Alg      string `json:"alg"`
 	Pub      string `json:"pub"`
 	NotAfter string `json:"not_after"`
+	Chain    []Cert `json:"chain,omitempty"`
 }
 
-// PinnedUpdateKeyFingerprints are the host manifest-signing keys RottenCore trusts (KeyFingerprint of the
-// raw public key). EMPTY until RedX Dev provisions the production host key; keys fetched from
-// /v1/updates/keys are only used when their fingerprint is pinned here (or, later, when they carry a
-// ra-core certificate; see the plan's open questions).
-var PinnedUpdateKeyFingerprints = []string{}
+// TrustedKey is a host update key that passed the chain and revocation checks.
+type TrustedKey struct {
+	KID    string       `json:"kid"`
+	Alg    string       `json:"alg"`
+	Pub    []byte       `json:"-"`
+	Signer *CertSubject `json:"signer"`
+	Test   bool         `json:"test,omitempty"`
+}
 
 // UpdateManifest is redx.update-manifest/v1.
 type UpdateManifest struct {
@@ -138,55 +143,89 @@ func umErr(code, f string, a ...interface{}) error {
 	return &ErrUpdateManifest{Code: code, Msg: fmt.Sprintf(f, a...)}
 }
 
-// TrustedUpdateKeys picks, from a /v1/updates/keys answer, the keys whose fingerprint is pinned and that
-// have not passed not_after.
-func TrustedUpdateKeys(keys []UpdateKey, pinnedFPs []string, now time.Time) map[string]ed25519.PublicKey {
-	out := map[string]ed25519.PublicKey{}
+// TrustedUpdateKeys keeps the keys of a /v1/updates/keys answer whose ra-core chain verifies (leaf kind
+// update-signer whose public key is the key itself), that have not passed not_after, and whose
+// certificates are not revoked on a fresh or in-grace revocation list. Reasons explain every rejection.
+func TrustedUpdateKeys(keys []UpdateKey, pol ChainPolicy, rev *RevocationState) (map[string]TrustedKey, []string) {
+	out, why := map[string]TrustedKey{}, []string{}
+	now := pol.Now
+	if now.IsZero() {
+		now = time.Now()
+	}
+	pol.LeafKind = CertKindUpdateSigner
 	for _, k := range keys {
-		if k.Alg != "ed25519" || k.KID == "" {
+		reject := func(f string, a ...interface{}) {
+			why = append(why, fmt.Sprintf("key %q: ", k.KID)+fmt.Sprintf(f, a...))
+		}
+		if k.KID == "" || (k.Alg != AlgEd25519 && k.Alg != AlgP384) {
+			reject("unsupported algorithm %q", k.Alg)
 			continue
 		}
 		raw, err := base64.StdEncoding.DecodeString(k.Pub)
-		if err != nil || len(raw) != ed25519.PublicKeySize {
+		if err != nil || !validPublicKey(k.Alg, raw) {
+			reject("public key does not decode")
 			continue
 		}
 		if k.NotAfter != "" {
 			na, err := time.Parse(time.RFC3339, k.NotAfter)
 			if err != nil || now.After(na) {
+				reject("expired (not_after %s)", k.NotAfter)
 				continue
 			}
 		}
-		fp := KeyFingerprint(raw)
-		for _, p := range pinnedFPs {
-			if p == fp {
-				out[k.KID] = ed25519.PublicKey(raw)
-			}
+		if len(k.Chain) == 0 {
+			reject("has no ra-core certificate chain")
+			continue
 		}
+		leaf, err := VerifyCertChain(k.Chain, pol)
+		if err != nil {
+			reject("%v", err)
+			continue
+		}
+		if algOf(leaf.Alg) != k.Alg || !bytes.Equal(leaf.PublicKey, raw) {
+			reject("the certificate is for a different key")
+			continue
+		}
+		fps := make([]string, len(k.Chain))
+		for i := range k.Chain {
+			fps[i] = k.Chain[i].Fingerprint()
+		}
+		reason, state := CheckRevocation(rev, "", "", fps, now)
+		if reason != "" {
+			reject("%s", reason)
+			continue
+		}
+		if state != "fresh" && state != "grace" {
+			reject("the revocation list could not be checked (%s)", state)
+			continue
+		}
+		sub := leaf.Subject
+		out[k.KID] = TrustedKey{KID: k.KID, Alg: k.Alg, Pub: raw, Signer: &sub, Test: anyTest(k.Chain)}
 	}
-	return out
+	return out, why
 }
 
 // VerifyUpdateManifest checks the detached signature header value ("ed25519:<base64>") over body under the
 // trusted keys (kid from X-RedX-Key-Id; "" tries every trusted key), parses and validates the manifest,
 // and refuses a sequence <= lastSeq.
-func VerifyUpdateManifest(body []byte, sigHeader, kid string, keys map[string]ed25519.PublicKey, lastSeq int64) (*UpdateManifest, error) {
+func VerifyUpdateManifest(body []byte, sigHeader, kid string, keys map[string]TrustedKey, lastSeq int64) (*UpdateManifest, error) {
 	if len(body) == 0 || len(body) > 1<<20 {
 		return nil, umErr("bad_manifest", "manifest is empty or larger than 1 MB")
 	}
-	b64, ok := strings.CutPrefix(strings.TrimSpace(sigHeader), "ed25519:")
-	if !ok {
-		return nil, umErr("bad_signature", "signature is not ed25519:<base64>")
+	alg, b64, ok := strings.Cut(strings.TrimSpace(sigHeader), ":")
+	if !ok || (alg != AlgEd25519 && alg != AlgP384) {
+		return nil, umErr("bad_signature", "signature is not ed25519:<base64> or p384:<base64>")
 	}
 	sig, err := base64.StdEncoding.DecodeString(b64)
-	if err != nil || len(sig) != ed25519.SignatureSize {
+	if err != nil || len(sig) > 200 {
 		return nil, umErr("bad_signature", "signature is malformed")
 	}
 	verified := false
 	for id, k := range keys {
-		if kid != "" && id != kid {
+		if (kid != "" && id != kid) || k.Alg != alg {
 			continue
 		}
-		if ed25519.Verify(k, body, sig) {
+		if VerifySig(k.Alg, k.Pub, body, sig) {
 			verified = true
 			break
 		}

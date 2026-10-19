@@ -64,6 +64,7 @@ func main() {
 	theme := fs.String("theme", "", "config: dark | light | system")
 	limit := fs.Int("limit", 25, "search: at most this many results")
 	fs.StringVar(&progressMode, "progress", "", "fetch: progress as json (NDJSON on stderr) for the loading screen")
+	fs.StringVar(&testRootHex, "trust-test-root", "", "trust a TEST Red-XAI CA root (hex) for this run; results are labelled TEST")
 	kid := fs.String("kid", "", "verify-update-manifest: X-RedX-Key-Id")
 	lastSeq := fs.Int64("last-seq", 0, "verify-update-manifest: last applied sequence for the app")
 	fs.Parse(reorder(args[1:]))
@@ -116,6 +117,10 @@ func main() {
 	}
 	c, err := core.NewCore(dir, o.admin)
 	check(err)
+	if testRootHex != "" {
+		pol := chainPolicy()
+		c.Roots, c.Production = pol.Roots, false
+	}
 	dest := ""
 	if o.user {
 		dest = "~/Applications"
@@ -324,7 +329,7 @@ func progress() func(int64, int64) {
 // reorder lets flags come after positional arguments.
 func reorder(a []string) []string {
 	var flags, pos []string
-	valued := map[string]bool{"--admin": true, "-admin": true, "--store-url": true, "-store-url": true, "--accounts-issuer": true, "-accounts-issuer": true, "--theme": true, "-theme": true, "--limit": true, "-limit": true, "--progress": true, "-progress": true, "--kid": true, "-kid": true, "--last-seq": true, "-last-seq": true}
+	valued := map[string]bool{"--admin": true, "-admin": true, "--store-url": true, "-store-url": true, "--accounts-issuer": true, "-accounts-issuer": true, "--theme": true, "-theme": true, "--limit": true, "-limit": true, "--progress": true, "-progress": true, "--kid": true, "-kid": true, "--last-seq": true, "-last-seq": true, "--trust-test-root": true, "-trust-test-root": true}
 	for i := 0; i < len(a); i++ {
 		if strings.HasPrefix(a[i], "-") && a[i] != "-" {
 			flags = append(flags, a[i])

@@ -32,11 +32,25 @@ const manifestJSON = `{
   "certificate": null
 }`
 
-func hostKeys(t *testing.T) (ed25519.PrivateKey, map[string]ed25519.PublicKey) {
+// hostPKI issues a ra-core "update-signer" certificate for a fresh host key under a test CA.
+func hostPKI(t *testing.T, now time.Time) (*pki, ed25519.PrivateKey, UpdateKey) {
+	p := newPKI(t, now)
 	pub, priv, _ := ed25519.GenerateKey(nil)
-	keys := TrustedUpdateKeys([]UpdateKey{{KID: "k1", Alg: "ed25519", Pub: base64.StdEncoding.EncodeToString(pub), NotAfter: "2099-01-01T00:00:00Z"}}, []string{KeyFingerprint(pub)}, time.Now())
+	leaf := Cert{Serial: "h1", Kind: CertKindUpdateSigner, Subject: CertSubject{Name: "RedX host", TeamID: "T-redx", DevID: "host-1"}, PublicKey: pub,
+		NotBefore: now.Add(-time.Hour).Unix(), NotAfter: now.Add(24 * time.Hour * 90).Unix(), Test: true}
+	if err := SignCert(&leaf, p.inter); err != nil {
+		t.Fatal(err)
+	}
+	return p, priv, UpdateKey{KID: "k1", Alg: "ed25519", Pub: base64.StdEncoding.EncodeToString(pub), NotAfter: "2099-01-01T00:00:00Z", Chain: []Cert{leaf, p.chain[1]}}
+}
+
+func hostKeys(t *testing.T) (ed25519.PrivateKey, map[string]TrustedKey) {
+	now := time.Now()
+	p, priv, k := hostPKI(t, now)
+	_, store, _ := ed25519.GenerateKey(nil)
+	keys, why := TrustedUpdateKeys([]UpdateKey{k}, p.pol, ticket(t, store, now, StatusTicket{}))
 	if len(keys) != 1 {
-		t.Fatal("pinned key not trusted")
+		t.Fatalf("certified key not trusted: %v", why)
 	}
 	return priv, keys
 }
@@ -120,20 +134,84 @@ func TestUpdateManifestVerify(t *testing.T) {
 	}
 }
 
-func TestUpdateKeysAndSources(t *testing.T) {
-	pub, _, _ := ed25519.GenerateKey(nil)
-	p := base64.StdEncoding.EncodeToString(pub)
-	fp := KeyFingerprint(pub)
-	now := time.Date(2026, 10, 19, 0, 0, 0, 0, time.UTC)
-	if len(TrustedUpdateKeys([]UpdateKey{{KID: "a", Alg: "ed25519", Pub: p}}, nil, now)) != 0 {
-		t.Fatal("unpinned key trusted")
+func TestUpdateKeysNeedRaCoreChainAndRevocation(t *testing.T) {
+	now := time.Now()
+	p, _, k := hostPKI(t, now)
+	_, store, _ := ed25519.GenerateKey(nil)
+	clean := ticket(t, store, now, StatusTicket{})
+	trusted := func(keys []UpdateKey, pol ChainPolicy, rev *RevocationState) int {
+		got, _ := TrustedUpdateKeys(keys, pol, rev)
+		return len(got)
 	}
-	if len(TrustedUpdateKeys([]UpdateKey{{KID: "a", Alg: "ed25519", Pub: p, NotAfter: "2026-01-01T00:00:00Z"}}, []string{fp}, now)) != 0 {
+	if trusted([]UpdateKey{k}, p.pol, clean) != 1 {
+		t.Fatal("certified key rejected")
+	}
+	noChain := k
+	noChain.Chain = nil
+	if trusted([]UpdateKey{noChain}, p.pol, clean) != 0 {
+		t.Fatal("key without a chain trusted")
+	}
+	other := k
+	pub2, _, _ := ed25519.GenerateKey(nil)
+	other.Pub = base64.StdEncoding.EncodeToString(pub2) // certificate is for a different key
+	if trusted([]UpdateKey{other}, p.pol, clean) != 0 {
+		t.Fatal("key/cert mismatch trusted")
+	}
+	devLeaf := k
+	devLeaf.Chain = p.chain // a developer certificate is not an update-signer certificate
+	if trusted([]UpdateKey{devLeaf}, p.pol, clean) != 0 {
+		t.Fatal("developer cert accepted as update signer")
+	}
+	expired := k
+	expired.NotAfter = now.Add(-time.Minute).Format(time.RFC3339)
+	if trusted([]UpdateKey{expired}, p.pol, clean) != 0 {
 		t.Fatal("expired key trusted")
 	}
-	if len(TrustedUpdateKeys([]UpdateKey{{KID: "a", Alg: "rsa", Pub: p}}, []string{fp}, now)) != 0 {
-		t.Fatal("non-ed25519 key trusted")
+	if trusted([]UpdateKey{k}, newPKI(t, now).pol, clean) != 0 {
+		t.Fatal("foreign root trusted")
 	}
+	for _, fp := range []string{k.Chain[0].Fingerprint(), k.Chain[1].Fingerprint()} {
+		if trusted([]UpdateKey{k}, p.pol, ticket(t, store, now, StatusTicket{RevokedCerts: []string{fp}})) != 0 {
+			t.Fatal("revoked host key trusted")
+		}
+	}
+	if trusted([]UpdateKey{k}, p.pol, nil) != 0 {
+		t.Fatal("trusted with no revocation list")
+	}
+	prod := p.pol
+	prod.Production = true
+	if trusted([]UpdateKey{k}, prod, clean) != 0 {
+		t.Fatal("test chain trusted in production")
+	}
+}
+
+func TestUpdateManifestP384HostKey(t *testing.T) {
+	now := time.Now()
+	p := newPKI(t, now)
+	hk, err := NewP384Signer()
+	if err != nil {
+		t.Fatal(err)
+	}
+	leaf := Cert{Serial: "h2", Kind: CertKindUpdateSigner, Alg: AlgP384, PublicKey: hk.Public(), NotBefore: now.Add(-time.Hour).Unix(), NotAfter: now.Add(time.Hour).Unix(), Test: true}
+	if err := SignCert(&leaf, p.inter); err != nil {
+		t.Fatal(err)
+	}
+	_, store, _ := ed25519.GenerateKey(nil)
+	keys, why := TrustedUpdateKeys([]UpdateKey{{KID: "p", Alg: AlgP384, Pub: base64.StdEncoding.EncodeToString(hk.Public()), Chain: []Cert{leaf, p.chain[1]}}}, p.pol, ticket(t, store, now, StatusTicket{}))
+	if len(keys) != 1 {
+		t.Fatal(why)
+	}
+	body := []byte(manifestJSON)
+	sig, _ := hk.Sign(body)
+	if _, err := VerifyUpdateManifest(body, "p384:"+base64.StdEncoding.EncodeToString(sig), "p", keys, 0); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := VerifyUpdateManifest(body, "ed25519:"+base64.StdEncoding.EncodeToString(sig), "p", keys, 0); code(err) != "bad_signature" {
+		t.Fatal("algorithm confusion accepted")
+	}
+}
+
+func TestUpdateSources(t *testing.T) {
 	if got := UpdateSourceOptions(false); len(got) != 1 || got[0] != "github" {
 		t.Fatalf("not hosted offers %v", got)
 	}

@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -65,7 +66,7 @@ func runM1(ctx context.Context, cmd string, rest []string, kid string, lastSeq i
 		rctx, cancel := context.WithTimeout(ctx, 15*time.Second)
 		rev, rerr := cache.Refresh(rctx, &core.Net{}, cfg.StoreURL)
 		cancel()
-		r := core.VerifyFileSignature(sig, sum, size, core.ChainPolicy{Roots: core.PinnedCARoots, Production: true}, rev)
+		r := core.VerifyFileSignature(sig, sum, size, chainPolicy(), rev)
 		if rerr != nil {
 			r.Reasons = append(r.Reasons, "revocation list not refreshed: "+rerr.Error())
 		}
@@ -96,9 +97,15 @@ func runM1(ctx context.Context, cmd string, rest []string, kid string, lastSeq i
 		check(err)
 		var keys []core.UpdateKey
 		check(json.Unmarshal(kb, &keys))
-		trusted := core.TrustedUpdateKeys(keys, core.PinnedUpdateKeyFingerprints, time.Now())
+		cache := &core.RevocationCache{Path: filepath.Join(core.SupportDir(), "status-ticket.json"), Pins: core.PinnedStoreKeys}
+		cfg, err := core.LoadConfig(core.SupportDir())
+		check(err)
+		rctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+		rev, _ := cache.Refresh(rctx, &core.Net{}, cfg.StoreURL)
+		cancel()
+		trusted, why := core.TrustedUpdateKeys(keys, chainPolicy(), rev)
 		if len(trusted) == 0 {
-			fail(errors.New("no pinned Red-XAI Host update key is in that key list (none is provisioned yet)"), 3)
+			fail(fmt.Errorf("no host update key has a valid, unrevoked Red-XAI certificate: %s", strings.Join(why, "; ")), 3)
 		}
 		m, err := core.VerifyUpdateManifest(body, sig, kid, trusted, lastSeq)
 		check(err)
@@ -113,4 +120,25 @@ func runM1(ctx context.Context, cmd string, rest []string, kid string, lastSeq i
 		return false
 	}
 	return true
+}
+
+// testRootHex is --trust-test-root: a TEST CA root (hex Ed25519 or P-384 uncompressed point). It switches
+// trust to non-production for this run: test chains verify and are labelled TEST, never production.
+var testRootHex string
+
+func chainPolicy() core.ChainPolicy {
+	pol := core.ChainPolicy{Roots: core.PinnedCARoots, Production: true}
+	if testRootHex != "" {
+		k, err := hex.DecodeString(testRootHex)
+		if err != nil {
+			fail(errors.New("--trust-test-root must be hex"), 2)
+		}
+		alg := core.AlgEd25519
+		if len(k) == 97 {
+			alg = core.AlgP384
+		}
+		pol.Roots = append(append([]core.CARoot{}, pol.Roots...), core.CARoot{Name: "test-root", Alg: alg, PublicKey: k, Test: true})
+		pol.Production = false
+	}
+	return pol
 }

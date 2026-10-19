@@ -29,8 +29,17 @@ type Entry struct {
 	AgeRating    string     `json:"ageRating,omitempty"`
 	Codesign     *Codesign  `json:"codesign,omitempty"`
 	Managed      string     `json:"managed,omitempty"` // "ra-launcher": installed, updated and removed by the Rotten Apple launcher
-	InstalledAt  time.Time  `json:"installedAt"`
-	UpdatedAt    time.Time  `json:"updatedAt"`
+	// Red-XAI signature (M2): who signed it, the chain's certificate fingerprints (for revocation checks
+	// later), whether it was a TEST chain, whether RottenCore removed the quarantine flag, and the current
+	// revocation mark ("" = not revoked).
+	Signer            *CertSubject `json:"signer,omitempty"`
+	CertFPs           []string     `json:"certFingerprints,omitempty"`
+	SigTest           bool         `json:"signatureTest,omitempty"`
+	QuarantineRemoved bool         `json:"quarantineRemoved,omitempty"`
+	Revoked           string       `json:"revoked,omitempty"`
+	RevokedAt         time.Time    `json:"revokedAt,omitempty"`
+	InstalledAt       time.Time    `json:"installedAt"`
+	UpdatedAt         time.Time    `json:"updatedAt"`
 }
 
 // State is ~/Library/Application Support/RottenCore/installed.json.

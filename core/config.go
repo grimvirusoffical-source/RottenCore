@@ -92,14 +92,17 @@ func NewCore(dir string, admin string) (*Core, error) {
 	self, _ := os.Executable()
 	n := &Net{GitHubAPI: cfg.GitHubAPI, GitHubToken: os.Getenv("ROTTENCORE_GITHUB_TOKEN")}
 	return &Core{
-		Accounts: &OIDCAccounts{Issuer: cfg.AccountsIssuer, ClientID: cfg.AccountsClientID, Net: n},
-		Net:      n,
-		Engine:   &Engine{R: &ExecRunner{Admin: admin}, Applications: "/Applications", UserApps: filepath.Join(home, "Applications"), Home: home},
-		State:    &State{Dir: dir},
-		StoreURL: cfg.StoreURL,
-		Pins:     PinnedStoreKeys,
-		TmpDir:   filepath.Join(dir, "tmp"),
-		SelfPath: self,
-		Arch:     HostArch(),
+		Accounts:   &OIDCAccounts{Issuer: cfg.AccountsIssuer, ClientID: cfg.AccountsClientID, Net: n},
+		Net:        n,
+		Engine:     &Engine{R: &ExecRunner{Admin: admin}, Applications: "/Applications", UserApps: filepath.Join(home, "Applications"), Home: home},
+		State:      &State{Dir: dir},
+		StoreURL:   cfg.StoreURL,
+		Pins:       PinnedStoreKeys,
+		Roots:      PinnedCARoots,
+		Production: true,
+		Rev:        &RevocationCache{Path: filepath.Join(dir, "status-ticket.json"), Pins: PinnedStoreKeys},
+		TmpDir:     filepath.Join(dir, "tmp"),
+		SelfPath:   self,
+		Arch:       HostArch(),
 	}, nil
 }

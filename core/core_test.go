@@ -635,9 +635,10 @@ func TestOIDCDiscoveryAndPKCE(t *testing.T) {
 	}
 }
 
-func TestProductionPinsAreEmpty(t *testing.T) {
-	if len(PinnedStoreKeys) != 0 {
-		t.Fatal("v0.1.0 must ship with no store key until Red-XAI provisions it; update the release notes when this changes")
+func TestProductionStoreKeyPinned(t *testing.T) {
+	// Exactly the production store key (runbook: /etc/ra-core/store.pub.txt). Changing it needs a release note.
+	if len(PinnedStoreKeys) != 1 || hex.EncodeToString(PinnedStoreKeys[0]) != "b596fafa7a639598f371a897b151c9de6018c38e323024fc759b216d4b6ae9d1" {
+		t.Fatal("unexpected pinned store keys")
 	}
 }
 

@@ -26,6 +26,14 @@ type Core struct {
 	Arch     string // arm64 | x86_64
 	Now      func() time.Time
 	Accounts Accounts
+
+	// Red-XAI code signing (signing.go): CA roots (production = PinnedCARoots; a test root only when
+	// Production is false), and the revocation list cache (status ticket under PinnedStoreKeys).
+	Roots      []CARoot
+	Production bool
+	Rev        *RevocationCache
+	revState   *RevocationState
+	revErr     error
 }
 
 // Errors the app shows by name.
@@ -65,12 +73,14 @@ type Inspection struct {
 	AgeRating   string     `json:"ageRating,omitempty"`
 	MinMacOS    string     `json:"minMacOS,omitempty"`
 	Verdict     *Verdict   `json:"verdict"`
+	Signature   *SigResult `json:"signature,omitempty"` // Red-XAI developer signature (.rasig)
 	Problems    []string   `json:"problems"`
 	DownloadURL string     `json:"downloadUrl,omitempty"`
 
-	att     *Signed
-	mount   string
-	cleanup []func()
+	att      *Signed
+	sigBytes []byte
+	mount    string
+	cleanup  []func()
 }
 
 // Close releases a mounted disk image and temporary files.
@@ -265,6 +275,7 @@ func (c *Core) Inspect(ctx context.Context, path string, hint *Hint) (*Inspectio
 		c.storeInfo(ctx, in, ref)
 	}
 	in.Verdict = Decide(c.Pins, sum, size, in.Manifest, in.att, ghSum)
+	c.applySignature(ctx, in, sum, size)
 	if in.Kind == KindApp {
 		in.Verdict.Reasons = append(in.Verdict.Reasons, "a bare .app folder has no single checksum; download the .dmg, .pkg or .zip to have it checked")
 	}
@@ -311,6 +322,18 @@ func (c *Core) githubSum(ctx context.Context, in *Inspection, ref *GitHubRef, fi
 	name := ref.Asset
 	if name == "" {
 		name = fileName
+	}
+	if readSmall(in.Path+SignatureSidecar) == nil {
+		for _, a := range rel.Assets {
+			if a.Name == name+SignatureSidecar && a.Size > 0 && a.Size <= maxSigFile {
+				if b, err := c.Net.GetSmall(ctx, a.URL); err == nil {
+					in.sigBytes = b
+					in.DetectedBy = append(in.DetectedBy, "signature:github-release")
+				} else {
+					in.Problems = append(in.Problems, "could not download "+a.Name+": "+err.Error())
+				}
+			}
+		}
 	}
 	sums, err := c.Net.Sums(ctx, rel, ref.Sums)
 	if err != nil {
@@ -430,6 +453,9 @@ func (c *Core) Install(ctx context.Context, in *Inspection, o InstallOptions) (*
 	e := Entry{AppID: in.AppID, Name: in.Name, Version: in.Version, Source: in.Source, Trusted: v.Trusted, TrustedBy: v.TrustedBy,
 		AcceptedRisk: !v.Trusted, Kind: in.Kind, ArtifactName: filepath.Base(in.Path), SHA256: v.SHA256, Paths: []string{},
 		GitHub: in.GitHub, Store: in.Store, AgeRating: in.AgeRating, InstalledAt: c.now().UTC(), UpdatedAt: c.now().UTC()}
+	if r := in.Signature; r != nil && (r.Status == SigValid || r.Status == SigUnverifiable) {
+		e.Signer, e.CertFPs, e.SigTest = r.Signer, r.CertFPs, r.Test
+	}
 	switch kind {
 	case KindApp:
 		target, cs, err := c.Engine.InstallApp(ctx, payload, o.Destination)
@@ -464,6 +490,9 @@ func (c *Core) Install(ctx context.Context, in *Inspection, o InstallOptions) (*
 			}
 			return '-'
 		}, e.Name))
+	}
+	if kind == KindApp {
+		c.clearQuarantine(ctx, in, &e)
 	}
 	if err := c.State.Put(e); err != nil {
 		return &e, fmt.Errorf("installed, but the installed list could not be saved: %w", err)

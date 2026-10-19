@@ -253,7 +253,7 @@ func TestRevocationCache(t *testing.T) {
 }
 
 func TestNoProductionRootsPinnedYet(t *testing.T) {
-	if len(PinnedCARoots) != 0 || len(PinnedUpdateKeyFingerprints) != 0 {
-		t.Fatal("production keys must be pinned deliberately, with a release note; update this test when that happens")
+	if len(PinnedCARoots) != 0 {
+		t.Fatal("the production Red-XAI root must be pinned deliberately after the root ceremony, with a release note")
 	}
 }
