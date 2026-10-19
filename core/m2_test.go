@@ -233,8 +233,8 @@ func fakeHost(t *testing.T) (*httptest.Server, *[]string) {
 		need(w, r, "")
 		w.Write([]byte(`{"apps":[{"app":"redx","hosted":true,"source_pref":"both","latest":{"host":{"version":"0.4.5","sequence":42}},"available":[{"version":"0.4.5","channel":"stable","outcome":{"tags":["+perf"],"summary":"s","risk":{"score":0.1,"level":"low","reasons":[]},"changelog_md":""},"sources":["github","host"]}]},{"app":"notes","hosted":false,"available":[]}]}`))
 	})
-	// plan: a request with {"plan":true} mints a single-use confirm token and returns it in the header.
-	// The real call must then carry that token (X-RedX-Update-Confirm) plus X-RedX-Confirm: <op>.
+	// plan: a request with {"plan":true} records the API key that planned op at this path. The real call
+	// must carry X-RedX-Confirm: <op> and X-RedX-Update-Confirm set to that SAME API key (fbc2098). Single use.
 	planned := map[string]bool{}
 	confirmStep := func(w http.ResponseWriter, r *http.Request, op string) bool {
 		mu.Lock()
@@ -243,12 +243,12 @@ func fakeHost(t *testing.T) (*httptest.Server, *[]string) {
 		var body map[string]interface{}
 		raw, _ := io.ReadAll(r.Body)
 		json.Unmarshal(raw, &body)
+		key := strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")
+		rec := key + "|" + op + "|" + r.URL.Path
 		if body["plan"] == true {
-			tok := "ct_" + op + "_" + r.PathValue("app") + r.PathValue("id")
 			mu.Lock()
-			planned[tok] = true
+			planned[rec] = true
 			mu.Unlock()
-			w.Header().Set("X-RedX-Update-Confirm", tok)
 			w.WriteHeader(200)
 			w.Write([]byte(`{"plan":true}`))
 			return false
@@ -258,14 +258,18 @@ func fakeHost(t *testing.T) (*httptest.Server, *[]string) {
 			w.Write([]byte(`{"error":{"code":"confirm_required","message":"send X-RedX-Confirm: ` + op + `"}}`))
 			return false
 		}
-		tok := r.Header.Get("X-RedX-Update-Confirm")
+		if r.Header.Get("X-RedX-Update-Confirm") != key || key == "" {
+			w.WriteHeader(403)
+			w.Write([]byte(`{"error":{"code":"forbidden","message":"X-RedX-Update-Confirm must be the API key that planned"}}`))
+			return false
+		}
 		mu.Lock()
-		ok := planned[tok]
-		delete(planned, tok) // single use
+		ok := planned[rec]
+		delete(planned, rec) // single use
 		mu.Unlock()
 		if !ok {
 			w.WriteHeader(403)
-			w.Write([]byte(`{"error":{"code":"forbidden","message":"missing or reused update-confirm token"}}`))
+			w.Write([]byte(`{"error":{"code":"forbidden","message":"no plan on record for this key (missing or reused)"}}`))
 			return false
 		}
 		return true

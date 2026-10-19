@@ -61,3 +61,35 @@ The local files are a documented stand-in, not the source of trust. When `docs/D
 3. No caller changes: `DeviceService`, `ContextProvider` and `BuildContext` stay the same, so the builder,
    `rottencore sign`/`build` and the QuickLaunch hand-off are unaffected.
 Device approval moves from `device approve` (local) to the dashboard; registration and `status` stay.
+
+## HTTP wiring to the store API (dev-hub)
+
+The dev-hub client is wired to the real store API (RottenApple branch `dev-hub`, `docs/DEV_HUB_API.md`).
+`devhub.Client` (devhub/http.go) talks to:
+
+- `POST /v1/devhub/pairings` and `/pairings/status` — device pairing (the device key signs `PairMessage`).
+- `GET /v1/devhub/ca/chain` — the public issuing chain.
+- `POST /v1/devhub/challenge` (`cert` or `keycheck`) — single-use device proof nonces.
+- `POST /v1/devhub/certs` — a device-bound developer certificate (device proof + the new signing key's own
+  signature over the same `HubDeviceMessage`).
+- `POST /v1/devhub/keys/check` — confirm the build API key works with this registered device.
+- `GET /v1/devhub/context` — the team/role/SDK context (implements `ContextProvider`).
+- `GET /v1/devhub/apps/{appId}/sdks` — the per-app SDK selection the builder writes into the manifest
+  (`"sdks": [...]`).
+
+Named failures are typed: `IsBuildKeyRequired` (401), `IsWrongPlatform`, `IsSDKLocked`, `IsSDKNotSelected`,
+`IsSDKManifestMissing`, `IsSDKSelectionRequired` (422), and `IsCertIssuerNotConfigured` (501, shown as "the
+production CA isn't loaded yet").
+
+### Selecting HTTP vs the local fallback
+
+The local file-backed `LocalDeviceService` / `LocalContextProvider` remain the default and the fallback
+behind the `DeviceService` / `ContextProvider` interfaces. The CLI uses the HTTP client when configured:
+
+- `RA_DEVHUB_URL` — the store origin. When set, `rottencore device …` uses `HTTPDeviceService` (pairing +
+  polling, device record cached locally so `Current()` works offline).
+- `RA_API_KEY` — the build API key. With `RA_DEVHUB_URL`, `GET /v1/devhub/context` becomes the build context.
+
+The persistent device key lives at `<support>/devhub/device.key` (Ed25519; never a build key; never leaves
+the machine). Nothing here registers Josh's Mac; `device register` only starts a pairing you approve in the
+dashboard.

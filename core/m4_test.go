@@ -18,7 +18,7 @@ import (
 // and health that can be unknown (null rates).
 type devUpdateHost struct {
 	mu         sync.Mutex
-	tokens     map[string]string // token -> "op|app|version"
+	planned    map[string]string // "apiKey|op|app" -> version (single-use plan record)
 	installed  map[string]int64  // app -> installed sequence
 	rolledBack map[string]bool   // app -> did a rollback touch it
 	ownerTok   string
@@ -27,7 +27,7 @@ type devUpdateHost struct {
 }
 
 func newDevHost() *devUpdateHost {
-	return &devUpdateHost{tokens: map[string]string{}, installed: map[string]int64{"redx": 42, "notes": 7},
+	return &devUpdateHost{planned: map[string]string{}, installed: map[string]int64{"redx": 42, "notes": 7},
 		rolledBack: map[string]bool{}, ownerTok: "owner", adminTok: "admin"}
 }
 
@@ -46,16 +46,18 @@ func (d *devUpdateHost) server(t *testing.T) *httptest.Server {
 		}
 		return true
 	}
+	apiKey := func(r *http.Request) string { return strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ") }
+	// plan implements the fbc2098 two-step: a plan/dry_run records the API key that planned op|app; the real
+	// call must send X-RedX-Confirm: <op> and X-RedX-Update-Confirm set to that SAME API key. Single use.
 	plan := func(w http.ResponseWriter, r *http.Request, op, app, ver string) bool {
 		var body map[string]interface{}
 		raw, _ := io.ReadAll(r.Body)
 		json.Unmarshal(raw, &body)
+		key := apiKey(r)
 		if body["plan"] == true || body["dry_run"] == true {
-			tok := "ct_" + op + "_" + app
 			d.mu.Lock()
-			d.tokens[tok] = op + "|" + app + "|" + ver
+			d.planned[key+"|"+op+"|"+app] = ver
 			d.mu.Unlock()
-			w.Header().Set("X-RedX-Update-Confirm", tok)
 			w.Write([]byte(`{"plan":true}`))
 			return false
 		}
@@ -64,14 +66,18 @@ func (d *devUpdateHost) server(t *testing.T) *httptest.Server {
 			w.Write([]byte(`{"error":{"code":"confirm_required","message":"confirm"}}`))
 			return false
 		}
-		tok := r.Header.Get("X-RedX-Update-Confirm")
-		d.mu.Lock()
-		want, ok := d.tokens[tok]
-		delete(d.tokens, tok)
-		d.mu.Unlock()
-		if !ok || !strings.HasPrefix(want, op+"|"+app+"|") {
+		if r.Header.Get("X-RedX-Update-Confirm") != key || key == "" {
 			w.WriteHeader(403)
-			w.Write([]byte(`{"error":{"code":"forbidden","message":"missing or reused update-confirm token"}}`))
+			w.Write([]byte(`{"error":{"code":"forbidden","message":"X-RedX-Update-Confirm must be the API key that planned this update"}}`))
+			return false
+		}
+		d.mu.Lock()
+		_, ok := d.planned[key+"|"+op+"|"+app]
+		delete(d.planned, key+"|"+op+"|"+app)
+		d.mu.Unlock()
+		if !ok {
+			w.WriteHeader(403)
+			w.Write([]byte(`{"error":{"code":"forbidden","message":"no plan on record for this key (missing or reused)"}}`))
 			return false
 		}
 		return true
@@ -145,6 +151,17 @@ func (d *devUpdateHost) server(t *testing.T) *httptest.Server {
 			w.Write([]byte(`{"published":true}`))
 		}
 	})
+	mux.HandleFunc("PUT /v1/updates/apps/{app}/source", func(w http.ResponseWriter, r *http.Request) {
+		if !admin(w, r) {
+			return
+		}
+		if r.Header.Get("Authorization") != "Bearer "+d.ownerTok {
+			w.WriteHeader(403)
+			w.Write([]byte(`{"error":"owner only while accounts are enabled"}`))
+			return
+		}
+		w.Write([]byte(`{"ok":true}`))
+	})
 	return httptest.NewServer(mux)
 }
 
@@ -186,25 +203,105 @@ func TestTwoStepConfirmTokenSingleUse(t *testing.T) {
 	if err != nil || ro == "" || snap == "" {
 		t.Fatalf("apply: %v", err)
 	}
-	// a real call with no token (skipping the plan step) is 403
+	// a real call with no confirm value (skipping the plan step) is 403
 	var out struct {
 		RolloutID string `json:"rollout_id"`
 	}
 	_, _, err = h.do(ctx, "POST", "/v1/updates/apps/redx/apply", nil,
 		map[string]interface{}{"version": "newer"}, OpUpdateApply, "", &out)
 	if !IsForbidden(err) {
-		t.Fatalf("missing token was accepted: %v", err)
+		t.Fatalf("missing confirm was accepted: %v", err)
 	}
-	// a reused token is 403
-	tok, err := h.planToken(ctx, "POST", "/v1/updates/apps/redx/apply", map[string]interface{}{"version": "newer"})
+	// confirming with the API key but without a prior plan for it is 403
+	if _, _, err := h.do(ctx, "POST", "/v1/updates/apps/redx/apply", nil, map[string]interface{}{"version": "newer"}, OpUpdateApply, h.Token, &out); !IsForbidden(err) {
+		t.Fatalf("confirm without a plan was accepted: %v", err)
+	}
+	// plan, then confirm with the SAME API key; the confirm value is that key; a reuse (no re-plan) is 403
+	tok, err := h.planConfirm(ctx, "POST", "/v1/updates/apps/redx/apply", map[string]interface{}{"version": "newer"})
 	if err != nil {
 		t.Fatal(err)
+	}
+	if tok != h.Token {
+		t.Fatalf("confirm value should be the API key, got %q", tok)
 	}
 	if _, _, err := h.do(ctx, "POST", "/v1/updates/apps/redx/apply", nil, map[string]interface{}{"version": "newer"}, OpUpdateApply, tok, &out); err != nil {
 		t.Fatalf("first use failed: %v", err)
 	}
 	if _, _, err := h.do(ctx, "POST", "/v1/updates/apps/redx/apply", nil, map[string]interface{}{"version": "newer"}, OpUpdateApply, tok, &out); !IsForbidden(err) {
-		t.Fatalf("reused token was accepted: %v", err)
+		t.Fatalf("reused plan was accepted: %v", err)
+	}
+}
+
+func TestSetSourceOwnerOnlyWhileAccountsOn(t *testing.T) {
+	ctx := context.Background()
+	srv := newDevHost().server(t)
+	defer srv.Close()
+	admin := &HostClient{Base: srv.URL, Token: "admin", AllowLoopbackHTTP: true}
+	if err := admin.SetSource(ctx, "redx", "both", true); !IsForbidden(err) {
+		t.Fatalf("a non-owner key set the source: %v", err)
+	}
+	owner := &HostClient{Base: srv.URL, Token: "owner", AllowLoopbackHTTP: true}
+	if err := owner.SetSource(ctx, "redx", "both", true); err != nil {
+		t.Fatalf("owner set source failed: %v", err)
+	}
+}
+
+func TestHealthUnknownUntil20Samples(t *testing.T) {
+	zero, one := 0.0, 1.0
+	few := &RolloutHealth{SuccessRate: &one, ErrorRate: &zero, CrashRate: &zero, Samples: 19}
+	if few.Known() {
+		t.Fatal("health known with only 19 samples")
+	}
+	enough := &RolloutHealth{SuccessRate: &one, ErrorRate: &zero, CrashRate: &zero, Samples: 20}
+	if !enough.Known() {
+		t.Fatal("health should be known at 20 samples")
+	}
+	r := &HostRollout{State: "canary", Health: few}
+	if !r.AwaitingHealthData() || r.AutoPromoteEligible() {
+		t.Fatal("under 20 samples must await health and not auto-promote")
+	}
+}
+
+func TestPrereleaseVersionsSortBySemver(t *testing.T) {
+	app := &HostApp{
+		App: "redx", Hosted: true, Installed: &HostVerRef{Version: "1.0.0"},
+		Available: []HostAvailable{
+			{Version: "1.0.0"},
+			{Version: "2.0.0-rc.2"},
+			{Version: "2.0.0-rc.10"},
+			{Version: "2.0.0"},
+			{Version: "2.0.0-alpha"},
+		},
+	}
+	got := app.OfferableVersions()
+	want := []string{"2.0.0", "2.0.0-rc.10", "2.0.0-rc.2", "2.0.0-alpha"}
+	if len(got) != len(want) {
+		t.Fatalf("offerable count: %v", got)
+	}
+	for i := range want {
+		if got[i].Version != want[i] {
+			t.Fatalf("order %d: got %q want %q (%v)", i, got[i].Version, want[i], got)
+		}
+	}
+	if n := app.Newest(); n == nil || n.Version != "2.0.0" {
+		t.Fatalf("newest: %+v", n)
+	}
+}
+
+func TestReleaseAssetURLsArePlainGithubNoQuery(t *testing.T) {
+	okURL := "https://github.com/o/r/releases/download/v1/a.dmg"
+	if err := ValidateReleaseAssetURL("o", "r", okURL); err != nil {
+		t.Fatalf("plain URL rejected: %v", err)
+	}
+	for _, bad := range []string{
+		okURL + "?token=abc",
+		okURL + "#frag",
+		"http://github.com/o/r/releases/download/v1/a.dmg",
+		"https://codeload.github.com/o/r/releases/download/v1/a.dmg",
+	} {
+		if err := ValidateReleaseAssetURL("o", "r", bad); err == nil {
+			t.Fatalf("accepted non-plain URL %q", bad)
+		}
 	}
 }
 

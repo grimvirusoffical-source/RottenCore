@@ -17,6 +17,7 @@ import (
 	"net/http"
 	"net/url"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 )
@@ -216,6 +217,33 @@ type HostApp struct {
 // SourceOptions is what the picker may offer for this app.
 func (a *HostApp) SourceOptions() []string { return UpdateSourceOptions(a.Hosted) }
 
+// OfferableVersions returns the app's available versions newer than what is installed, newest first, by
+// Semantic Versioning 2.0 precedence (so pre-releases sort correctly: 1.0.0-rc.2 before 1.0.0-rc.10 before
+// 1.0.0). RedX PR #10 (fbc2098): the status never offers a version at or below the installed one.
+func (a *HostApp) OfferableVersions() []HostAvailable {
+	var installed string
+	if a.Installed != nil {
+		installed = a.Installed.Version
+	}
+	var out []HostAvailable
+	for _, v := range a.Available {
+		if installed == "" || CompareVersions(v.Version, installed) > 0 {
+			out = append(out, v)
+		}
+	}
+	sort.SliceStable(out, func(i, j int) bool { return CompareVersions(out[i].Version, out[j].Version) > 0 })
+	return out
+}
+
+// Newest returns the single newest offerable version, or nil when nothing newer is available.
+func (a *HostApp) Newest() *HostAvailable {
+	o := a.OfferableVersions()
+	if len(o) == 0 {
+		return nil
+	}
+	return &o[0]
+}
+
 // HostRollout is GET /v1/updates/rollouts/{id}.
 type HostRollout struct {
 	RolloutID  string `json:"rollout_id"`
@@ -243,9 +271,16 @@ type RolloutHealth struct {
 	Samples     int      `json:"samples"`
 }
 
-// Known reports whether the host has real health numbers yet.
+// CanaryMinSamples is the number of canary samples the host needs before health is considered known. RedX
+// PR #10 (fbc2098): health stays unknown (nothing auto-promotes; the UI shows "awaiting health data") until
+// there are at least this many canary samples, even if some rates are already reported.
+const CanaryMinSamples = 20
+
+// Known reports whether the host has real health numbers yet: at least one rate reported AND at least
+// CanaryMinSamples canary samples behind it.
 func (hh *RolloutHealth) Known() bool {
-	return hh != nil && (hh.SuccessRate != nil || hh.ErrorRate != nil || hh.CrashRate != nil)
+	return hh != nil && hh.Samples >= CanaryMinSamples &&
+		(hh.SuccessRate != nil || hh.ErrorRate != nil || hh.CrashRate != nil)
 }
 
 // AwaitingHealthData is true when the host has not reported health yet (health object missing or all rates
@@ -308,11 +343,12 @@ type ApplyRequest struct {
 	DryRun     bool       `json:"dry_run"`
 }
 
-// planToken runs the required first step of a two-step dangerous call: it re-sends the same request with
-// plan:true and reads the single-use X-RedX-Update-Confirm token the host mints (tied to the app, version
-// and action). The caller then sends the real request with that token plus X-RedX-Confirm. A host that
-// returns no token is treated as refusing the operation.
-func (h *HostClient) planToken(ctx context.Context, method, path string, body interface{}) (string, error) {
+// planConfirm runs the required first step of a two-step dangerous call: it re-sends the same request with
+// plan:true (a dry_run counts too) using the build/API key, then returns that same key as the confirm value.
+// RedX PR #10 (fbc2098): the real call must carry X-RedX-Update-Confirm set to the *same API key* that ran
+// the plan or dry_run, so the host can tie the confirmation to the key that planned it. A client with no
+// key cannot confirm.
+func (h *HostClient) planConfirm(ctx context.Context, method, path string, body interface{}) (string, error) {
 	pb := map[string]interface{}{}
 	if body != nil {
 		raw, err := json.Marshal(body)
@@ -324,15 +360,13 @@ func (h *HostClient) planToken(ctx context.Context, method, path string, body in
 		}
 	}
 	pb["plan"] = true
-	hdr, _, err := h.do(ctx, method, path, nil, pb, "", "", nil)
-	if err != nil {
+	if _, _, err := h.do(ctx, method, path, nil, pb, "", "", nil); err != nil {
 		return "", err
 	}
-	tok := hdr.Get("X-RedX-Update-Confirm")
-	if tok == "" {
-		return "", &HostError{Status: http.StatusForbidden, Code: "forbidden", Message: "the host did not issue an update-confirm token for the plan step"}
+	if h.Token == "" {
+		return "", &HostError{Status: http.StatusForbidden, Code: "forbidden", Message: "an API key is required to confirm an update (it must be the same key that ran the plan)"}
 	}
-	return tok, nil
+	return h.Token, nil
 }
 
 // Apps lists every app (GET /v1/updates/apps).
@@ -396,7 +430,9 @@ func (h *HostClient) VerifiedManifest(ctx context.Context, app, version, source 
 	return m, nil
 }
 
-// SetSource stores the per-app source preference (409 not_hosted for host/both on a non-hosted app).
+// SetSource stores the per-app source preference (409 not_hosted for host/both on a non-hosted app). RedX
+// PR #10 (fbc2098): PUT .../source is owner-only while Accounts are enabled, so a non-owner key gets a 403
+// owner gate here (IsForbidden) even though the source value is valid.
 func (h *HostClient) SetSource(ctx context.Context, app, source string, hosted bool) error {
 	if err := ValidUpdateSource(source, hosted); err != nil {
 		return err
@@ -412,7 +448,7 @@ func (h *HostClient) Apply(ctx context.Context, app string, req ApplyRequest) (r
 		SnapshotID string `json:"snapshot_id"`
 	}
 	path := "/v1/updates/apps/" + url.PathEscape(app) + "/apply"
-	tok, err := h.planToken(ctx, "POST", path, req)
+	tok, err := h.planConfirm(ctx, "POST", path, req)
 	if err != nil {
 		return "", "", err
 	}
@@ -430,7 +466,7 @@ func (h *HostClient) Rollout(ctx context.Context, id string) (*HostRollout, erro
 // Promote moves a canary to 100%.
 func (h *HostClient) Promote(ctx context.Context, id string) error {
 	path := "/v1/updates/rollouts/" + url.PathEscape(id) + "/promote"
-	tok, err := h.planToken(ctx, "POST", path, map[string]string{})
+	tok, err := h.planConfirm(ctx, "POST", path, map[string]string{})
 	if err != nil {
 		return err
 	}
@@ -442,7 +478,7 @@ func (h *HostClient) Promote(ctx context.Context, id string) error {
 func (h *HostClient) RollbackRollout(ctx context.Context, id, reason string) error {
 	path := "/v1/updates/rollouts/" + url.PathEscape(id) + "/rollback"
 	body := map[string]string{"reason": reason}
-	tok, err := h.planToken(ctx, "POST", path, body)
+	tok, err := h.planConfirm(ctx, "POST", path, body)
 	if err != nil {
 		return err
 	}
@@ -454,7 +490,7 @@ func (h *HostClient) RollbackRollout(ctx context.Context, id, reason string) err
 func (h *HostClient) RestoreSnapshot(ctx context.Context, app, snapshotID string) error {
 	path := "/v1/updates/apps/" + url.PathEscape(app) + "/rollback"
 	body := map[string]string{"snapshot_id": snapshotID}
-	tok, err := h.planToken(ctx, "POST", path, body)
+	tok, err := h.planConfirm(ctx, "POST", path, body)
 	if err != nil {
 		return err
 	}
@@ -528,7 +564,7 @@ func (h *HostClient) Publish(ctx context.Context, app string, hosted bool, allow
 		}
 	}
 	path := "/v1/updates/apps/" + url.PathEscape(app) + "/publish"
-	tok, err := h.planToken(ctx, "POST", path, req)
+	tok, err := h.planConfirm(ctx, "POST", path, req)
 	if err != nil {
 		return nil, err
 	}

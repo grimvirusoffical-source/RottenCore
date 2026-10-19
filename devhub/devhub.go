@@ -74,9 +74,11 @@ type Device struct {
 	Platform    Platform `json:"platform"`
 	PublicKey   []byte   `json:"publicKey"` // the device key Rotten Core generated (never leaves the machine)
 	PairingCode string   `json:"pairingCode"`
+	PollSecret  string   `json:"pollSecret,omitempty"` // one-shot secret for PollPairing; cleared after approval
 	Approved    bool     `json:"approved"`
 	TeamID      string   `json:"teamId,omitempty"`     // the dev account/team that approved it
 	Individual  bool     `json:"individual,omitempty"` // approved under an individual account, not a team
+	Targets     []string `json:"targets,omitempty"`    // platforms this device may sign (from the store)
 	CreatedMs   int64    `json:"createdMs"`
 	ApprovedMs  int64    `json:"approvedMs,omitempty"`
 }
