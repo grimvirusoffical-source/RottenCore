@@ -40,6 +40,9 @@ type Project struct {
 	Version string `json:"version"` // "1.0.0"
 	Channel string `json:"channel"` // "", "beta", "rc", "nightly" -> shown in the label
 	Dir     string `json:"dir"`     // project root the build commands run in
+	// IconProduct selects the app-icon set under assets/icons/<product> (IconRottenCore by default,
+	// IconPoisonApple for the Poison Apple launcher build).
+	IconProduct string `json:"iconProduct,omitempty"`
 }
 
 // Target is one platform to build.

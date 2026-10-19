@@ -26,6 +26,7 @@ type Artifact struct {
 	SigPath  string `json:"sigPath"`  // the .rasig sidecar
 	SHA256   string `json:"sha256"`
 	Bytes    int64  `json:"bytes"`
+	IconPath string `json:"iconPath,omitempty"` // app icon embedded for this platform (assets/icons/<product>)
 }
 
 // Result is a finished build set.
@@ -39,12 +40,13 @@ type Result struct {
 
 // Builder runs a request. Signer and Chain are the developer's ra-core identity (from the CA / cert bundle).
 type Builder struct {
-	Signer core.Signer
-	Chain  []core.Cert
-	OutDir string // where artifacts, .rasig files and SHA256SUMS are written
-	Host   string // build-and-sign device GOOS; "" means HostOS(); targets this host may not sign are refused
-	Emit   func(core.ProgressEvent)
-	Now    func() time.Time
+	Signer    core.Signer
+	Chain     []core.Cert
+	OutDir    string // where artifacts, .rasig files and SHA256SUMS are written
+	IconsRoot string // root of the app-icon sets (assets/icons); "" disables icon embedding
+	Host      string // build-and-sign device GOOS; "" means HostOS(); targets this host may not sign are refused
+	Emit      func(core.ProgressEvent)
+	Now       func() time.Time
 }
 
 func (b *Builder) now() time.Time {
@@ -136,10 +138,18 @@ func (b *Builder) one(ctx context.Context, p Project, t Target) (*Artifact, erro
 	if err := os.WriteFile(sigPath, append(sigBytes, '\n'), 0o644); err != nil {
 		return nil, err
 	}
-	return &Artifact{
+	art := &Artifact{
 		Platform: t.Platform, Label: Label(p, t.Platform), Filename: name,
 		Path: dst, SigPath: sigPath, SHA256: sum, Bytes: n,
-	}, nil
+	}
+	if b.IconsRoot != "" {
+		icon, err := IconForPlatform(b.IconsRoot, IconProductFor(p), t.Platform)
+		if err != nil {
+			return nil, err
+		}
+		art.IconPath = icon
+	}
+	return art, nil
 }
 
 func (b *Builder) build(ctx context.Context, dir string, command []string) error {

@@ -191,3 +191,36 @@ func mustReadFile(t *testing.T, p string) []byte {
 	}
 	return b
 }
+
+func TestIconForPlatform(t *testing.T) {
+	root := "../assets/icons"
+	cases := map[string]string{
+		builder.PlatformMacArm64:   "AppIcon.icns",
+		builder.PlatformMacIntel:   "AppIcon.icns",
+		builder.PlatformIOS:        "AppIcon.icns",
+		builder.PlatformWindows:    "AppIcon.ico",
+		builder.PlatformLinux:      "icon-512.png",
+		builder.PlatformAndroid:    "icon-512.png",
+		builder.PlatformExtensions: "icon-128.png",
+	}
+	for _, product := range []string{builder.IconRottenCore, builder.IconPoisonApple} {
+		for pl, want := range cases {
+			got, err := builder.IconForPlatform(root, product, pl)
+			if err != nil || filepathBase(got) != want {
+				t.Fatalf("%s/%s -> %q %v", product, pl, got, err)
+			}
+		}
+	}
+	if _, err := builder.IconForPlatform(root, "nope", builder.PlatformWindows); err == nil {
+		t.Fatal("missing product icon accepted")
+	}
+}
+
+func filepathBase(p string) string {
+	for i := len(p) - 1; i >= 0; i-- {
+		if p[i] == '/' {
+			return p[i+1:]
+		}
+	}
+	return p
+}
