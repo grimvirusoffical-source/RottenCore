@@ -106,7 +106,10 @@ func (s *LocalDeviceService) Current() (*Device, error) {
 // production ContextProvider.Context fetches it from the dev account (team or individual) with the build API
 // key; locally it is read from a file.
 type BuildContext struct {
-	TeamID     string       `json:"teamId,omitempty"` // empty with Individual = individual account
+	TeamID string `json:"teamId,omitempty"` // empty with Individual = individual account
+	// CertTeamID is the team's certificate teamId (rxa_ owner for an individual account, rxt_ for a team).
+	// A signing certificate's subject teamId must equal it (ra-core 422 wrong_team).
+	CertTeamID string       `json:"certTeamId,omitempty"`
 	Individual bool         `json:"individual,omitempty"`
 	Role       string       `json:"role"`     // developer | owner | admin
 	BuildKey   string       `json:"buildKey"` // the build API key (required; never logged)

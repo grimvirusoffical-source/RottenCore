@@ -58,7 +58,7 @@ curl_github() {
 # QA F2: Keychain reads are done by /usr/bin/security, so the item ACL cannot single out our binaries.
 # Run every phase in Terminal ON the Mac and answer each prompt with "Allow" — NEVER "Always Allow".
 # Red-XAI id formats (mirror of core/ids.go; TestRolloutIDPatternsMatchGo keeps them in sync).
-# PENDING (Grok Bot): the team format. Edit ROTTEN_TEAM_ID_PATTERNS (and core.TeamIDPatterns) only.
+# Team format (contract 711171b): individual = the owner's rxa_ id, team = rxt_. Edit ROTTEN_TEAM_ID_PATTERNS (and core.TeamIDPatterns) only.
 ROTTEN_DEV_ID_PATTERN='^rxa_[A-Z2-7]{26}$'
 ROTTEN_TEAM_ID_PATTERNS=('^rxa_[A-Z2-7]{26}$' '^rxt_[A-Z2-7]{26}$')
 
@@ -94,7 +94,7 @@ optional_id_crosscheck() {
   export ROTTEN_DEV_ID ROTTEN_TEAM_ID   # public ids only; rottencore compares them to ra-core's subject
 }
 
-# The Red-XAI Accounts full-access key is typed at rottencore's hidden /dev/tty prompt ONLY. Refuse if
+# The Red-XAI Accounts key is typed at rottencore's hidden /dev/tty prompt ONLY. Refuse if
 # anything that looks like it is in the environment (names only are printed, never values).
 refuse_accounts_key_env() {
   local n bad=()

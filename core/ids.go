@@ -8,11 +8,9 @@ import (
 	"regexp"
 )
 
-// Red-XAI Accounts identifiers for dev-hub (Mega) certificate subjects. EVERYTHING about the id formats
-// and the subject layout lives in this file so it is one edit when the final formats land.
-//
-// PENDING (Grok Bot): the team id format and the exact subject layout are not final. Edit TeamIDPatterns
-// and SubjectIDs below when the confirmed format arrives; the tests in ids_test.go pin the behaviour.
+// Red-XAI Accounts identifiers for dev-hub (Mega) certificate subjects. Everything about the id formats,
+// the Accounts key format and the subject layout lives in this file. Contract: RottenApple rxa-cert-ids @
+// 711171b (DEV_HUB_API.md §4 / §4a). The tests in ids_test.go pin the behaviour.
 
 // DevIDPattern is a Red-XAI Accounts OIDC sub: "rxa_" + 26 upper-case base32 characters (A-Z, 2-7).
 const DevIDPattern = `^rxa_[A-Z2-7]{26}$`
@@ -31,8 +29,8 @@ type TeamIDPattern struct {
 	Pattern string // anchored regexp
 }
 
-// TeamIDPatterns is the (PENDING) list of accepted team-id formats, checked in order. To accept a central
-// Accounts org id later, append its anchored pattern with Kind TeamOrg.
+// TeamIDPatterns is the list of accepted team-id formats, checked in order (final: individual = the
+// owner's rxa_, team = rxt_ made once by ra-core). Edit only here (and lib.sh, kept in sync by a test).
 var TeamIDPatterns = []TeamIDPattern{
 	{Kind: TeamIndividual, Pattern: DevIDPattern},  // individual context: team == owner's rxa_
 	{Kind: TeamOrg, Pattern: `^rxt_[A-Z2-7]{26}$`}, // team: "rxt_" + 26 base32
@@ -85,10 +83,23 @@ func ValidateIDPair(dev, team string) (TeamKind, error) {
 	return k, nil
 }
 
-// ---- Subject layout (PENDING: Grok Bot sends the exact layout with the ra-core commit) ----
+// AccountsKeyPattern is the ra-core-issued Red-XAI Accounts key: ra_sk_live_ + 43 base62.
+const AccountsKeyPattern = `^ra_sk_live_[A-Za-z0-9]{43}$`
+
+var accountsKeyRe = regexp.MustCompile(AccountsKeyPattern)
+
+// ValidateAccountsKeyFormat checks the key bytes without ever putting them in the error.
+func ValidateAccountsKeyFormat(k []byte) error {
+	if !accountsKeyRe.Match(k) {
+		return fmt.Errorf("that is not a Red-XAI Accounts key (expected ra_sk_live_ + 43 letters/digits, %d characters; got %d characters). Create one on the Dev page: API keys > Red-XAI Accounts key", 11+43, len(k))
+	}
+	return nil
+}
+
+// ---- Subject layout (final): {"name":"<team name>","teamId":"…","devId":"…"}, Go encoding/json, compact ----
 
 // SubjectIDs extracts (dev, team) from a decoded subject. This is the ONE place that knows where the ids
-// sit; today the store puts the raw ids in subject.devId / subject.teamId.
+// sit: subject.devId / subject.teamId.
 func SubjectIDs(s CertSubject) (dev, team string) {
 	return s.DevID, s.TeamID
 }
@@ -106,27 +117,23 @@ func CertSubjectBytes(certJSON []byte) (json.RawMessage, error) {
 	return sub, nil
 }
 
-// EqualSubjectBytes is the exact-match rule (QA M3, final design): the issued certificate's subject must
-// equal the subject ra-core returned for the account, byte for byte. Only insignificant JSON whitespace
-// is removed (json.Compact); key order, case, spacing inside strings and every character must match.
-// No value is rebuilt on this side.
-func EqualSubjectBytes(certJSON []byte, serverSubject json.RawMessage) error {
+// EqualSubjectBytes is the exact-match rule (QA M3, final contract): the "subject" member of the issued
+// certificate, exactly as ra-core serialised it, must equal ra-core's cert.subject string byte for byte.
+// Both are compact Go encoding/json output, so there is no whitespace tolerance and nothing is rebuilt here.
+func EqualSubjectBytes(certJSON []byte, serverSubject []byte) error {
 	got, err := CertSubjectBytes(certJSON)
 	if err != nil {
 		return err
 	}
-	var a, b bytes.Buffer
-	if err := json.Compact(&a, got); err != nil {
-		return fmt.Errorf("certificate subject: %w", err)
-	}
-	if len(bytes.TrimSpace(serverSubject)) == 0 {
+	if len(serverSubject) == 0 || bytes.Equal(serverSubject, []byte("null")) {
 		return errors.New("ra-core returned no subject to compare against")
 	}
-	if err := json.Compact(&b, serverSubject); err != nil {
-		return fmt.Errorf("ra-core subject: %w", err)
+	if !bytes.Equal(got, serverSubject) {
+		return fmt.Errorf("certificate subject %s != ra-core subject %s (byte-for-byte match required)", got, serverSubject)
 	}
-	if !bytes.Equal(a.Bytes(), b.Bytes()) {
-		return fmt.Errorf("certificate subject %s != ra-core subject %s (byte-for-byte match required)", a.String(), b.String())
+	// The member as stored must also be the compact `"subject":<bytes>` (no whitespace around the value).
+	if !bytes.Contains(certJSON, append([]byte(`"subject":`), serverSubject...)) {
+		return errors.New("certificate subject member is not compact (byte-for-byte match required)")
 	}
 	return nil
 }
@@ -137,7 +144,7 @@ func EqualSubjectBytes(certJSON []byte, serverSubject json.RawMessage) error {
 func SanityCheckSubject(serverSubject json.RawMessage) (CertSubject, TeamKind, error) {
 	var s CertSubject
 	if err := json.Unmarshal(serverSubject, &s); err != nil {
-		return s, "", fmt.Errorf("ra-core subject is not the expected object (PENDING layout): %w", err)
+		return s, "", fmt.Errorf("ra-core subject is not the expected object (contract: {name,teamId,devId}): %w", err)
 	}
 	dev, team := SubjectIDs(s)
 	k, err := ValidateIDPair(dev, team)

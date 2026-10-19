@@ -4,7 +4,7 @@
 #   - generates the device + Mega Ed25519 keys in-process and writes them straight into the Keychain
 #     (private keys never leave the Go process except into the Keychain; no Python, no PyNaCl);
 #   - POST /v1/devhub/pairings, prints the 8-char code, polls /pairings/status until APPROVED;
-#   - Red-XAI Accounts full-access key typed at rottencore's hidden /dev/tty prompt (never stored, never env/argv),
+#   - Red-XAI Accounts key typed at rottencore's hidden /dev/tty prompt (never stored, never env/argv),
 #     sent to ra-core with the pairing and cert requests; ra-core resolves the account server-side;
 #   - shows the server-returned name / email / subject and asks Josh to type yes;
 #   - challenge + /certs for the Mega key; the cert subject must equal ra-core's subject BYTE FOR BYTE (QA M3);
@@ -41,7 +41,7 @@ if done_p mega-cert && [[ -f "$BUNDLE" ]]; then
 else
   log "=== phase-pair: rottencore devhub-pair (Go; keys go straight into the Keychain) ==="
   keychain_prompt_notice "rottencore-device / josh-mega / ra-build-api-key"
-  echo ">> You will also be asked for the Red-XAI Accounts full-access key (hidden; not stored) and to type yes." >&2
+  echo ">> You will also be asked for the Red-XAI Accounts key (hidden; not stored) and to type yes." >&2
   "$ROTTENCORE" devhub-pair ${CROSS_ARGS[@]+"${CROSS_ARGS[@]}"} \
     --device-label rottencore-device --label josh-mega \
     --service "$KEYCHAIN_SERVICE" \

@@ -87,6 +87,13 @@ func (b *Builder) Run(ctx context.Context, r *Request, targets []Target) (*Resul
 				return nil, fmt.Errorf("your registered %s device may not build %s assets", b.Context.Device.Platform, t.Platform)
 			}
 		}
+		// ra-core accepts an upload only when the signing cert's subject teamId equals the team's
+		// CertTeamID (422 wrong_team); refuse locally before building anything.
+		if ct := b.Context.CertTeamID; ct != "" {
+			if leaf := b.Chain[0]; leaf.Subject.TeamID != ct {
+				return nil, fmt.Errorf("the signing certificate's teamId %q is not this dev-hub context's certTeamId %q (ra-core would refuse the upload: wrong_team)", leaf.Subject.TeamID, ct)
+			}
+		}
 		var err error
 		if sdks, err = b.Context.ValidateSDKs(r.SDKs); err != nil {
 			return nil, err

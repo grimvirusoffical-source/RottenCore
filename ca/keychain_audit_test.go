@@ -257,7 +257,7 @@ func TestRolloutAuditCatchesLeaks(t *testing.T) {
 		`"$ROTTENCORE" sign-batch "$BATCH" --keychain --label josh-mega --service "$KEYCHAIN_SERVICE" \`,
 		`echo "ROOT_FINGERPRINT=$ROOT_FP"`,
 		`/usr/bin/security find-generic-password -a "$label" -s "${KEYCHAIN_SERVICE:-com.redx.rottencore.ca}" >/dev/null 2>&1`,
-		`echo ">> You will also be asked for the Red-XAI Accounts full-access key (hidden; not stored) and to type yes." >&2`,
+		`echo ">> You will also be asked for the Red-XAI Accounts key (hidden; not stored) and to type yes." >&2`,
 	}
 	for _, line := range ok {
 		if v := auditRolloutScript("fixture.sh", line+"\n"); len(v) != 0 {

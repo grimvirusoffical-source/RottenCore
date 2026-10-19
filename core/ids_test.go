@@ -3,6 +3,7 @@ package core
 import (
 	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 )
 
@@ -67,9 +68,26 @@ func TestIDPairIndividualVsTeam(t *testing.T) {
 
 func TestEqualSubjectBytesIsExact(t *testing.T) {
 	server := json.RawMessage(`{"name":"Josh Franklinn","teamId":"` + joshRXA + `","devId":"` + joshRXA + `"}`)
-	cert := []byte(`{"version":1,"subject": {"name":"Josh Franklinn", "teamId":"` + joshRXA + `","devId":"` + joshRXA + `"},"kind":"developer"}`)
+	cert := []byte(`{"version":1,"subject":{"name":"Josh Franklinn","teamId":"` + joshRXA + `","devId":"` + joshRXA + `"},"kind":"developer"}`)
 	if err := EqualSubjectBytes(cert, server); err != nil {
-		t.Fatalf("identical subject (whitespace only) refused: %v", err)
+		t.Fatalf("identical subject refused: %v", err)
+	}
+	// No whitespace tolerance (contract 711171b): any re-indented or spaced subject is a mismatch.
+	for _, ws := range []string{
+		`{"version":1,"subject": {"name":"Josh Franklinn","teamId":"` + joshRXA + `","devId":"` + joshRXA + `"}}`,
+		`{"version":1,"subject":{"name":"Josh Franklinn", "teamId":"` + joshRXA + `","devId":"` + joshRXA + `"}}`,
+		`{"version":1,"subject":{ "name":"Josh Franklinn","teamId":"` + joshRXA + `","devId":"` + joshRXA + `"}}`,
+		"{\"subject\":{\n  \"name\": \"Josh Franklinn\",\n  \"teamId\": \"" + joshRXA + "\",\n  \"devId\": \"" + joshRXA + "\"\n}}",
+	} {
+		if err := EqualSubjectBytes([]byte(ws), server); err == nil {
+			t.Errorf("whitespace-different subject accepted: %s", ws)
+		}
+	}
+	if err := EqualSubjectBytes(cert, append([]byte(" "), server...)); err == nil {
+		t.Error("server subject with leading space accepted")
+	}
+	if err := EqualSubjectBytes([]byte(`{"subject":null}`), json.RawMessage("null")); err == nil {
+		t.Error("null subject accepted")
 	}
 	near := []string{
 		`{"name":"Josh Franklinn","teamId":"` + joshRXA + `","devId":"` + joshRXA[:len(joshRXA)-1] + `"}`, // prefix
@@ -119,6 +137,27 @@ func TestValidateCrossCheckIDsOptional(t *testing.T) {
 	for _, c := range bad {
 		if err := ValidateCrossCheckIDs(c[0], c[1]); err == nil {
 			t.Errorf("ValidateCrossCheckIDs(%q,%q) accepted", c[0], c[1])
+		}
+	}
+}
+
+func TestValidateAccountsKeyFormat(t *testing.T) {
+	good := "ra_sk_live_" + strings.Repeat("aZ9", 14) + "Q" // 43
+	if err := ValidateAccountsKeyFormat([]byte(good)); err != nil {
+		t.Fatalf("good key refused: %v", err)
+	}
+	for _, bad := range []string{
+		"", good[:len(good)-1], good + "x", "ra_sk_test_" + good[11:], "ra_sk_" + good[11:], "rxk_" + good[11:],
+		"ra_sk_live_" + strings.Repeat("a", 42) + "-", "ra_sk_live_" + strings.Repeat("a", 42) + "_",
+		" " + good, good + "\n", "RA_SK_LIVE_" + good[11:], "ra_sk_live_" + strings.Repeat("é", 21) + "a",
+	} {
+		err := ValidateAccountsKeyFormat([]byte(bad))
+		if err == nil {
+			t.Errorf("bad key accepted (len %d)", len(bad))
+			continue
+		}
+		if len(bad) > 12 && strings.Contains(err.Error(), bad[11:]) {
+			t.Errorf("error echoes the key: %v", err)
 		}
 	}
 }

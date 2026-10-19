@@ -330,7 +330,7 @@ func usage() {
 }
 
 // megaIDsFromRequest returns the dev/team ids for a Mega cert from the request subject (core.SubjectIDs,
-// the one PENDING layout place), validated with core.ValidateIDPair. Optional flag values must match.
+// the contract {name,teamId,devId} layout), validated with core.ValidateIDPair. Optional flag values must match.
 func megaIDsFromRequest(r *ca.Request, crossDev, crossTeam string) (string, string, error) {
 	dev, team := core.SubjectIDs(r.Subject)
 	if _, err := core.ValidateIDPair(dev, team); err != nil {

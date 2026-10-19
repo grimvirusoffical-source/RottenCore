@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -279,22 +280,55 @@ func TestBuilderContextGatesDeviceSDKAndSignsManifest(t *testing.T) {
 
 func TestPlatformFromName(t *testing.T) {
 	cases := map[string]string{
-		"rotten-apple-0.1.0-darwin-arm64.tar.gz": "macos-arm64",
-		"rotten-apple-0.1.0-darwin-amd64.tar.gz": "macos-intel",
-		"redx-0.4.5-macos-arm64.dmg":             "macos-arm64",
-		"redx-0.4.5-macos-amd64.pkg":             "macos-intel",
-		"redx-0.4.5-linux-amd64.tar.gz":          "linux",
-		"redx_0.4.5_amd64.deb":                   "linux",
+		"rotten-apple-0.1.0-darwin-arm64.tar.gz":  "macos-arm64",
+		"rotten-apple-0.1.0-darwin-amd64.tar.gz":  "macos-intel",
+		"redx-0.4.5-macos-arm64.dmg":              "macos-arm64",
+		"redx-0.4.5-macos-amd64.pkg":              "macos-intel",
+		"redx-0.4.5-linux-amd64.tar.gz":           "linux",
+		"redx_0.4.5_amd64.deb":                    "linux",
 		"QuickLaunch-1.0.0-beta.1-darwin-x64.dmg": "macos-intel",
-		"rotten-apple-extension-0.1.0.zip":       "extensions",
-		"GenDragoon-Cloud-SSD-Mac-v0.18.0.zip":   "macos-intel",
-		"install-macos.py":                      "macos-intel",
-		"something-windows-x64.exe":              "windows",
-		"app-android.apk":                        "android",
+		"rotten-apple-extension-0.1.0.zip":        "extensions",
+		"GenDragoon-Cloud-SSD-Mac-v0.18.0.zip":    "macos-intel",
+		"install-macos.py":                        "macos-intel",
+		"something-windows-x64.exe":               "windows",
+		"app-android.apk":                         "android",
 	}
 	for name, want := range cases {
 		if got := builder.PlatformFromName(name); got != want {
 			t.Errorf("%s: got %q want %q", name, got, want)
 		}
+	}
+}
+
+// The final contract: ra-core accepts an upload only when the leaf subject teamId equals the team's
+// certTeamId (422 wrong_team). The builder refuses locally and records certTeamId in the manifest.
+func TestBuilderCertTeamIDMustMatchLeaf(t *testing.T) {
+	k, chain, pol, now := devKey(t)
+	src := t.TempDir()
+	p := filepath.Join(src, "mac")
+	os.WriteFile(p, []byte("mac"), 0o644)
+	req := &builder.Request{Schema: builder.RequestSchema, ID: "build-team", Project: builder.Project{Name: "QuickLaunch", ID: "com.redx.quicklaunch", Version: "1.0.0"},
+		Targets: []builder.Target{{Platform: builder.PlatformMacArm64, Prebuilt: p}}, SDKs: []string{"analytics"}}
+	tg, _ := req.Validate()
+	macDev := &devhub.Device{Platform: devhub.PlatformMac, Approved: true, TeamID: "T-josh"}
+	mk := func(certTeam string) *builder.Builder {
+		return &builder.Builder{Signer: k, Chain: chain, OutDir: t.TempDir(), Host: "darwin", Now: func() time.Time { return now },
+			Context: &devhub.BuildContext{Role: "developer", TeamID: "T-josh", CertTeamID: certTeam, BuildKey: "ra_sk_x", Device: macDev,
+				SDKs: devhub.SDKSelection{Selected: []string{"analytics"}, Unlocked: []string{"analytics"}}}}
+	}
+	if chain[0].Subject.TeamID != "T-josh" {
+		t.Fatalf("fixture leaf teamId %q", chain[0].Subject.TeamID)
+	}
+	_, err := mk("rxt_ABCDEFGHIJKLMNOPQRSTUVWX27").Run(context.Background(), req, tg)
+	if err == nil || !strings.Contains(err.Error(), "wrong_team") {
+		t.Fatalf("mismatched certTeamId: %v", err)
+	}
+	res, err := mk("T-josh").Run(context.Background(), req, tg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m, err := builder.VerifyBuildManifest(mustReadFile(t, res.ManifestPath), pol)
+	if err != nil || m.CertTeamID != "T-josh" {
+		t.Fatalf("manifest certTeamId: %+v %v", m, err)
 	}
 }

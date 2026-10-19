@@ -31,12 +31,14 @@ const LauncherHeader = "X-RA-Launcher"
 // Kept separate from core.Version so the hub gate tracks the Poison Apple launcher floor.
 const LauncherVersion = "0.2.0"
 
-// AccountsKeyHeader carries Josh's Red-XAI Accounts full-access key on the pairing and cert requests
-// (and the signing-time account-status check). ra-core resolves the sub and team coverage server-side.
-// PENDING (Grok Bot): header name and API shape are placeholders until ra-core's commit lands.
+// AccountsKeyHeader carries the account's Red-XAI Accounts key, raw, on pairings (binds the pairing to the
+// account), challenge, certs and account-status (ra-core rxa-cert-ids @ 711171b, DEV_HUB_API.md §4a); it is
+// not sent on pairings/status (ignored there) or any other route. The key is issued by ra-core (Dev page →
+// API keys → Red-XAI Accounts key), format ra_sk_live_<43 base62>; ra-core refuses it as a Bearer token, and
+// challenge/certs need the build key as Authorization: Bearer as well.
 const AccountsKeyHeader = "X-RedX-Accounts-Key"
 
-// AccountStatusPath is the signing-time identity check. PENDING: placeholder path.
+// AccountStatusPath is the signing-time identity check (GET or POST; the Accounts key alone).
 const AccountStatusPath = "/v1/devhub/account-status"
 
 // DeviceKey is a device or signing key held on this machine. Only the public bytes ever leave it; signing
@@ -141,7 +143,7 @@ type Client struct {
 	Device   DeviceKey
 	Platform Platform
 	Now      func() time.Time
-	// AccountsKey is the Red-XAI Accounts full-access key typed at the tty prompt. It is sent only in
+	// AccountsKey is the Red-XAI Accounts key typed at the tty prompt. It is sent only in
 	// AccountsKeyHeader and the caller zeroes it after use (net/http needs a string copy per request).
 	AccountsKey []byte
 }
@@ -259,19 +261,60 @@ func (c *Client) StartPairing(name string) (*Pairing, error) {
 // accountsKeyPath limits the Accounts key to the routes that need it (pairing, cert issue, account status).
 func accountsKeyPath(p string) bool {
 	switch p {
-	case "/v1/devhub/pairings", "/v1/devhub/pairings/status", "/v1/devhub/challenge", "/v1/devhub/certs", AccountStatusPath:
+	case "/v1/devhub/pairings", "/v1/devhub/challenge", "/v1/devhub/certs", AccountStatusPath:
 		return true
 	}
 	return false
 }
 
-// AccountIdentity is who ra-core resolved the Accounts key to. Subject is kept as the server's exact
-// bytes: the Mega cert's subject must equal it byte for byte. PENDING: field names and placement.
+// AccountIdentity is `account` in account-status and in /pairings/status (once approved, when the pairing
+// was started with the Accounts key). Subject is the server's exact bytes, or the literal null while an id
+// is missing.
 type AccountIdentity struct {
-	Name    string          `json:"name"`
-	Email   string          `json:"email"`
-	Subject json.RawMessage `json:"subject"`
+	ID        int64           `json:"id"`
+	Sub       string          `json:"sub"`  // Red-XAI Accounts id (OIDC sub)
+	Name      string          `json:"name"` // Red-XAI Accounts username at link time
+	Email     string          `json:"email"`
+	RxaLinked bool            `json:"rxaLinked"`
+	Subject   json.RawMessage `json:"subject"`
 }
+
+// HasSubject reports whether ra-core returned a subject object (not null / absent).
+func (a *AccountIdentity) HasSubject() bool {
+	t := bytes.TrimSpace(a.Subject)
+	return len(t) > 0 && !bytes.Equal(t, []byte("null"))
+}
+
+// CertIDs is `cert` in account-status: what POST /v1/devhub/certs will put in the subject.
+type CertIDs struct {
+	DevID   string `json:"devId"`
+	TeamID  string `json:"teamId"`
+	Subject string `json:"subject"` // exact compact subject JSON (Go encoding/json, keys name,teamId,devId)
+	Ready   bool   `json:"ready"`
+}
+
+// AccountContext is one entry of `contexts` (ra-core returns exactly one: the key's team).
+type AccountContext struct {
+	Team       json.Number `json:"team"`
+	Kind       string      `json:"kind"` // individual | team
+	Name       string      `json:"name"`
+	CertTeamID string      `json:"certTeamId"`
+	Role       string      `json:"role"`
+	Mega       bool        `json:"mega"`
+}
+
+// AccountStatusResponse is GET|POST /v1/devhub/account-status.
+type AccountStatusResponse struct {
+	Account  AccountIdentity  `json:"account"`
+	Cert     CertIDs          `json:"cert"`
+	Contexts []AccountContext `json:"contexts"`
+}
+
+// Contract error codes (ra-core rxa-cert-ids).
+func IsAccountsKeyMismatch(err error) bool    { return codeIs(err, "accounts_key_mismatch") }
+func IsPairingAccountMismatch(err error) bool { return codeIs(err, "pairing_account_mismatch") }
+func IsAccountsKeyRequired(err error) bool    { return codeIs(err, "accounts_key_required") }
+func IsRxaLinkRequired(err error) bool        { return codeIs(err, "rxa_link_required") }
 
 // PairingStatus is the answer to POST /v1/devhub/pairings/status.
 type PairingStatus struct {
@@ -280,24 +323,19 @@ type PairingStatus struct {
 	Team     string           `json:"team"`
 	Platform string           `json:"platform"`
 	Targets  []string         `json:"targets"`
-	Account  *AccountIdentity `json:"account,omitempty"` // PENDING: returned once approved
+	Account  *AccountIdentity `json:"account,omitempty"` // contract 711171b: the bound account, returned once approved
 }
 
-// AccountStatus asks ra-core who the Accounts key belongs to (signing-time check). PENDING shape.
-func (c *Client) AccountStatus(ctx context.Context) (*AccountIdentity, error) {
+// AccountStatus asks ra-core who the Accounts key belongs to (signing-time check; the Accounts key alone).
+func (c *Client) AccountStatus(ctx context.Context) (*AccountStatusResponse, error) {
 	if len(c.AccountsKey) == 0 {
 		return nil, errors.New("no Red-XAI Accounts key")
 	}
-	var r struct {
-		Account *AccountIdentity `json:"account"`
-	}
-	if err := c.do(ctx, "POST", AccountStatusPath, map[string]string{}, false, &r); err != nil {
+	var r AccountStatusResponse
+	if err := c.do(ctx, "GET", AccountStatusPath, nil, false, &r); err != nil {
 		return nil, err
 	}
-	if r.Account == nil || len(r.Account.Subject) == 0 {
-		return nil, errors.New("ra-core returned no account subject")
-	}
-	return r.Account, nil
+	return &r, nil
 }
 
 // PollPairing polls the pairing with the poll secret.
@@ -439,16 +477,18 @@ func (c *Client) CheckKey(ctx context.Context) (*KeyCheck, error) {
 // ---- Team context (spec §6) ----
 
 type hubContext struct {
-	Team     json.Number     `json:"team"`
-	TeamName string          `json:"teamName"`
-	TeamKind string          `json:"teamKind"`
-	Role     string          `json:"role"`
-	Level    int             `json:"level"`
-	Mega     bool            `json:"mega"`
-	Staff    bool            `json:"staff"`
-	SDKs     []hubSDK        `json:"sdks"`
-	Apps     []string        `json:"apps"`
-	Key      json.RawMessage `json:"key"`
+	Team     json.Number      `json:"team"`
+	TeamName string           `json:"teamName"`
+	TeamKind string           `json:"teamKind"`
+	Role     string           `json:"role"`
+	Level    int              `json:"level"`
+	Mega     bool             `json:"mega"`
+	Staff    bool             `json:"staff"`
+	SDKs     []hubSDK         `json:"sdks"`
+	Apps     []string         `json:"apps"`
+	Key      json.RawMessage  `json:"key"`
+	Cert     CertIDs          `json:"cert"`
+	Contexts []AccountContext `json:"contexts"`
 }
 
 type hubSDK struct {
@@ -470,6 +510,13 @@ func (c *Client) Context() (*BuildContext, error) {
 		Individual: hc.TeamKind == "individual",
 		Role:       hc.Role,
 		BuildKey:   c.APIKey,
+		CertTeamID: hc.Cert.TeamID,
+	}
+	if len(hc.Contexts) == 1 && hc.Contexts[0].CertTeamID != "" {
+		if bc.CertTeamID != "" && bc.CertTeamID != hc.Contexts[0].CertTeamID {
+			return nil, fmt.Errorf("dev-hub context disagrees: cert.teamId %q != contexts[0].certTeamId %q", bc.CertTeamID, hc.Contexts[0].CertTeamID)
+		}
+		bc.CertTeamID = hc.Contexts[0].CertTeamID
 	}
 	for _, s := range hc.SDKs {
 		if s.Unlocked {

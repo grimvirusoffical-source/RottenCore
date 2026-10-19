@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -42,7 +43,7 @@ var pairKeychain interface {
 //	rottencore devhub-pair --trust-root <hex> --out josh-mega.bundle.json --state work/pairing.json [--dev rxa_… --team …  (optional cross-check)]
 //	    [--label josh-mega] [--device-label rottencore-device] [--name xlr1-mac] [--api-key-stdin]
 //
-// The Red-XAI Accounts full-access key is typed at a hidden /dev/tty prompt (never stored, never env/argv)
+// The Red-XAI Accounts key is typed at a hidden /dev/tty prompt (never stored, never env/argv)
 // and sent to ra-core in devhub.AccountsKeyHeader on the pairing and cert requests. Before the cert is
 // requested, the identity ra-core returns (name, email, subject) is shown and Josh must type "yes". The
 // issued cert's subject must equal ra-core's subject byte for byte, be for our Mega key, and chain to the
@@ -103,6 +104,10 @@ func runDevhubPair(ctx context.Context) {
 	c.APIKey = key
 	akey, err := readAccountsKey()
 	check(err)
+	if bytes.Equal(akey, []byte(key)) {
+		zero(akey)
+		fail(errors.New("that is the build API key, not the Red-XAI Accounts key (Dev page: API keys > Red-XAI Accounts key)"), 2)
+	}
 	defer zero(akey)
 	c.AccountsKey = akey
 	onExit(func() { zero(akey) })
@@ -126,34 +131,89 @@ func runDevhubPair(ctx context.Context) {
 		check(err)
 	}
 
-	if err := checkServerSubject(st.Account, pairDevID, devTeam); err != nil {
-		fail(err, 5)
-	}
-	if err := confirmAccount(st.Account, "issue the Mega signing certificate"); err != nil {
-		fail(err, 5)
-	}
-
-	resp, err := c.IssueCert(ctx, mega)
-	check(err)
+	chain, raw, subject, resp, err := issueMegaCert(ctx, c, mega, st, pairDevID, devTeam)
 	zero(akey)
 	c.AccountsKey = nil
-	chain, raw, err := certChainFrom(resp)
-	check(err)
-	leaf := chain[0]
-	if err := checkMegaLeaf(&leaf, raw[0], mega.Public(), st.Account.Subject); err != nil {
+	if err != nil {
 		fail(err, 5)
 	}
 	if _, err := core.VerifyCertChain(chain, chainPolicy()); err != nil {
 		fail(fmt.Errorf("issued chain does not verify to the ceremony root: %w", err), 5)
 	}
 	fmt.Println("chain verifies to the ceremony root")
-	b := map[string]interface{}{"chain": raw, "tier": "developer"}
-	check(writeJSON0600(buildOut, b))
+	check(writeBundleExact(buildOut, raw))
+	// Re-read what landed on disk: the stored leaf must still carry the exact subject bytes.
+	stored, _, err := readBundleLeaf(buildOut)
+	check(err)
+	if err := core.EqualSubjectBytes(stored, subject); err != nil {
+		fail(fmt.Errorf("bundle on disk lost the exact subject bytes: %w", err), 5)
+	}
+	leaf := chain[0]
 	out(map[string]interface{}{"bundle": buildOut, "fingerprint": resp.Fingerprint, "subject": leaf.Subject, "platforms": leaf.Platforms},
 		func() {
-			fmt.Printf("cert subject %s (byte-for-byte equal to ra-core) fingerprint=%s\n", string(st.Account.Subject), resp.Fingerprint)
+			fmt.Printf("cert subject %s (byte-for-byte equal to ra-core cert.subject) fingerprint=%s\n", subject, resp.Fingerprint)
 			fmt.Printf("MEGA_BUNDLE=%s\n", buildOut)
 		})
+}
+
+// issueMegaCert runs the contract steps after approval: the poll's account must be present (the pairing was
+// started with the Accounts key) and agree with account-status; account-status must pass
+// validateAccountStatus; optional ids cross-check; Josh types yes; then challenge + /certs (build key as
+// Bearer + Accounts key) and the issued leaf must be a developer cert for our Mega key whose subject member
+// equals cert.subject byte for byte.
+func issueMegaCert(ctx context.Context, c *devhub.Client, mega devhub.DeviceKey, pst *devhub.PairingStatus, wantDev, wantTeam string) ([]core.Cert, []json.RawMessage, []byte, *devhub.CertResponse, error) {
+	if pst.Account == nil || !pst.Account.HasSubject() {
+		return nil, nil, nil, nil, errors.New("STOP: the approved pairing carries no account (it was not started with the Red-XAI Accounts key, or ra-core has no subject yet). Delete work/pairing.json and pair again")
+	}
+	st, err := c.AccountStatus(ctx)
+	if err != nil {
+		return nil, nil, nil, nil, fmt.Errorf("ra-core account status: %w", explainHubError(err))
+	}
+	subject, err := validateAccountStatus(st)
+	if err != nil {
+		return nil, nil, nil, nil, err
+	}
+	if pst.Account.ID != st.Account.ID || pst.Account.Sub != st.Account.Sub || !bytes.Equal(bytes.TrimSpace(pst.Account.Subject), subject) {
+		return nil, nil, nil, nil, fmt.Errorf("STOP: the pairing was approved for %s %s but the Accounts key is %s %s", pst.Account.Sub, pst.Account.Subject, st.Account.Sub, subject)
+	}
+	if wantDev != "" || wantTeam != "" {
+		fmt.Fprintln(os.Stderr, "optional cross-check: --dev/--team must match ra-core's subject exactly")
+	}
+	if err := crossCheckIDs(subject, wantDev, wantTeam); err != nil {
+		return nil, nil, nil, nil, err
+	}
+	if err := confirmAccount(st, "issue the Mega signing certificate"); err != nil {
+		return nil, nil, nil, nil, err
+	}
+	resp, err := c.IssueCert(ctx, mega)
+	if err != nil {
+		return nil, nil, nil, nil, explainHubError(err)
+	}
+	chain, raw, err := certChainFrom(resp)
+	if err != nil {
+		return nil, nil, nil, nil, err
+	}
+	if err := checkMegaLeaf(&chain[0], raw[0], mega.Public(), subject); err != nil {
+		return nil, nil, nil, nil, err
+	}
+	return chain, raw, subject, resp, nil
+}
+
+// writeBundleExact writes the bundle with the store's certificate bytes untouched (compact json.Marshal
+// keeps RawMessage bytes as they are; MarshalIndent would re-indent the certificate and break the exact
+// subject bytes).
+func writeBundleExact(path string, raw []json.RawMessage) error {
+	b, err := json.Marshal(struct {
+		Chain []json.RawMessage `json:"chain"`
+		Tier  string            `json:"tier"`
+	}{raw, "developer"})
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return err
+	}
+	return os.WriteFile(path, append(b, '\n'), 0o600)
 }
 
 // readBuildKey loads the build API key from the Keychain or stdin. Never argv, never the environment.
@@ -252,7 +312,7 @@ func pairAndWait(ctx context.Context, c *devhub.Client, timeout time.Duration) (
 		if p == nil {
 			np, err := c.StartPairing(pairName)
 			if err != nil {
-				return nil, err
+				return nil, explainHubError(err)
 			}
 			p = np
 			if err := writeJSON0600(pairState, pairState0{Pairing: *p, Started: time.Now().UnixMilli()}); err != nil {
@@ -272,7 +332,7 @@ func pairAndWait(ctx context.Context, c *devhub.Client, timeout time.Duration) (
 			}
 			st, err := c.PollPairing(ctx, p.Code, p.PollSecret)
 			if err != nil {
-				return nil, err
+				return nil, explainHubError(err) // contract 4xx codes are final: no retry
 			}
 			switch st.State {
 			case "approved":

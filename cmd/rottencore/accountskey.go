@@ -18,8 +18,9 @@ import (
 	"github.com/grimvirusoffical-source/RottenCore/seal"
 )
 
-// The Red-XAI Accounts full-access key (final design): read ONLY from a hidden prompt on the controlling
-// terminal, at pairing and at signing time. Never stored (no Keychain item), never in env, argv, a file,
+// The Red-XAI Accounts key (ra-core-issued, ra_sk_live_<43 base62>; Dev page → API keys → Red-XAI
+// Accounts key): read ONLY from a hidden prompt on the controlling terminal, at pairing and at signing time,
+// and format-checked before use. Never stored (no Keychain item), never in env, argv, a file,
 // logs or output. Held in a []byte that is zeroed after use. net/http needs one string copy per request
 // header; that copy cannot be zeroed and lives only in this process.
 
@@ -115,7 +116,7 @@ func readAccountsKey() ([]byte, error) {
 		return nil, err
 	}
 	defer tty.Close()
-	fmt.Fprint(tty, "Red-XAI Accounts full-access key (input hidden, not stored): ")
+	fmt.Fprint(tty, "Red-XAI Accounts key (ra_sk_live_…, Dev page > API keys > Red-XAI Accounts key; input hidden, not stored): ")
 	if err := ttyEcho(tty, false); err != nil {
 		return nil, fmt.Errorf("cannot hide input: %w", err)
 	}
@@ -127,8 +128,12 @@ func readAccountsKey() ([]byte, error) {
 	}
 	t := bytes.TrimSpace(k)
 	if len(t) == 0 {
-		zero(k)
+		zero(k[:cap(k)])
 		return nil, errors.New("no Red-XAI Accounts key entered")
+	}
+	if err := core.ValidateAccountsKeyFormat(t); err != nil { // the error never contains the key
+		zero(k[:cap(k)])
+		return nil, err
 	}
 	out := make([]byte, len(t))
 	copy(out, t)
@@ -136,14 +141,85 @@ func readAccountsKey() ([]byte, error) {
 	return out, nil
 }
 
+// validateAccountStatus applies the ra-core contract to an account-status answer and returns the exact
+// subject bytes (cert.subject) the Mega certificate must carry. Stops on: account.subject null, cert not
+// ready, contexts not exactly one, or any disagreement between account.subject, cert and contexts[0].
+func validateAccountStatus(st *devhub.AccountStatusResponse) ([]byte, error) {
+	if st == nil {
+		return nil, errors.New("ra-core returned no account status")
+	}
+	a := &st.Account
+	if !a.RxaLinked || a.Sub == "" {
+		return nil, errors.New("this ra-core account is not linked to Red-XAI Accounts yet (account.rxaLinked=false): an operator must run ra-core rxa-link first")
+	}
+	if !a.HasSubject() {
+		return nil, errors.New("ra-core has no certificate subject for this account yet (account.subject is null): the account or team still lacks a Red-XAI id; stop and fix it on the server")
+	}
+	if !st.Cert.Ready || st.Cert.Subject == "" {
+		return nil, errors.New("ra-core says the certificate ids are not ready (cert.ready=false): stop and fix the account/team ids on the server")
+	}
+	if len(st.Contexts) != 1 {
+		return nil, fmt.Errorf("ra-core returned %d developer contexts for this key; exactly one is required (one Mega cert per key/team)", len(st.Contexts))
+	}
+	want := []byte(st.Cert.Subject)
+	if !bytes.Equal(bytes.TrimSpace(a.Subject), want) {
+		return nil, fmt.Errorf("ra-core is inconsistent: account.subject %s != cert.subject %s", a.Subject, want)
+	}
+	var sub core.CertSubject
+	if err := json.Unmarshal(want, &sub); err != nil {
+		return nil, fmt.Errorf("cert.subject is not a subject object: %w", err)
+	}
+	dev, team := core.SubjectIDs(sub)
+	kind, err := core.ValidateIDPair(dev, team)
+	if err != nil {
+		return nil, fmt.Errorf("ra-core subject failed the id check: %w", err)
+	}
+	c := st.Contexts[0]
+	switch {
+	case dev != a.Sub || dev != st.Cert.DevID:
+		return nil, fmt.Errorf("subject devId %q disagrees with account.sub %q / cert.devId %q", dev, a.Sub, st.Cert.DevID)
+	case team != st.Cert.TeamID || team != c.CertTeamID:
+		return nil, fmt.Errorf("subject teamId %q disagrees with cert.teamId %q / contexts[0].certTeamId %q", team, st.Cert.TeamID, c.CertTeamID)
+	case sub.Name != c.Name:
+		return nil, fmt.Errorf("subject name %q disagrees with contexts[0].name %q", sub.Name, c.Name)
+	case (kind == core.TeamIndividual) != (c.Kind == "individual"):
+		return nil, fmt.Errorf("context kind %q does not fit teamId %q (individual = the owner's rxa_, team = rxt_)", c.Kind, team)
+	}
+	return want, nil
+}
+
+// crossCheckIDs is the OPTIONAL exact check against ROTTEN_DEV_ID / ROTTEN_TEAM_ID (empty = skipped).
+func crossCheckIDs(subject []byte, wantDev, wantTeam string) error {
+	if err := core.ValidateCrossCheckIDs(wantDev, wantTeam); err != nil {
+		return err
+	}
+	var sub core.CertSubject
+	if err := json.Unmarshal(subject, &sub); err != nil {
+		return err
+	}
+	dev, team := core.SubjectIDs(sub)
+	if wantDev != "" && dev != wantDev {
+		return fmt.Errorf("optional cross-check failed: ra-core subject devId %q != %q", dev, wantDev)
+	}
+	if wantTeam != "" && team != wantTeam {
+		return fmt.Errorf("optional cross-check failed: ra-core subject teamId %q != %q", team, wantTeam)
+	}
+	return nil
+}
+
 // confirmAccount prints the server-returned identity and requires Josh to type exactly "yes" on the tty.
-func confirmAccount(who *devhub.AccountIdentity, what string) error {
+func confirmAccount(st *devhub.AccountStatusResponse, what string) error {
 	tty, err := ttyOpen()
 	if err != nil {
 		return err
 	}
 	defer tty.Close()
-	fmt.Fprintf(tty, "\nra-core resolved the Accounts key to:\n  name:    %s\n  email:   %s\n  subject: %s\n", who.Name, who.Email, string(who.Subject))
+	c := devhub.AccountContext{}
+	if len(st.Contexts) == 1 {
+		c = st.Contexts[0]
+	}
+	fmt.Fprintf(tty, "\nra-core resolved the Red-XAI Accounts key to:\n  name:    %s\n  email:   %s\n  sub:     %s\n  context: %s %q (role %s, mega %v)\n  subject: %s\n",
+		st.Account.Name, st.Account.Email, st.Account.Sub, c.Kind, c.Name, c.Role, c.Mega, st.Cert.Subject)
 	fmt.Fprintf(tty, "Type yes to %s with this identity: ", what)
 	line, err := readTTYLine(tty, 16)
 	if err != nil {
@@ -155,24 +231,21 @@ func confirmAccount(who *devhub.AccountIdentity, what string) error {
 	return nil
 }
 
-// checkServerSubject is the loose sanity check on the server's subject plus the OPTIONAL exact cross-check
-// with ids Josh may have exported (ROTTEN_DEV_ID / ROTTEN_TEAM_ID); empty wants skip the cross-check.
-func checkServerSubject(who *devhub.AccountIdentity, wantDev, wantTeam string) error {
-	if who == nil || len(bytes.TrimSpace(who.Subject)) == 0 {
-		return errors.New("ra-core returned no account subject (PENDING API shape)")
+// explainHubError turns the contract's 4xx codes into clear, final (non-retrying) errors.
+func explainHubError(err error) error {
+	switch {
+	case err == nil:
+		return nil
+	case devhub.IsAccountsKeyMismatch(err):
+		return fmt.Errorf("STOP: the Red-XAI Accounts key and the build API key belong to different ra-core accounts (403 accounts_key_mismatch). Not retrying. Use both keys from the same account")
+	case devhub.IsPairingAccountMismatch(err):
+		return fmt.Errorf("STOP: this pairing was started with another account's Red-XAI Accounts key (403 pairing_account_mismatch). Approve it while signed in as the key's account, or start again")
+	case devhub.IsAccountsKeyRequired(err):
+		return fmt.Errorf("STOP: ra-core did not accept the Red-XAI Accounts key (401 accounts_key_required)")
+	case devhub.IsRxaLinkRequired(err):
+		return fmt.Errorf("STOP: the ra-core account is not linked to Red-XAI Accounts (409 rxa_link_required)")
 	}
-	s, _, err := core.SanityCheckSubject(who.Subject)
-	if err != nil {
-		return fmt.Errorf("ra-core subject failed the id sanity check: %w", err)
-	}
-	dev, team := core.SubjectIDs(s)
-	if wantDev != "" && dev != wantDev {
-		return fmt.Errorf("ra-core subject devId %q != ROTTEN_DEV_ID %q (exact)", dev, wantDev)
-	}
-	if wantTeam != "" && team != wantTeam {
-		return fmt.Errorf("ra-core subject teamId %q != ROTTEN_TEAM_ID %q (exact)", team, wantTeam)
-	}
-	return nil
+	return err
 }
 
 // signingIdentityCheck runs before sign-batch touches the Mega key.
@@ -204,27 +277,28 @@ func signingIdentityCheck(ctx context.Context) error {
 	}
 	defer zero(akey)
 	c := &devhub.Client{BaseURL: base, Platform: devhub.PlatformMac, AccountsKey: akey}
-	who, err := c.AccountStatus(ctx)
+	st, err := c.AccountStatus(ctx)
 	c.AccountsKey = nil
 	zero(akey)
 	if err != nil {
-		return fmt.Errorf("ra-core account status: %w", err)
+		return fmt.Errorf("ra-core account status: %w", explainHubError(err))
+	}
+	subject, err := validateAccountStatus(st)
+	if err != nil {
+		return err
 	}
 	// OPTIONAL cross-check (identity comes from ra-core + Josh's yes); fails closed on mismatch.
 	xDev, xTeam := os.Getenv("ROTTEN_DEV_ID"), os.Getenv("ROTTEN_TEAM_ID")
-	if err := core.ValidateCrossCheckIDs(xDev, xTeam); err != nil {
-		return err
-	}
 	if xDev != "" || xTeam != "" {
 		fmt.Fprintln(os.Stderr, "optional cross-check: ROTTEN_DEV_ID/ROTTEN_TEAM_ID must match ra-core's subject exactly")
 	}
-	if err := checkServerSubject(who, xDev, xTeam); err != nil {
+	if err := crossCheckIDs(subject, xDev, xTeam); err != nil {
 		return err
 	}
-	if err := core.EqualSubjectBytes(leafJSON, who.Subject); err != nil {
+	if err := core.EqualSubjectBytes(leafJSON, subject); err != nil {
 		return fmt.Errorf("Mega bundle vs ra-core: %w", err)
 	}
-	return confirmAccount(who, "sign the release assets")
+	return confirmAccount(st, "sign the release assets")
 }
 
 // readBundleLeaf returns the bundle's leaf exactly as stored plus the parsed chain.

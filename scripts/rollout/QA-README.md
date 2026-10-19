@@ -17,11 +17,20 @@
 > device key, the Mega key, and the build key if it's stored. **sign** has one in total (`sign-batch`
 > reads josh-mega once), plus github-token if it's stored.
 >
-> **Red-XAI Accounts full-access key:** `rottencore` asks for it at a hidden prompt on the terminal,
-> once at **pair** and once at **sign**. Type or paste it each time. It is never stored (no Keychain
-> item), and never goes to env, argv, files, logs or output. The phases refuse to run if any
+> **Red-XAI Accounts key:** issued by **ra-core** (not by Red-XAI Accounts). Josh creates it on the
+> **Dev page under API keys > Red-XAI Accounts key**. Format: `ra_sk_live_` + 43 base62 characters
+> (`^ra_sk_live_[A-Za-z0-9]{43}$`). `rottencore` asks for it at a hidden prompt on the terminal (echo off),
+> once at **pair** and once at **sign**. Type or paste it each time. Anything that is not exactly that format
+> is refused without echoing it, and so is the build API key pasted by mistake. It is never stored (no Keychain
+> item), and never goes to env, argv, files, logs or output. It is sent raw in `X-RedX-Accounts-Key` only on
+> `pairings`, `challenge`, `certs` and `account-status`. The phases refuse to run if any
 > `*ACCOUNTS*KEY/TOKEN/SECRET` or `REDX_*KEY` variable is set. ra-core resolves who it belongs to. RottenCore then shows the
 > **name, email and subject ra-core returned** and you type `yes` to go on.
+>
+> Stops (no retry, nothing issued): `account.subject` is null, `cert.ready` is false, there is not exactly one
+> context, account/cert/context disagree, `403 pairing_account_mismatch` (the pairing was started with a
+> different account's key: delete `work/pairing.json`, pair again), `403 accounts_key_mismatch` (the
+> Accounts key and the build key belong to different accounts), `409 rxa_link_required`.
 
 Josh's plan:
 - The issuing CA key lives on ra-core. The Mac holds only the root, device and Mega keys.

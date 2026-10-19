@@ -27,6 +27,7 @@ type BuildManifest struct {
 	Project        Project            `json:"project"`
 	Account        string             `json:"account"` // "team T-x" | "individual account"
 	TeamID         string             `json:"teamId,omitempty"`
+	CertTeamID     string             `json:"certTeamId,omitempty"` // the team's certificate teamId (rxa_ individual | rxt_ team)
 	Individual     bool               `json:"individual,omitempty"`
 	DevicePlatform string             `json:"devicePlatform"` // mac | windows
 	SDKs           []string           `json:"sdks"`
@@ -56,6 +57,7 @@ func (b *Builder) writeBuildManifest(p Project, ctx *devhub.BuildContext, sdks [
 	m := BuildManifest{Schema: BuildManifestSchema, Project: p, Account: "local", SignedMs: b.now().UnixMilli()}
 	if ctx != nil {
 		m.Account, m.TeamID, m.Individual = ctx.AccountLabel(), ctx.TeamID, ctx.Individual
+		m.CertTeamID = ctx.CertTeamID
 		m.SDKExempt = ctx.Exempt()
 		if ctx.Device != nil {
 			m.DevicePlatform = string(ctx.Device.Platform)
