@@ -84,7 +84,7 @@ func (s KeychainStore) Put(label string, k core.Signer) error {
 		trust = ` -T ""` // no apps trusted — Get may prompt (fails over SSH)
 	}
 	line := fmt.Sprintf("add-generic-password -a %s -s %s -w %s%s -D RottenCore\\ CA\\ private\\ key\n", label, svc, blob, trust)
-	cmd := exec.Command("security", "-i")
+	cmd := exec.Command("/usr/bin/security", "-i")
 	cmd.Stdin = strings.NewReader(line)
 	var errb bytes.Buffer
 	cmd.Stderr = &errb
@@ -99,7 +99,7 @@ func (s KeychainStore) Get(label string) (core.Signer, error) {
 		return nil, fmt.Errorf("keychain label %q has unsafe characters", label)
 	}
 	// -w prints the password on stdout only; label and service are not secret.
-	out, err := exec.Command("security", "find-generic-password", "-a", label, "-s", s.service(), "-w").Output()
+	out, err := exec.Command("/usr/bin/security", "find-generic-password", "-a", label, "-s", s.service(), "-w").Output()
 	if err != nil {
 		return nil, fmt.Errorf("no Keychain key labelled %q (%v)", label, err)
 	}

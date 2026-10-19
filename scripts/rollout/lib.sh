@@ -20,7 +20,7 @@ mark() { mkdir -p "$MARKER_DIR"; date -u +%Y-%m-%dT%H:%M:%SZ > "$MARKER_DIR/$1";
 
 keychain_has() {
   local label="$1"
-  security find-generic-password -a "$label" -s "${KEYCHAIN_SERVICE:-com.redx.rottencore.ca}" >/dev/null 2>&1
+  /usr/bin/security find-generic-password -a "$label" -s "${KEYCHAIN_SERVICE:-com.redx.rottencore.ca}" >/dev/null 2>&1
 }
 
 # load_github_token — GitHub token for private release assets. Never argv, never exported.
@@ -57,7 +57,39 @@ curl_github() {
 
 # QA F2: Keychain reads are done by /usr/bin/security, so the item ACL cannot single out our binaries.
 # Run every phase in Terminal ON the Mac and answer each prompt with "Allow" — NEVER "Always Allow".
+# Red-XAI id formats (mirror of core/ids.go; TestRolloutIDPatternsMatchGo keeps them in sync).
+# PENDING (Grok Bot): the team format. Edit ROTTEN_TEAM_ID_PATTERNS (and core.TeamIDPatterns) only.
+ROTTEN_DEV_ID_PATTERN='^rxa_[A-Z2-7]{26}$'
+ROTTEN_TEAM_ID_PATTERNS=('^rxa_[A-Z2-7]{26}$' '^rxt_[A-Z2-7]{26}$')
+
+# validate_rotten_ids DEV TEAM — strict anchored checks; an rxa_ team must be the owner (== DEV).
+validate_rotten_ids() {
+  local dev="$1" team="$2" p ok=""
+  [[ "$dev" =~ $ROTTEN_DEV_ID_PATTERN ]] \
+    || die "ROTTEN_DEV_ID '$dev' is not a Red-XAI Accounts id (rxa_ + 26 of A-Z2-7); old A<n> ids are refused"
+  for p in "${ROTTEN_TEAM_ID_PATTERNS[@]}"; do
+    [[ "$team" =~ $p ]] && ok=1
+  done
+  [[ -n "$ok" ]] || die "ROTTEN_TEAM_ID '$team' matches no accepted team format (${ROTTEN_TEAM_ID_PATTERNS[*]}); old T<n> ids are refused"
+  if [[ "$team" == rxa_* && "$team" != "$dev" ]]; then
+    die "ROTTEN_TEAM_ID is an rxa_ id but not ROTTEN_DEV_ID: an rxa_ team is only valid for the owner's individual context"
+  fi
+}
+
+# The Red-XAI Accounts full-access key is typed at rottencore's hidden /dev/tty prompt ONLY. Refuse if
+# anything that looks like it is in the environment (names only are printed, never values).
+refuse_accounts_key_env() {
+  local n bad=()
+  while IFS= read -r n; do
+    if [[ "$n" =~ [Aa][Cc][Cc][Oo][Uu][Nn][Tt][Ss]?.*([Kk][Ee][Yy]|[Tt][Oo][Kk][Ee][Nn]|[Ss][Ee][Cc][Rr][Ee][Tt]) || "$n" =~ ^(REDX|RED_XAI|RXA)_.*(KEY|TOKEN|SECRET) ]]; then
+      bad+=("$n")
+    fi
+  done < <(compgen -e)
+  [[ ${#bad[@]} -eq 0 ]] || die "unset ${bad[*]}: the Red-XAI Accounts key is typed at the prompt only, never the environment"
+}
+
 require_mac_terminal() {
+  refuse_accounts_key_env
   if [[ -n "${SSH_CONNECTION:-}${SSH_TTY:-}${SSH_CLIENT:-}" ]]; then
     die "run this phase in Terminal ON the Mac, not over SSH: macOS must show the Keychain prompt so you can click Allow"
   fi

@@ -59,6 +59,10 @@ func runSign(ctx context.Context, cmd string, rest []string) bool {
 		need(rest, 1)
 		jobs, err := readSignList(rest[0])
 		check(err)
+		// Signing-time identity check (final design): the Accounts key is typed at the tty, ra-core says
+		// who it is, the bundle's leaf subject must equal that subject byte for byte, the chain must
+		// verify to the ceremony root, and Josh types yes. Done BEFORE the Keychain read of the Mega key.
+		check(signingIdentityCheck(ctx))
 		k, chain := loadSigner()
 		host := signHost
 		if host == "" {

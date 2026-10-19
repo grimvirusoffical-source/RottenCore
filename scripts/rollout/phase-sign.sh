@@ -18,6 +18,10 @@ require_mac_terminal
 # QA B3: MANIFEST.json ships in the rollout tgz (default: the ceremony folder). Missing or not the pinned
 # sha256 = stop before anything is downloaded or signed.
 require_backup_manifest
+if [[ -n "${ROTTEN_DEV_ID:-}${ROTTEN_TEAM_ID:-}" ]]; then
+  validate_rotten_ids "${ROTTEN_DEV_ID:-}" "${ROTTEN_TEAM_ID:-}"
+  export ROTTEN_DEV_ID ROTTEN_TEAM_ID   # public ids; rottencore cross-checks them against ra-core
+fi
 load_github_token
 
 ROOT_HEX=$(python3 -c 'import json,base64,binascii; c=json.load(open("'"$ROOT_DIR"'/root.cert.json")); pk=c["publicKey"]; raw=base64.b64decode(pk) if isinstance(pk,str) else bytes(pk); print(binascii.hexlify(raw).decode())')
@@ -65,8 +69,12 @@ for r in inv["repos"].get(repo,{}).get("releases",[]):
 PY
 )
   [[ -n "$aid" ]] || die "no asset id for $repo/$tag/$name"
-  curl_github "https://api.github.com/repos/grimvirusoffical-source/${repo}/releases/assets/${aid}" \
-    -o "$dest.partial"
+  # QA L-e: a failed download leaves nothing behind in staging.
+  if ! curl_github "https://api.github.com/repos/grimvirusoffical-source/${repo}/releases/assets/${aid}" \
+    -o "$dest.partial"; then
+    rm -f "$dest.partial"
+    die "download failed for $repo/$tag/$name (partial file removed)"
+  fi
   mv "$dest.partial" "$dest"
 }
 
@@ -100,7 +108,10 @@ while IFS=$'\t' read -r REPO TAG ASSET URL CAT SIZE <&3; do
   fi
   mkdir -p "$DEST_DIR"
   download_asset "$REPO" "$TAG" "$ASSET" "$URL" "$LOCAL"
-  verify_backup_digest "$REPO" "$TAG" "$ASSET" "$LOCAL"
+  if ! ( verify_backup_digest "$REPO" "$TAG" "$ASSET" "$LOCAL" ); then
+    rm -f "$LOCAL" "$LOCAL.partial" "$LOCAL.rasig"   # QA L-e: never keep mismatched bytes in staging
+    die "digest mismatch for $REPO/$TAG/$ASSET — removed from staging; STOP"
+  fi
   rm -f "$LOCAL.rasig"   # re-sign from scratch after a partial run
   META=$(app_meta "$REPO" "$TAG" "$ASSET" "$CAT")
   META_APP=$(sed -n '1p' <<<"$META"); META_VER=$(sed -n '2p' <<<"$META"); META_PLAT=$(sed -n '3p' <<<"$META")
@@ -112,8 +123,10 @@ done 3< "$ROOT_DIR/work/sign-list.tsv"
 if [[ ${#PENDING[@]} -gt 0 ]]; then
   log "=== sign ${#PENDING[@]} assets (one Keychain read of josh-mega) ==="
   keychain_prompt_notice josh-mega
+  # Signing-time identity check inside rottencore: Red-XAI Accounts key at the hidden tty prompt,
+  # ra-core's subject == the Mega cert subject byte for byte, chain to the root, then type yes.
   "$ROTTENCORE" sign-batch "$BATCH" --keychain --label josh-mega --service "$KEYCHAIN_SERVICE" \
-    --bundle "$ROOT_DIR/josh-mega.bundle.json" </dev/null
+    --bundle "$ROOT_DIR/josh-mega.bundle.json" --trust-root "$ROOT_HEX" </dev/null
   for item in "${PENDING[@]}"; do
     verify_one "${item#*|}"
     mark "${item%%|*}"

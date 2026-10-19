@@ -4,7 +4,10 @@
 #   - generates the device + Mega Ed25519 keys in-process and writes them straight into the Keychain
 #     (private keys never leave the Go process except into the Keychain; no Python, no PyNaCl);
 #   - POST /v1/devhub/pairings, prints the 8-char code, polls /pairings/status until APPROVED;
-#   - challenge + /certs for the Mega key; subject devId/teamId must match EXACTLY (QA M3);
+#   - Red-XAI Accounts full-access key typed at rottencore's hidden /dev/tty prompt (never stored, never env/argv),
+#     sent to ra-core with the pairing and cert requests; ra-core resolves the account server-side;
+#   - shows the server-returned name / email / subject and asks Josh to type yes;
+#   - challenge + /certs for the Mega key; the cert subject must equal ra-core's subject BYTE FOR BYTE (QA M3);
 #   - verifies the issued chain to the ceremony root and writes josh-mega.bundle.json.
 # Build API key: Keychain account ra-build-api-key, or hidden prompt / stdin. Never argv, never env.
 set -euo pipefail
@@ -15,8 +18,9 @@ require_darwin
 setup_rollout_env
 require_mac_terminal
 
-[[ -n "${ROTTEN_DEV_ID:-}" ]] || die "ROTTEN_DEV_ID is not set (exact cert subject devId, e.g. A<accountId>)"
-[[ -n "${ROTTEN_TEAM_ID:-}" ]] || die "ROTTEN_TEAM_ID is not set (exact cert subject teamId, e.g. T<teamId>)"
+[[ -n "${ROTTEN_DEV_ID:-}" ]] || die "ROTTEN_DEV_ID is not set (Red-XAI Accounts id: rxa_ + 26 of A-Z2-7)"
+[[ -n "${ROTTEN_TEAM_ID:-}" ]] || die "ROTTEN_TEAM_ID is not set (the owner's rxa_ id for an individual context, or rxt_ + 26 for a team)"
+validate_rotten_ids "$ROTTEN_DEV_ID" "$ROTTEN_TEAM_ID"
 [[ -x "$ROTTENCORE" ]] || die "rottencore not at $ROTTENCORE"
 [[ -f "$ROOT_DIR/root.cert.json" ]] || die "root.cert.json missing — run phase-root first"
 # Keep the build key out of the environment of everything we start.
@@ -34,6 +38,7 @@ if done_p mega-cert && [[ -f "$BUNDLE" ]]; then
 else
   log "=== phase-pair: rottencore devhub-pair (Go; keys go straight into the Keychain) ==="
   keychain_prompt_notice "rottencore-device / josh-mega / ra-build-api-key"
+  echo ">> You will also be asked for the Red-XAI Accounts full-access key (hidden; not stored) and to type yes." >&2
   "$ROTTENCORE" devhub-pair \
     --dev "$ROTTEN_DEV_ID" --team "$ROTTEN_TEAM_ID" \
     --device-label rottencore-device --label josh-mega \

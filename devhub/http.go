@@ -31,6 +31,14 @@ const LauncherHeader = "X-RA-Launcher"
 // Kept separate from core.Version so the hub gate tracks the Poison Apple launcher floor.
 const LauncherVersion = "0.2.0"
 
+// AccountsKeyHeader carries Josh's Red-XAI Accounts full-access key on the pairing and cert requests
+// (and the signing-time account-status check). ra-core resolves the sub and team coverage server-side.
+// PENDING (Grok Bot): header name and API shape are placeholders until ra-core's commit lands.
+const AccountsKeyHeader = "X-RedX-Accounts-Key"
+
+// AccountStatusPath is the signing-time identity check. PENDING: placeholder path.
+const AccountStatusPath = "/v1/devhub/account-status"
+
 // DeviceKey is a device or signing key held on this machine. Only the public bytes ever leave it; signing
 // happens here. Software keys are Ed25519 (spec §2); a Secure Enclave key would implement the same shape.
 type DeviceKey interface {
@@ -133,6 +141,9 @@ type Client struct {
 	Device   DeviceKey
 	Platform Platform
 	Now      func() time.Time
+	// AccountsKey is the Red-XAI Accounts full-access key typed at the tty prompt. It is sent only in
+	// AccountsKeyHeader and the caller zeroes it after use (net/http needs a string copy per request).
+	AccountsKey []byte
 }
 
 func (c *Client) httpClient() *http.Client {
@@ -178,6 +189,9 @@ func (c *Client) do(ctx context.Context, method, path string, body interface{}, 
 				Message: ErrNoBuildKey.Error()}
 		}
 		req.Header.Set("Authorization", "Bearer "+c.APIKey)
+	}
+	if len(c.AccountsKey) > 0 && accountsKeyPath(path) {
+		req.Header.Set(AccountsKeyHeader, string(c.AccountsKey))
 	}
 	resp, err := c.httpClient().Do(req)
 	if err != nil {
@@ -242,13 +256,48 @@ func (c *Client) StartPairing(name string) (*Pairing, error) {
 	return &p, nil
 }
 
+// accountsKeyPath limits the Accounts key to the routes that need it (pairing, cert issue, account status).
+func accountsKeyPath(p string) bool {
+	switch p {
+	case "/v1/devhub/pairings", "/v1/devhub/pairings/status", "/v1/devhub/challenge", "/v1/devhub/certs", AccountStatusPath:
+		return true
+	}
+	return false
+}
+
+// AccountIdentity is who ra-core resolved the Accounts key to. Subject is kept as the server's exact
+// bytes: the Mega cert's subject must equal it byte for byte. PENDING: field names and placement.
+type AccountIdentity struct {
+	Name    string          `json:"name"`
+	Email   string          `json:"email"`
+	Subject json.RawMessage `json:"subject"`
+}
+
 // PairingStatus is the answer to POST /v1/devhub/pairings/status.
 type PairingStatus struct {
-	State    string   `json:"state"` // pending | approved | denied
-	Device   string   `json:"device"`
-	Team     string   `json:"team"`
-	Platform string   `json:"platform"`
-	Targets  []string `json:"targets"`
+	State    string           `json:"state"` // pending | approved | denied
+	Device   string           `json:"device"`
+	Team     string           `json:"team"`
+	Platform string           `json:"platform"`
+	Targets  []string         `json:"targets"`
+	Account  *AccountIdentity `json:"account,omitempty"` // PENDING: returned once approved
+}
+
+// AccountStatus asks ra-core who the Accounts key belongs to (signing-time check). PENDING shape.
+func (c *Client) AccountStatus(ctx context.Context) (*AccountIdentity, error) {
+	if len(c.AccountsKey) == 0 {
+		return nil, errors.New("no Red-XAI Accounts key")
+	}
+	var r struct {
+		Account *AccountIdentity `json:"account"`
+	}
+	if err := c.do(ctx, "POST", AccountStatusPath, map[string]string{}, false, &r); err != nil {
+		return nil, err
+	}
+	if r.Account == nil || len(r.Account.Subject) == 0 {
+		return nil, errors.New("ra-core returned no account subject")
+	}
+	return r.Account, nil
 }
 
 // PollPairing polls the pairing with the poll secret.

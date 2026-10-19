@@ -119,6 +119,12 @@ func main() {
 		writeJSON(*out, r)
 	case "issue":
 		need(*dir, *reqPath, *out)
+		if *mega {
+			// Mega certs carry Red-XAI Accounts ids (core/ids.go); old A<n>/T<n> ids are refused.
+			if _, err := core.ValidateIDPair(*dev, *team); err != nil {
+				check(err)
+			}
+		}
 		iss := loadAuthority(*dir, "issuing", firstNonEmpty(*label, "rottencore-issuing"), *keychain, *service, tiers, mixer)
 		var r ca.Request
 		readJSON(*reqPath, &r)

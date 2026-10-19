@@ -25,11 +25,15 @@ func TestKeychainDarwinSourceKeepsSecretsOffArgv(t *testing.T) {
 	text := string(b)
 	// Forbidden: exec.Command("security", …, "-w", <something that includes the blob variable>)
 	// Allowed: security -i with the blob only on stdin.
-	if !strings.Contains(text, `exec.Command("security", "-i")`) {
-		t.Fatal(`Put must invoke exec.Command("security", "-i") so the secret rides on stdin, not argv`)
+	if !strings.Contains(text, `exec.Command("/usr/bin/security", "-i")`) {
+		t.Fatal(`Put must invoke exec.Command("/usr/bin/security", "-i") so the secret rides on stdin, not argv`)
+	}
+	// QA L-b: never a PATH-relative security (a same-user PATH shim would get the key blob on stdin).
+	if regexp.MustCompile(`exec\.Command(Context)?\(\s*(ctx,\s*)?"security"`).MatchString(text) {
+		t.Fatal(`keychain_darwin.go must exec /usr/bin/security by absolute path`)
 	}
 	// Any Command("security", ...) whose arg list includes "-w" next to a non-literal is a regression.
-	re := regexp.MustCompile(`exec\.Command\(\s*"security"\s*,([^)]*)\)`)
+	re := regexp.MustCompile(`exec\.Command\(\s*"/usr/bin/security"\s*,([^)]*)\)`)
 	for _, m := range re.FindAllStringSubmatch(text, -1) {
 		args := m[1]
 		if strings.Contains(args, `"-i"`) || strings.Contains(args, `"find-generic-password"`) {
@@ -63,8 +67,12 @@ var (
 	shVarRe     = regexp.MustCompile(`\$\{?([A-Za-z_][A-Za-z0-9_]*)`)
 	secretWords = map[string]bool{"KEY": true, "SECRET": true, "SEED": true, "PRIV": true, "PRIVATE": true,
 		"TOKEN": true, "PASSWORD": true, "PASS": true, "PW": true, "BLOB": true, "PASSPHRASE": true, "SK": true}
-	exportRe    = regexp.MustCompile(`(^|[;&\s])export\s+([A-Za-z_][A-Za-z0-9_]*)`)
-	printVerbRe = regexp.MustCompile(`(^|[;&|(\s])(echo|printf|log|cat|tee|print)\b|print\(`)
+	secretFlagRe   = regexp.MustCompile(`(^|\s)-[A-Za-z]*[wg][A-Za-z]*(\s|$|\))`)
+	pyListSecretRe = regexp.MustCompile(`["']/?(usr/bin/)?security["']` + `.*["']-[A-Za-z]*[wg][A-Za-z]*["']`)
+	keySubstRe     = regexp.MustCompile(`--(key|seed|priv[a-z]*|secret|token)[= ]+["']?\$\(|\$\(\s*(cat|<)\s*[^)]*(key|seed|priv|secret|token)`)
+	accountsReadRe = regexp.MustCompile(`(?i)\bread\b.*accounts`)
+	exportRe       = regexp.MustCompile(`(^|[;&\s])export\s+([A-Za-z_][A-Za-z0-9_]*)`)
+	printVerbRe    = regexp.MustCompile(`(^|[;&|(\s])(echo|printf|log|cat|tee|print)\b|print\(`)
 )
 
 // secretVar reports whether a shell variable name looks like it holds key material or a credential:
@@ -94,8 +102,17 @@ func auditRolloutScript(name, text string) []string {
 		switch {
 		case strings.Contains(trim, "add-generic-password"):
 			add(i, "writes a Keychain item from a script (use rottencore --keychain)", trim)
-		case strings.Contains(trim, "security") && regexp.MustCompile(`(^|\s)-w(\s|$|\))`).MatchString(trim):
+		case strings.Contains(trim, "security") && secretFlagRe.MatchString(trim):
+			// -w, combined flags like -wa / -aw, and -g (password to stderr) (QA L-a)
 			add(i, "reads a Keychain secret outside the allow-list", trim)
+		case pyListSecretRe.MatchString(trim):
+			add(i, "Python/list-form security call with -w/-g (QA L-a)", trim)
+		case keySubstRe.MatchString(trim):
+			add(i, "key material substituted into argv via $(…) (QA L-a)", trim)
+		case strings.Contains(low, "redx-accounts-api-key") || strings.Contains(low, "x-redx-accounts-key") || strings.Contains(low, "--accounts-key"):
+			add(i, "Red-XAI Accounts key handled by a script (typed at rottencore's tty prompt only)", trim)
+		case accountsReadRe.MatchString(trim):
+			add(i, "script reads the Red-XAI Accounts key (rottencore prompts on /dev/tty itself)", trim)
 		case strings.Contains(trim, "dump-keychain") || strings.Contains(trim, "security export"):
 			add(i, "exports Keychain contents", trim)
 		case strings.Contains(trim, "Authorization:") || strings.Contains(low, "bearer "):
@@ -194,6 +211,19 @@ func TestRolloutAuditCatchesLeaks(t *testing.T) {
 		`from nacl.signing import SigningKey`,
 		`print(token)`,
 		`cat <<<"$MEGA_PRIVATE"`,
+		// QA L-a: the four rarer patterns
+		`K=$(security find-generic-password -wa josh-mega -s svc)`,
+		`security find-generic-password -a josh-mega -s svc -g`,
+		`subprocess.check_output(["security", "find-generic-password", "-a", "josh-mega", "-w"])`,
+		`"$ROTTENCORE_CA" sign --key "$(cat key.hex)" f`,
+		// Red-XAI Accounts key: never handled by a script
+		`read -r -s REDX_ACCOUNTS_KEY`,
+		`echo "$REDX_ACCOUNTS_KEY" | rottencore devhub-pair`,
+		`export REDX_ACCOUNTS_KEY`,
+		`security find-generic-password -a redx-accounts-api-key -s svc`,
+		`curl -H "X-RedX-Accounts-Key: $K" https://api.rottenapplestore.org`,
+		`rottencore devhub-pair --accounts-key "$K"`,
+		`printf '%s\n' "$ACCOUNTS_TOKEN" | curl -H @- x`,
 	}
 	for _, line := range bad {
 		if len(auditRolloutScript("fixture.sh", line+"\n")) == 0 {
@@ -204,6 +234,8 @@ func TestRolloutAuditCatchesLeaks(t *testing.T) {
 		`security find-generic-password -a "$label" -s "${KEYCHAIN_SERVICE:-com.redx.rottencore.ca}" >/dev/null 2>&1`,
 		`"$ROTTENCORE" sign-batch "$BATCH" --keychain --label josh-mega --service "$KEYCHAIN_SERVICE" \`,
 		`echo "ROOT_FINGERPRINT=$ROOT_FP"`,
+		`/usr/bin/security find-generic-password -a "$label" -s "${KEYCHAIN_SERVICE:-com.redx.rottencore.ca}" >/dev/null 2>&1`,
+		`echo ">> You will also be asked for the Red-XAI Accounts full-access key (hidden; not stored) and to type yes." >&2`,
 	}
 	for _, line := range ok {
 		if v := auditRolloutScript("fixture.sh", line+"\n"); len(v) != 0 {

@@ -10,7 +10,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"time"
 
@@ -21,7 +20,7 @@ import (
 
 // devhub-pair flags.
 var (
-	pairDevID       string // exact expected subject devId (ROTTEN_DEV_ID, e.g. A123)
+	pairDevID       string // expected subject devId (ROTTEN_DEV_ID, rxa_…); cross-checked against ra-core
 	pairDeviceLabel string // Keychain label of the device key (default rottencore-device)
 	pairName        string // device name shown in the dashboard
 	pairState       string // pairing state file (code + poll secret, 0600)
@@ -38,13 +37,16 @@ var pairKeychain interface {
 	GetSecret(label string) (string, error)
 } = ca.KeychainStore{}
 
-var subjectIDRe = regexp.MustCompile(`^[A-Za-z0-9._-]{1,64}$`)
-
 // runDevhubPair is `rottencore devhub-pair` (QA F1/M1): Phase 2 of the rollout entirely in Go.
 //
-//	rottencore devhub-pair --dev A<acct> --team T<team> --out josh-mega.bundle.json --state work/pairing.json
+//	rottencore devhub-pair --dev rxa_… --team rxa_…|rxt_… --trust-root <hex> --out josh-mega.bundle.json --state work/pairing.json
 //	    [--label josh-mega] [--device-label rottencore-device] [--name xlr1-mac] [--api-key-stdin]
-//	    [--trust-root <root pubkey hex>]
+//
+// The Red-XAI Accounts full-access key is typed at a hidden /dev/tty prompt (never stored, never env/argv)
+// and sent to ra-core in devhub.AccountsKeyHeader on the pairing and cert requests. Before the cert is
+// requested, the identity ra-core returns (name, email, subject) is shown and Josh must type "yes". The
+// issued cert's subject must equal ra-core's subject byte for byte, be for our Mega key, and chain to the
+// ceremony root (--trust-root is mandatory).
 //
 // The device and Mega Ed25519 keys are generated in this process and written straight into the login
 // Keychain (security -i over stdin); the private keys never leave this process except into the Keychain.
@@ -53,8 +55,14 @@ func runDevhubPair(ctx context.Context) {
 	if pairDevID == "" || devTeam == "" {
 		fail(errors.New("devhub-pair needs --dev <devId> and --team <teamId> (exact subject values)"), 2)
 	}
-	if !subjectIDRe.MatchString(pairDevID) || !subjectIDRe.MatchString(devTeam) {
-		fail(errors.New("--dev/--team have unexpected characters"), 2)
+	if _, err := core.ValidateIDPair(pairDevID, devTeam); err != nil {
+		fail(err, 2)
+	}
+	if strings.TrimSpace(trustRootHex) == "" {
+		fail(errors.New("devhub-pair needs --trust-root <ceremony root public key hex>: the issued chain must verify to it"), 2)
+	}
+	if err := refuseAccountsKeyEnv(os.Environ()); err != nil {
+		fail(err, 2)
 	}
 	if buildOut == "" || pairState == "" {
 		fail(errors.New("devhub-pair needs --out <bundle.json> and --state <pairing.json>"), 2)
@@ -91,6 +99,11 @@ func runDevhubPair(ctx context.Context) {
 	key, err := readBuildKey(kc)
 	check(err)
 	c.APIKey = key
+	akey, err := readAccountsKey()
+	check(err)
+	defer zero(akey)
+	c.AccountsKey = akey
+	onExit(func() { zero(akey) })
 
 	fmt.Fprintln(os.Stderr, "Keychain: macOS will ask to let `security` read the keys. Click \"Allow\", NEVER \"Always Allow\".")
 	dev, err := ensureKeychainKey(ctx, kc, pairDeviceLabel)
@@ -111,26 +124,32 @@ func runDevhubPair(ctx context.Context) {
 		check(err)
 	}
 
+	if err := checkServerSubject(st.Account, pairDevID, devTeam); err != nil {
+		fail(err, 5)
+	}
+	if err := confirmAccount(st.Account, "issue the Mega signing certificate"); err != nil {
+		fail(err, 5)
+	}
+
 	resp, err := c.IssueCert(ctx, mega)
 	check(err)
+	zero(akey)
+	c.AccountsKey = nil
 	chain, raw, err := certChainFrom(resp)
 	check(err)
 	leaf := chain[0]
-	if err := checkMegaLeaf(&leaf, mega.Public(), pairDevID, devTeam); err != nil {
+	if err := checkMegaLeaf(&leaf, raw[0], mega.Public(), st.Account.Subject); err != nil {
 		fail(err, 5)
 	}
-	if trustRootHex != "" {
-		pol := chainPolicy()
-		if _, err := core.VerifyCertChain(chain, pol); err != nil {
-			fail(fmt.Errorf("issued chain does not verify to the ceremony root: %w", err), 5)
-		}
-		fmt.Println("chain verifies to the ceremony root")
+	if _, err := core.VerifyCertChain(chain, chainPolicy()); err != nil {
+		fail(fmt.Errorf("issued chain does not verify to the ceremony root: %w", err), 5)
 	}
+	fmt.Println("chain verifies to the ceremony root")
 	b := map[string]interface{}{"chain": raw, "tier": "developer"}
 	check(writeJSON0600(buildOut, b))
 	out(map[string]interface{}{"bundle": buildOut, "fingerprint": resp.Fingerprint, "subject": leaf.Subject, "platforms": leaf.Platforms},
 		func() {
-			fmt.Printf("cert subject devId=%q teamId=%q (exact match) fingerprint=%s\n", leaf.Subject.DevID, leaf.Subject.TeamID, resp.Fingerprint)
+			fmt.Printf("cert subject %s (byte-for-byte equal to ra-core) fingerprint=%s\n", string(st.Account.Subject), resp.Fingerprint)
 			fmt.Printf("MEGA_BUNDLE=%s\n", buildOut)
 		})
 }
@@ -174,7 +193,7 @@ func sttyEcho(on bool) error {
 	if on {
 		arg = "echo"
 	}
-	cmd := exec.Command("stty", arg)
+	cmd := exec.Command("/bin/stty", arg)
 	cmd.Stdin = os.Stdin
 	return cmd.Run()
 }
@@ -292,21 +311,16 @@ func certChainFrom(r *devhub.CertResponse) ([]core.Cert, []json.RawMessage, erro
 	return chain, raw, nil
 }
 
-// checkMegaLeaf enforces QA M3: exact subject devId/teamId, a developer leaf, and our Mega public key.
-func checkMegaLeaf(leaf *core.Cert, megaPub []byte, wantDev, wantTeam string) error {
-	if leaf.Subject.DevID != wantDev {
-		return fmt.Errorf("cert subject devId %q != expected %q (exact match required)", leaf.Subject.DevID, wantDev)
-	}
-	if leaf.Subject.TeamID != wantTeam {
-		return fmt.Errorf("cert subject teamId %q != expected %q (exact match required)", leaf.Subject.TeamID, wantTeam)
-	}
+// checkMegaLeaf enforces QA M3 (final design): a developer leaf, for our Mega public key, whose subject
+// equals the subject ra-core returned for the account byte for byte (core.EqualSubjectBytes).
+func checkMegaLeaf(leaf *core.Cert, leafJSON []byte, megaPub []byte, serverSubject []byte) error {
 	if leaf.Kind != "" && leaf.Kind != core.CertKindDeveloper {
 		return fmt.Errorf("issued certificate kind %q, want %q", leaf.Kind, core.CertKindDeveloper)
 	}
 	if string(leaf.PublicKey) != string(megaPub) {
 		return errors.New("issued certificate is not for our Mega public key")
 	}
-	return nil
+	return core.EqualSubjectBytes(leafJSON, serverSubject)
 }
 
 func writeJSON0600(path string, v interface{}) error {

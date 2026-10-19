@@ -16,20 +16,31 @@
 > Expected prompts: **root** has one per root read (ceremony and sign-intermediate). **pair** has the
 > device key, the Mega key, and the build key if it's stored. **sign** has one in total (`sign-batch`
 > reads josh-mega once), plus github-token if it's stored.
+>
+> **Red-XAI Accounts full-access key:** `rottencore` asks for it at a hidden prompt on the terminal,
+> once at **pair** and once at **sign**. Type or paste it each time. It is never stored (no Keychain
+> item), and never goes to env, argv, files, logs or output. The phases refuse to run if any
+> `*ACCOUNTS*KEY/TOKEN/SECRET` or `REDX_*KEY` variable is set. ra-core resolves who it belongs to. RottenCore then shows the
+> **name, email and subject ra-core returned** and you type `yes` to go on.
 
 Josh's plan:
 - The issuing CA key lives on ra-core. The Mac holds only the root, device and Mega keys.
 - mac-sign is phased.
 - Latest releases only.
 - No permanent signed copies stay on the Mac.
-- The Mega subject `devId` / `teamId` must **exactly** equal `ROTTEN_DEV_ID` / `ROTTEN_TEAM_ID`.
+- The Mega cert's subject must equal, **byte for byte**, the subject ra-core returns for the Accounts key, both at pairing and at signing. It must also be for our Mega public key and chain to the ceremony root. `ROTTEN_DEV_ID` / `ROTTEN_TEAM_ID` are a further exact cross-check against ra-core's fields.
 
 Hub: `https://api.rottenapplestore.org` (ra-core 0.2.0). Clients send `X-RA-Launcher: 0.2.0`.
 
 ## Prerequisites
 
 - Josh at the Mac (`xlr1-mac`), with Terminal open locally.
-- `ROTTEN_DEV_ID` / `ROTTEN_TEAM_ID` come from Josh's account in the **production ra-core store** (`A<accountId>`, `T<teamId>`). `ra-core account-status` prints them as `certDevId` / `certTeamId`. They are not Red-XAI Accounts ids, and they must match exactly.
+- `ROTTEN_DEV_ID` is the **Red-XAI Accounts id** (OIDC sub). It must match `^rxa_[A-Z2-7]{26}$`. Josh's primary
+  (grimvirusoffical@gmail.com) is `rxa_LVWECFKVPN6XMPISHYONVY6WUB`. Other accounts, such as support@, use their own rxa_ id.
+- `ROTTEN_TEAM_ID` is the owner's own rxa_ id for an individual context (it must then equal `ROTTEN_DEV_ID`), or a team id
+  matching `^rxt_[A-Z2-7]{26}$`. **PENDING:** the team format isn't final yet. The patterns live in `core/ids.go`
+  (`TeamIDPatterns`) and `lib.sh` (`ROTTEN_TEAM_ID_PATTERNS`), and a test keeps the two in sync.
+- Old `A<n>` / `T<n>` ids, lower-case ids, ids of the wrong length, and an rxa_ id in a team slot that isn't the owner are all refused.
 - **GitHub token (required for phase-sign):** stored as Keychain account `github-token` (service
   `com.redx.rottencore.ca`), or typed at the hidden prompt. It is kept in an unexported shell variable and sent to curl as `-H @-` on stdin, never on argv.
   `publish.sh`/`restore.sh` (box) read `GITHUB_TOKEN`. They drop it from the environment before calling curl and send it on stdin.
@@ -53,6 +64,7 @@ The tgz holds:
 
 ```bash
 # on the box
+ssh josh@xlr1-mac 'mkdir -p ~/redx-ceremony'      # QA L-d: the folder must exist before the CSR scp
 scp /workspace/rollout/rottencore-mac-rollout.tgz josh@xlr1-mac:~/
 scp /workspace/rollout/issuing.csr.json        josh@xlr1-mac:~/redx-ceremony/issuing.csr.json
 ```
@@ -63,8 +75,9 @@ On the Mac: `mkdir -p ~/redx-ceremony && tar -xzf ~/rottencore-mac-rollout.tgz -
 
 ```bash
 export ROTTEN_CEREMONY_DIR="$HOME/redx-ceremony"
-export ROTTEN_DEV_ID='A…'    # exact subject devId, required for pair
-export ROTTEN_TEAM_ID='T…'   # exact subject teamId
+export ROTTEN_DEV_ID='rxa_LVWECFKVPN6XMPISHYONVY6WUB'   # Red-XAI Accounts id, required for pair
+export ROTTEN_TEAM_ID='rxa_LVWECFKVPN6XMPISHYONVY6WUB'  # individual context (== dev); or rxt_… for a team (PENDING)
+# Do NOT export the Accounts key. rottencore asks for it at a hidden prompt.
 cd "$ROTTEN_CEREMONY_DIR"
 
 # (1) Root ceremony + sign the SERVER's issuing CSR (pinned) → root.cert.json + issuing.bundle.json
@@ -75,10 +88,13 @@ cd "$ROTTEN_CEREMONY_DIR"
 
 # (2) Pair + Mega cert, all in Go (`rottencore devhub-pair`):
 #     keys are generated in-process straight into the Keychain; prints the 8-char code;
-#     Josh approves under Dev > Devices; exact subject check; chain verified to the root.
+#     Josh approves under Dev > Devices; Accounts key at the hidden prompt; ra-core's name/email/subject
+#     shown → type yes; cert subject == ra-core subject byte for byte; chain verified to the root.
 ./mac-sign.sh pair
 
-# (3) Latest-only: download → MANIFEST digest check (hard stop) → sign-batch → verify → ~/rottencore-signed.tgz
+# (3) Latest-only: download → MANIFEST digest check (hard stop; a bad download is removed from staging)
+#     → sign-batch (Accounts key prompt, ra-core identity == Mega cert subject, type yes, one josh-mega read)
+#     → verify → ~/rottencore-signed.tgz
 ./mac-sign.sh sign
 ```
 
@@ -112,3 +128,11 @@ certs in `~/redx-ceremony` stay.
 ## Inventory
 
 The latest **published** release for each repo, Gendragoon included. Windows and Android are deferred. Older releases become drafts after publish, and only once they're fully backed up.
+
+## PENDING (Grok Bot)
+
+- Header `X-RedX-Accounts-Key` (`devhub.AccountsKeyHeader`) and the signing-time path `/v1/devhub/account-status`
+  (`devhub.AccountStatusPath`) are placeholders.
+- The response shape is also a placeholder: `account: {name, email, subject}` in `/pairings/status` once approved, and in account-status.
+- The subject layout is assumed to be `{name, teamId, devId}`. Only `core.SubjectIDs` / `core.SanityCheckSubject` assume it. The byte-for-byte rule (`core.EqualSubjectBytes`) does not depend on it.
+- Team id format: `core.TeamIDPatterns` / `lib.sh ROTTEN_TEAM_ID_PATTERNS`.
