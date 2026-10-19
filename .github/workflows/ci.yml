@@ -1,0 +1,103 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  engine:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version: '1.22' }
+      - name: gofmt
+        run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
+      - run: go vet ./...
+      - run: go test -race -count=1 ./...
+
+  macos:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version: '1.22' }
+      - name: Engine tests on macOS
+        run: go test -count=1 ./...
+      - name: Build universal CLI, app, dmg, pkg
+        env:
+          MACOS_SIGN_IDENTITY: ${{ secrets.MACOS_SIGN_IDENTITY }}
+          PKG_SIGN_IDENTITY: ${{ secrets.PKG_SIGN_IDENTITY }}
+        run: |
+          sw_vers; swift --version
+          scripts/build-macos.sh
+      - name: Swift tests (RottenCoreKit, against the real engine)
+        run: ROTTENCORE_BIN="$PWD/dist/rottencore-0.1.0-macos-universal" swift test --package-path apple
+      - name: Check the artifacts
+        run: |
+          set -x
+          lipo -info dist/rottencore-0.1.0-macos-universal
+          lipo -info "build/RottenCore Installer.app/Contents/MacOS/RottenCoreInstaller"
+          (cd dist && shasum -a 256 -c SHA256SUMS)
+          pkgutil --payload-files dist/*.pkg | head -20
+          hdiutil attach -nobrowse -readonly -mountpoint /tmp/rcdmg dist/*.dmg && ls -la /tmp/rcdmg && hdiutil detach /tmp/rcdmg
+      - name: End to end on this Mac (real tools, real RedX release)
+        env:
+          ROTTENCORE_HOME: ${{ runner.temp }}/rc
+          ROTTENCORE_GITHUB_TOKEN: ${{ github.token }} # only to lift the anonymous API rate limit on shared runners
+        run: |
+          set -x
+          RC=dist/rottencore-0.1.0-macos-universal
+          # our own dmg: the embedded manifest is found, the source is GitHub, not trusted
+          $RC inspect dist/*.dmg
+          $RC inspect --json dist/*.dmg | tee /tmp/insp.json
+          grep -q '"source":"github"' /tmp/insp.json
+          grep -q '"trusted":false' /tmp/insp.json
+          # untrusted without accepting: exit 3
+          set +e; $RC install dist/*.dmg --user --json; code=$?; set -e
+          test "$code" = 3
+          # RottenCore Installer from our dmg into ~/Applications
+          $RC install dist/*.dmg --user --accept-untrusted
+          test -d "$HOME/Applications/RottenCore Installer.app"
+          # RedX from its GitHub release (SHA256SUMS checked), dmg into ~/Applications
+          $RC install github:grimvirusoffical-source/RedX --user --accept-untrusted
+          test -x "$HOME/Applications/RedX.app/Contents/MacOS/RedX"
+          $RC list
+          $RC check-updates
+          $RC uninstall com.redx.app
+          test ! -e "$HOME/Applications/RedX.app"
+          # the pkg path: our own pkg, as root (the runner has password-less sudo)
+          sudo ROTTENCORE_HOME="$ROTTENCORE_HOME" ROTTENCORE_GITHUB_TOKEN="$ROTTENCORE_GITHUB_TOKEN" $RC install dist/*.pkg --accept-untrusted --yes
+          test -x /usr/local/bin/rottencore
+          pkgutil --pkg-info com.redxai.rottencore.pkg
+          sudo ROTTENCORE_HOME="$ROTTENCORE_HOME" $RC uninstall com.redxai.rottencore.installer
+          if pkgutil --pkg-info com.redxai.rottencore.pkg; then echo 'receipt not forgotten'; exit 1; fi
+          test ! -e /usr/local/bin/rottencore
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rottencore-macos
+          path: dist/
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [engine, macos]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with: { name: rottencore-macos, path: dist }
+      - name: Publish the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          (cd dist && sha256sum -c SHA256SUMS)
+          gh release create "$GITHUB_REF_NAME" dist/* --title "RottenCore $GITHUB_REF_NAME" --notes-file "docs/RELEASE_NOTES_${GITHUB_REF_NAME#v}.md" --verify-tag

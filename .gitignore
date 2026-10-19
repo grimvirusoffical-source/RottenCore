@@ -1,0 +1,4 @@
+dist/
+build/
+apple/.build/
+.DS_Store

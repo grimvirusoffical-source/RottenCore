@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "appId": "com.redxai.rottencore.installer",
+  "name": "RottenCore Installer",
+  "version": "0.1.0",
+  "source": "github",
+  "github": {
+    "owner": "grimvirusoffical-source",
+    "repo": "RottenCore",
+    "assetPattern": "RottenCore-Installer-{version}-macos-universal.dmg"
+  },
+  "install": { "bundle": "RottenCore Installer.app", "pkgIds": ["com.redxai.rottencore.pkg"] },
+  "minMacOS": "12.0",
+  "ageRating": "everyone"
+}
