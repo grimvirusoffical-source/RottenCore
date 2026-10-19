@@ -52,6 +52,9 @@ func main() {
 	pub := fs.String("pub", "", "host public key (base64)")
 	host := fs.String("host", "", "host name")
 	value := fs.String("value", "", "revocation value (revoke uses --kind cert|build|app)")
+	keychain := fs.Bool("keychain", false, "store/load the key in the macOS login Keychain (Josh's Mac) instead of a file")
+	label := fs.String("label", "", "key label in the keystore (Keychain account / file base name)")
+	service := fs.String("service", "", "Keychain service name (default com.redx.rottencore.ca)")
 	fs.Parse(os.Args[2:])
 	ctx := context.Background()
 	tiers, err := ca.LoadTiers(*tiersPath)
@@ -83,14 +86,27 @@ func main() {
 		audit(*dir, "intermediate", map[string]string{"fingerprint": iss.Chain[0].Fingerprint()})
 		fmt.Println("issuing CA", iss.Chain[0].Fingerprint())
 	case "keygen":
-		need(*out)
-		k, _, err := ca.GenerateKey(ctx, mixer, *alg, "local|"+*out)
+		k, _, err := ca.GenerateKey(ctx, mixer, *alg, "local|"+*label+*out)
 		check(err)
-		check(ca.WriteKey(*out, k))
+		if *keychain {
+			need(*label)
+			check(keystore(true, *dir, *service).Put(*label, k))
+		} else {
+			need(*out)
+			check(ca.WriteKey(*out, k))
+		}
 		fmt.Println(*alg, "key", core.KeyFingerprint(k.Public()))
 	case "request":
-		need(*keyPath, *out)
-		k, err := ca.ReadKey(*keyPath)
+		need(*out)
+		var k core.Signer
+		var err error
+		if *keychain {
+			need(*label)
+			k, err = keystore(true, *dir, *service).Get(*label)
+		} else {
+			need(*keyPath)
+			k, err = ca.ReadKey(*keyPath)
+		}
 		check(err)
 		r, err := ca.NewRequest(k, core.CertSubject{Name: *name}, *kind, time.Now())
 		check(err)
@@ -127,6 +143,62 @@ func main() {
 		writeJSON(p, l)
 		audit(*dir, "revoke", map[string]string{"kind": k, "value": *value})
 		fmt.Println("revocation list seq", l.Seq, "- ra-core publishes it in the next status ticket")
+	case "ceremony-root":
+		// Root key ceremony (run on Josh's Mac). Generates the root key where it lives (Keychain), mixes
+		// optional microphone noise through HKDF, and exports ONLY the public root certificate. The private
+		// key never leaves the keystore. Until the real ceremony this makes a TEST root.
+		need(*out)
+		lbl := firstNonEmpty(*label, "rottencore-root")
+		tr := tiers
+		if *alg != "" {
+			tr = withAlg(tiers, ca.TierRoot, *alg)
+		}
+		a, _, err := ca.NewRoot(ctx, mixer, tr, "Red-XAI TEST Root", true, time.Now())
+		check(err)
+		check(keystore(*keychain, *dir, *service).Put(lbl, a.Key))
+		// export the public root certificate only (no key)
+		writeJSON(*out, a.Chain[0])
+		if *dir != "" {
+			writeJSON(filepath.Join(*dir, "root.cert.json"), a.Chain[0])
+		}
+		audit(*dir, "ceremony-root", map[string]string{"fingerprint": a.Chain[0].Fingerprint(), "alg": a.Key.Alg(), "store": keystore(*keychain, *dir, *service).Kind(), "label": lbl})
+		fmt.Printf("TEST root key stored in %s (label %q); public cert -> %s\n  %s\n", keystore(*keychain, *dir, *service).Kind(), lbl, *out, a.Chain[0].Fingerprint())
+	case "issuing-csr":
+		// Generate the ra-core issuing key WHERE IT WILL LIVE and emit only a CSR for the root to sign.
+		need(*out)
+		lbl := firstNonEmpty(*label, "rottencore-issuing")
+		t := tiers[ca.TierIssuing]
+		a := *alg
+		if a == "" {
+			a = t.Alg
+		}
+		k, _, err := ca.GenerateKey(ctx, mixer, a, "issuing|"+lbl)
+		check(err)
+		check(keystore(*keychain, *dir, *service).Put(lbl, k))
+		csr, err := ca.NewRequest(k, core.CertSubject{Name: "ra-core Issuing CA"}, core.CertKindCA, time.Now())
+		check(err)
+		writeJSON(*out, csr)
+		fmt.Printf("issuing key stored in %s (label %q); CSR -> %s (send ONLY this to the root)\n", keystore(*keychain, *dir, *service).Kind(), lbl, *out)
+	case "sign-intermediate":
+		// On the root (Josh's Mac): sign an issuing-CA CSR. The root key stays in its keystore.
+		need(*reqPath, *out)
+		lbl := firstNonEmpty(*label, "rottencore-root")
+		rk, err := keystore(*keychain, *dir, *service).Get(lbl)
+		check(err)
+		var rootCert core.Cert
+		readJSON(filepath.Join(*dir, "root.cert.json"), &rootCert)
+		tr := tiers
+		if *alg != "" {
+			tr = withAlg(tiers, ca.TierIssuing, *alg)
+		}
+		root := &ca.Authority{Key: rk, Chain: []core.Cert{rootCert}, Tiers: tr, Mixer: mixer, Test: rootCert.Test}
+		var csr ca.Request
+		readJSON(*reqPath, &csr)
+		cert, _, err := root.SignIntermediateRequest(&csr, "ra-core Issuing CA")
+		check(err)
+		check(ca.WriteBundle(*out, ca.CertBundle{Chain: []core.Cert{*cert, rootCert}, Tier: ca.TierIssuing}))
+		audit(*dir, "sign-intermediate", map[string]string{"fingerprint": cert.Fingerprint()})
+		fmt.Println("issuing CA certified", cert.Fingerprint())
 	case "root-hex":
 		need(*dir)
 		root := load(*dir, "root", tiers, mixer)
@@ -136,12 +208,37 @@ func main() {
 	}
 }
 
+func keystore(keychain bool, dir, service string) ca.KeyStore {
+	if keychain {
+		return ca.KeychainStore{Service: service}
+	}
+	return ca.FileStore{Dir: dir}
+}
+
 func load(dir, which string, tiers map[string]ca.Tier, m *ca.Mixer) *ca.Authority {
 	b, err := ca.ReadBundle(filepath.Join(dir, which+".bundle.json"))
 	check(err)
 	k, err := ca.ReadKey(filepath.Join(dir, which+".key.json"))
 	check(err)
 	return &ca.Authority{Key: k, Chain: b.Chain, Tiers: tiers, Mixer: m, Test: b.Chain[0].Test}
+}
+
+func firstNonEmpty(a, b string) string {
+	if a != "" {
+		return a
+	}
+	return b
+}
+
+func withAlg(t map[string]ca.Tier, tier, alg string) map[string]ca.Tier {
+	out := map[string]ca.Tier{}
+	for k, v := range t {
+		out[k] = v
+	}
+	e := out[tier]
+	e.Alg = alg
+	out[tier] = e
+	return out
 }
 
 func audit(dir, event string, v interface{}) {

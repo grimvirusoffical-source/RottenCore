@@ -197,3 +197,59 @@ func TestKeyAndBundleFilesRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestIntermediateFromCSRKeepsKeyWhereItLives(t *testing.T) {
+	ctx := context.Background()
+	now := time.Now()
+	root, _, err := NewRoot(ctx, &Mixer{}, DefaultTiers(), "Red-XAI TEST Root", true, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	// the issuing key is made where ra-core will run; only a CSR goes to the root
+	issKey, _, err := GenerateKey(ctx, &Mixer{}, DefaultTiers()[TierIssuing].Alg, "issuing")
+	if err != nil {
+		t.Fatal(err)
+	}
+	csr, err := NewRequest(issKey, core.CertSubject{Name: "ra-core TEST Issuing"}, core.CertKindCA, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	issCert, _, err := root.SignIntermediateRequest(csr, "ra-core TEST Issuing")
+	if err != nil {
+		t.Fatal(err)
+	}
+	// the issuing authority holds its own key (never sent to the root) plus the signed cert
+	iss := &Authority{Key: issKey, Chain: []core.Cert{*issCert, root.Chain[0]}, Tiers: DefaultTiers(), Mixer: &Mixer{}, Test: true}
+	devKey, _, _ := GenerateKey(ctx, &Mixer{}, core.AlgEd25519, "dev")
+	req, _ := NewRequest(devKey, core.CertSubject{Name: "Dev"}, core.CertKindDeveloper, now)
+	_, chain, err := iss.Issue(req, Account{DevID: "d", TeamID: "T", Role: "developer"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	pol := core.ChainPolicy{Roots: []core.CARoot{root.Root()}, Now: now}
+	if _, err := core.VerifyCertChain(chain, pol); err != nil {
+		t.Fatalf("chain from a CSR-signed intermediate did not verify: %v", err)
+	}
+	// a request that is not a CA CSR is refused as an intermediate
+	if _, _, err := root.SignIntermediateRequest(req, "x"); err == nil {
+		t.Fatal("a developer CSR was accepted as an intermediate")
+	}
+}
+
+func TestFileStoreRoundTrip(t *testing.T) {
+	fs := FileStore{Dir: t.TempDir()}
+	if fs.Kind() != "file" {
+		t.Fatal("kind")
+	}
+	k, _, _ := GenerateKey(context.Background(), &Mixer{}, core.AlgEd25519, "x")
+	if err := fs.Put("root", k); err != nil {
+		t.Fatal(err)
+	}
+	if err := fs.Put("root", k); err == nil {
+		t.Fatal("store overwrote an existing key")
+	}
+	got, err := fs.Get("root")
+	if err != nil || string(got.Public()) != string(k.Public()) {
+		t.Fatal(err)
+	}
+}

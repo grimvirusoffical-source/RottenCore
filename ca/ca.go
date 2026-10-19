@@ -189,10 +189,15 @@ func ReadKey(path string) (core.Signer, error) {
 	if err != nil {
 		return nil, err
 	}
-	switch kf.Alg {
+	return signerFromPriv(kf.Alg, pb)
+}
+
+// signerFromPriv rebuilds a signer from its algorithm and raw private bytes (Ed25519 seed or P-384 scalar).
+func signerFromPriv(alg string, pb []byte) (core.Signer, error) {
+	switch alg {
 	case core.AlgEd25519:
 		if len(pb) != ed25519.SeedSize {
-			return nil, errors.New("key file: bad Ed25519 seed")
+			return nil, errors.New("bad Ed25519 seed")
 		}
 		return core.Ed25519Signer{Key: ed25519.NewKeyFromSeed(pb)}, nil
 	case core.AlgP384:
@@ -203,7 +208,7 @@ func ReadKey(path string) (core.Signer, error) {
 		x, y := elliptic.Unmarshal(elliptic.P384(), k.PublicKey().Bytes()) //nolint:staticcheck
 		return core.P384Signer{Key: &ecdsa.PrivateKey{PublicKey: ecdsa.PublicKey{Curve: elliptic.P384(), X: x, Y: y}, D: new(big.Int).SetBytes(pb)}}, nil
 	}
-	return nil, fmt.Errorf("key file: unknown algorithm %q", kf.Alg)
+	return nil, fmt.Errorf("unknown algorithm %q", alg)
 }
 
 // CertBundle is a certificate chain plus where its private key is. Written through the cert-bundle hook.
@@ -467,4 +472,31 @@ func addSorted(l []string, v string) []string {
 func (l *RevocationList) Ticket(storeKey ed25519.PrivateKey, now time.Time) (*core.Signed, error) {
 	return core.SignStatusTicket(storeKey, core.StatusTicket{IssuedMs: now.UnixMilli(), ExpiresMs: now.Add(core.StatusTicketTTL).UnixMilli(),
 		RevokedCerts: append([]string{}, l.Certs...), RevokedBuilds: append([]string{}, l.Builds...), RevokedApps: append([]string{}, l.Apps...)})
+}
+
+// SignIntermediateRequest signs an ra-core issuing CA certificate from a CSR whose key was generated where
+// the intermediate will live (so the issuing private key never travels to the root). The CSR's kind must be
+// core.CertKindCA and its proof of possession must verify. Returns the new Authority rooted at this CA (its
+// chain is [issuing, ...this chain]); the issuing key is held by the CSR's maker, not here.
+func (a *Authority) SignIntermediateRequest(r *Request, name string) (*core.Cert, []core.Cert, error) {
+	if r == nil || r.V != 1 || r.Kind != core.CertKindCA {
+		return nil, nil, errors.New("not a CA certificate request")
+	}
+	if !core.VerifySig(r.Alg, r.PublicKey, r.tbs(), r.PoP) {
+		return nil, nil, errors.New("the request is not signed by its own key (proof of possession failed)")
+	}
+	t := a.Tiers[TierIssuing]
+	if r.Alg != t.Alg {
+		return nil, nil, fmt.Errorf("the issuing tier needs a %s key, the request has %s", t.Alg, r.Alg)
+	}
+	now := a.now()
+	c := core.Cert{Serial: a.serial(), Kind: core.CertKindCA, Alg: r.Alg, PublicKey: r.PublicKey,
+		Subject:   core.CertSubject{Name: firstNonEmpty(name, r.Subject.Name)},
+		NotBefore: now.Add(-time.Hour).Unix(), NotAfter: now.AddDate(0, 0, t.ValidityDays).Unix(), Test: a.Test}
+	if err := core.SignCertWith(&c, a.Key); err != nil {
+		return nil, nil, err
+	}
+	// chain for leaves issued under this new CA: [issuing, this CA's chain without the pinned root is handled
+	// by PublicChain]; here we return the CA cert plus this authority's chain for reference.
+	return &c, append([]core.Cert{c}, a.Chain...), nil
 }
