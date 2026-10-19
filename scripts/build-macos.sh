@@ -45,6 +45,7 @@ echo "app signature: $SIGNED"
 
 echo "== dmg"
 mkdir -p build/dmg && cp -R "build/$APP" build/dmg/ && ln -s /Applications build/dmg/Applications
+cp packaging/rottencore.json build/dmg/rottencore.json
 hdiutil create -volname "RottenCore Installer" -srcfolder build/dmg -format UDZO -ov "$OUT/RottenCore-Installer-$VERSION-macos-universal.dmg"
 
 echo "== pkg"

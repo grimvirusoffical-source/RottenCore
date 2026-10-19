@@ -655,3 +655,16 @@ func TestGitHubTokenOnlyGoesToTheAPIHost(t *testing.T) {
 		t.Fatal("token sent to another host")
 	}
 }
+
+func TestFindPayloadSkipsRottenCoreOnlyWhenNotAlone(t *testing.T) {
+	d := t.TempDir()
+	makeApp(t, d, "RottenCore Installer", "com.redxai.rottencore.installer", "0.1.0", "")
+	if p, k, err := FindPayload(d, nil); err != nil || k != KindApp || filepath.Base(p) != "RottenCore Installer.app" {
+		t.Fatalf("alone: %v %v %v", p, k, err)
+	}
+	makeApp(t, d, "RedX", "com.redx.app", "0.4.3", "")
+	os.Symlink("/Applications", filepath.Join(d, "Applications"))
+	if p, _, err := FindPayload(d, nil); err != nil || filepath.Base(p) != "RedX.app" {
+		t.Fatalf("with RedX: %v %v", p, err)
+	}
+}

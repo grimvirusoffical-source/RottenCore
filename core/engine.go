@@ -229,12 +229,22 @@ func FindPayload(dir string, spec *InstallSpec) (string, string, error) {
 		}
 		switch KindOf(n) {
 		case KindApp:
-			if en.IsDir() && n != "RottenCore Installer.app" {
+			if en.IsDir() {
 				apps = append(apps, n)
 			}
 		case KindPKG:
 			pkgs = append(pkgs, n)
 		}
+	}
+	// An app's dmg may carry RottenCore Installer next to the app; RottenCore is the payload only when alone.
+	if len(apps) > 1 {
+		kept := apps[:0]
+		for _, a := range apps {
+			if a != "RottenCore Installer.app" {
+				kept = append(kept, a)
+			}
+		}
+		apps = kept
 	}
 	switch {
 	case len(apps) == 1 && len(pkgs) == 0:
