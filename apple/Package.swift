@@ -14,12 +14,12 @@ let package = Package(
         .executableTarget(
             name: "RottenCoreInstaller",
             dependencies: ["RottenCoreKit"],
+            exclude: ["Resources/Info.plist"], // URL types live in packaging/Info.plist (build-macos.sh); SwiftPM forbids Info.plist as a resource (QA v2 N1).
             resources: [
                 // Rotten Core app icon (black apple). Xcode processes the asset catalog into the AppIcon;
                 // AppIcon.icns is also copied so a SwiftPM package step can set CFBundleIconFile.
                 .process("Resources/Assets.xcassets"),
                 .copy("Resources/AppIcon.icns"),
-                .copy("Resources/Info.plist"),
             ]
         ),
         .testTarget(name: "RottenCoreKitTests", dependencies: ["RottenCoreKit"]),

@@ -12,10 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
-	"regexp"
 	"sort"
-	"strings"
 )
 
 // RequestSchema is the version string every build request carries.
@@ -25,7 +22,7 @@ const RequestSchema = "rottencore.build-request/v1"
 // (<support dir>/build-requests/<id>.json) and opens rottencore://build?id=<id>; the CLI takes a path.
 type Request struct {
 	Schema      string    `json:"schema"`
-	ID          string    `json:"id"`          // [a-z0-9-]{8,64}; also the inbox file name
+	ID          string    `json:"id"`          // [A-Za-z0-9_-]{8,64}; also the inbox file name
 	RequestedBy string    `json:"requestedBy"` // "quicklaunch" | "cli" | ...
 	CreatedMs   int64     `json:"createdMs"`
 	Project     Project   `json:"project"`
@@ -92,15 +89,13 @@ var platformOrder = func() map[string]int {
 	return m
 }()
 
-var idRe = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{7,63}$`)
-
 // Validate checks a request and returns the targets in build order.
 func (r *Request) Validate() ([]Target, error) {
 	if r.Schema != RequestSchema {
 		return nil, fmt.Errorf("unknown build request schema %q (want %q)", r.Schema, RequestSchema)
 	}
-	if !idRe.MatchString(r.ID) {
-		return nil, errors.New("build id must be 8-64 chars of [a-z0-9-]")
+	if err := ValidateBuildID(r.ID); err != nil {
+		return nil, err
 	}
 	if r.Project.Name == "" || r.Project.Version == "" || r.Project.ID == "" {
 		return nil, errors.New("project needs a name, id and version")
@@ -142,9 +137,4 @@ func ReadRequest(path string) (*Request, []Target, error) {
 		return nil, nil, err
 	}
 	return &r, targets, nil
-}
-
-// InboxPath is where QuickLaunch drops a request for Rotten Core to pick up.
-func InboxPath(supportDir, id string) string {
-	return filepath.Join(supportDir, "build-requests", strings.ToLower(id)+".json")
 }

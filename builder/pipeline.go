@@ -263,3 +263,6 @@ func sealCopy(src, dst string, purpose seal.Purpose) (string, int64, error) {
 }
 
 var _ = io.Copy
+
+// ScrubBuildEnvForTest exposes scrubBuildEnv for tests.
+func ScrubBuildEnvForTest(in []string) []string { return scrubBuildEnv(in) }

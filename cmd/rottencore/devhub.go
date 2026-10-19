@@ -22,7 +22,13 @@ var (
 // real store API (docs/DEV_HUB_API.md); otherwise it uses the local file-backed stand-ins. Both sit behind
 // the DeviceService / ContextProvider interfaces, so the rest of the CLI does not change (docs/DEV_HUB.md).
 func devhubURL() string { return envOr("RA_DEVHUB_URL", "") }
-func apiKey() string    { return envOr("RA_API_KEY", "") }
+func apiKey() string {
+	// Scoped build key (from an inbox request) wins over a general RA_API_KEY (QA v2 N4).
+	if k := envOr("ROTTENCORE_BUILD_API_KEY", ""); k != "" {
+		return k
+	}
+	return envOr("RA_API_KEY", "")
+}
 
 func localDevice() *devhub.LocalDeviceService {
 	return &devhub.LocalDeviceService{Path: filepath.Join(core.SupportDir(), "devhub", "device.json")}

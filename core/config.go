@@ -18,6 +18,16 @@ type Config struct {
 	// AccountsIssuer is the Red-XAI Accounts OIDC issuer; empty = sign-in "coming soon".
 	AccountsIssuer   string `json:"accountsIssuer,omitempty"`
 	AccountsClientID string `json:"accountsClientId,omitempty"` // default rottencore
+	// Signing is the app-launched hand-off's default certificate bundle and Keychain label (QA v2 N2).
+	// A Finder- or URL-launched app has no shell env; loadSigner and the Swift SigningConfig read these.
+	Signing *SigningConfig `json:"signing,omitempty"`
+}
+
+// SigningConfig is the persisted default for `rottencore build` / `build-inbox` when --bundle/--label are omitted.
+type SigningConfig struct {
+	Bundle  string `json:"bundle,omitempty"`  // path to the developer certificate bundle
+	Label   string `json:"label,omitempty"`   // Keychain account / label (e.g. josh-mega)
+	Service string `json:"service,omitempty"` // Keychain service (default com.redx.rottencore.ca)
 }
 
 // DefaultStoreURL is the planned Rotten Apple store API (not live yet).
@@ -26,9 +36,10 @@ const DefaultStoreURL = "https://api.rottenapplestore.org"
 // SupportDir is where Rotten Core (and QuickLaunch's hand-off inbox) keep their files.
 // Override with ROTTENCORE_HOME on every OS (ROTTENCORE_SUPPORT_DIR is accepted as an alias, matching
 // QuickLaunch; ROTTENCORE_HOME wins when both are set). Defaults:
-//   macOS:   ~/Library/Application Support/RottenCore
-//   Windows: %APPDATA%\RottenCore
-//   Linux:   $XDG_DATA_HOME/rottencore or ~/.local/share/rottencore
+//
+//	macOS:   ~/Library/Application Support/RottenCore
+//	Windows: %APPDATA%\RottenCore
+//	Linux:   $XDG_DATA_HOME/rottencore or ~/.local/share/rottencore
 func SupportDir() string {
 	if d := os.Getenv("ROTTENCORE_HOME"); d != "" {
 		return d

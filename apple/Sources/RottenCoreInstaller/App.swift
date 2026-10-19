@@ -62,6 +62,8 @@ final class AppModel: ObservableObject {
     @Published var rollouts: [HostRollout] = []
     @Published var uploads: [Outcome] = []
     @Published var builds: [Outcome] = []
+    @Published var pendingBuild: BuildPreview?
+    @Published var pendingBuildURL: URL?
     let accounts: AccountProvider = RedXAIAccountsStub()
     private var cli: RottenCoreCLI?
 
@@ -94,22 +96,39 @@ final class AppModel: ObservableObject {
         }
     }
 
-    /// Loads a QuickLaunch build request from the inbox by id and switches to the Build screen.
+    /// Loads a QuickLaunch build request from the inbox by id and shows a confirmation sheet (QA v2 N3).
+    /// Nothing is built until the user confirms; the CLI is then called with --yes.
     func openBuildRequest(id: String) async {
         section = .build
-        let support = RottenCorePaths.supportDir().path
-        let inbox = support + "/build-requests/" + id.lowercased() + ".json"
-        guard FileManager.default.fileExists(atPath: inbox) else {
-            error = "No build request \"\(id)\" in the Rotten Core inbox."
-            return
+        do {
+            let (url, preview) = try BuildInbox.resolveRequest(id: id)
+            pendingBuildURL = url
+            pendingBuild = preview
+            builds.insert(Outcome(kind: .info, title: "Confirm this build",
+                                  detail: "\(preview.project.name) \(preview.project.version) — review the targets and project dir, then confirm."), at: 0)
+        } catch {
+            self.error = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         }
-        builds.insert(Outcome(kind: .info, title: "Build request loaded",
-                              detail: "QuickLaunch handed off \(id). Starting the build…"), at: 0)
+    }
+
+    /// Runs a previously confirmed inbox build (`rottencore build-inbox <id> --yes`) and deletes the request.
+    func confirmPendingBuild() async {
+        guard let preview = pendingBuild else { return }
+        pendingBuild = nil
+        let url = pendingBuildURL
+        pendingBuildURL = nil
         guard let cli = cli else { return }
-        if let outcome = await work("Building \(id)…", { try await cli.buildInbox(id: id) }) {
+        if let outcome = await work("Building \(preview.id)…", { try await cli.buildInbox(id: preview.id, confirmed: true) }) {
             builds.insert(outcome, at: 0)
             message = outcome.detail
         }
+        // Best-effort: Go also deletes after use; clear any leftover.
+        if let url { try? FileManager.default.removeItem(at: url) }
+    }
+
+    func cancelPendingBuild() {
+        pendingBuild = nil
+        pendingBuildURL = nil
     }
 
     func pickFile() {

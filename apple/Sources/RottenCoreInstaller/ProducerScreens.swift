@@ -134,6 +134,11 @@ struct BuildView: View {
             }
             .padding()
         }
+        .sheet(item: $model.pendingBuild) { preview in
+            BuildConfirmSheet(preview: preview,
+                              onConfirm: { Task { await model.confirmPendingBuild() } },
+                              onCancel: { model.cancelPendingBuild() })
+        }
     }
 
     @ViewBuilder func targetGroup(_ title: String, _ targets: [String], enabled: Bool) -> some View {
@@ -166,3 +171,48 @@ struct LabeledRow<Content: View>: View {
         }
     }
 }
+
+
+/// Confirmation sheet before a URL-handed build runs (QA v2 N3): app, targets, commands, project dir.
+struct BuildConfirmSheet: View {
+    let preview: BuildPreview
+    var onConfirm: () -> Void
+    var onCancel: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Confirm build").font(.title2).bold()
+            Text("\(preview.project.name) \(preview.project.version)")
+                .font(.headline)
+            LabeledRow("App ID") { Text(preview.project.id) }
+            LabeledRow("Project dir") { Text(preview.project.dir).lineLimit(2) }
+            if let channel = preview.project.channel, !channel.isEmpty {
+                LabeledRow("Channel") { Text(channel) }
+            }
+            Text("Targets").font(.headline)
+            ForEach(preview.targets, id: \.platform) { t in
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(t.platform).font(.callout).bold()
+                    if let cmd = t.command, !cmd.isEmpty {
+                        Text(cmd.joined(separator: " ")).font(.caption).foregroundColor(.secondary)
+                    } else if let pre = t.prebuilt {
+                        Text("prebuilt: \(pre)").font(.caption).foregroundColor(.secondary)
+                    }
+                }
+            }
+            if let sdks = preview.sdks, !sdks.isEmpty {
+                LabeledRow("SDKs") { Text(sdks.joined(separator: ", ")) }
+            }
+            Spacer(minLength: 8)
+            HStack {
+                Button("Cancel", role: .cancel, action: onCancel)
+                Spacer()
+                Button("Build", action: onConfirm).keyboardShortcut(.defaultAction)
+            }
+        }
+        .padding(20)
+        .frame(minWidth: 420, minHeight: 320)
+    }
+}
+
+extension BuildPreview: Identifiable {}

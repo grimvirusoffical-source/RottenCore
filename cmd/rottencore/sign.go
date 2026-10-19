@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -53,45 +54,23 @@ func runSign(ctx context.Context, cmd string, rest []string) bool {
 		})
 	case "build-inbox":
 		need(rest, 1)
-		path := builder.InboxPath(core.SupportDir(), rest[0])
-		rest = []string{path}
-		fallthrough
+		req, targets, path, err := builder.OpenInboxRequest(core.SupportDir(), rest[0])
+		check(err)
+		if !o.yes {
+			// N3: never start a URL-handed build without an explicit confirmation (the app shows a sheet).
+			prev := builder.MakePreview(req, targets, path)
+			out(prev, func() {
+				fmt.Printf("confirm build %s (%s %s) in %s — re-run with --yes after the user confirms\n",
+					prev.ID, prev.App, prev.Version, prev.Dir)
+			})
+			fail(builder.ErrConfirmRequired, 2)
+		}
+		runBuild(ctx, req, targets, path)
 	case "build":
 		need(rest, 1)
-		k, chain := loadSigner()
 		req, targets, err := builder.ReadRequest(rest[0])
 		check(err)
-		if req.BuildAPIKey != "" {
-			// QuickLaunch passed the build API key in the 0600 inbox file; expose it for this process only.
-			_ = os.Setenv("RA_API_KEY", req.BuildAPIKey)
-		}
-		host := signHost
-		if host == "" {
-			host = builder.HostOS()
-		}
-		buildable, deferred := builder.SplitForHost(targets, host)
-		if len(buildable) == 0 {
-			fail(fmt.Errorf("none of these targets can be built and signed on this %s host", host), 4)
-		}
-		odir := buildOut
-		if odir == "" {
-			odir = filepath.Join(core.SupportDir(), "builds", req.ID)
-		}
-		bctx, cerr := buildContext()
-		check(cerr)
-		b := &builder.Builder{Signer: k, Chain: chain, OutDir: odir, Host: host, Context: bctx,
-			IconsRoot: iconsRoot(), Emit: progressEmitter()}
-		res, err := b.Run(ctx, req, buildable)
-		check(err)
-		out(map[string]interface{}{"result": res, "deferred": deferredList(deferred)}, func() {
-			for _, a := range res.Artifacts {
-				fmt.Printf("built %s -> %s\n", a.Label, a.Filename)
-			}
-			for _, d := range deferred {
-				fmt.Printf("deferred %s: build and sign on %s\n", d.Platform, builder.DeviceFor(d.Platform))
-			}
-			fmt.Println("SHA256SUMS:", res.SumsPath)
-		})
+		runBuild(ctx, req, targets, "")
 	default:
 		return false
 	}
@@ -106,27 +85,123 @@ func deferredList(d []builder.Target) []map[string]string {
 	return out
 }
 
+// runBuild signs and builds. inboxPath, when set, is consumed (deleted) after the build so the request
+// cannot be replayed; the scoped build API key is kept for Rotten Core's own API calls only and is never
+// exported into child build processes (builder.scrubBuildEnv).
+func runBuild(ctx context.Context, req *builder.Request, targets []builder.Target, inboxPath string) {
+	k, chain := loadSigner()
+	if req.BuildAPIKey != "" {
+		// Scoped build key for our own API calls (dev-hub / uploader). Not exported to build commands.
+		_ = os.Setenv("ROTTENCORE_BUILD_API_KEY", req.BuildAPIKey)
+	}
+	host := signHost
+	if host == "" {
+		host = builder.HostOS()
+	}
+	buildable, deferred := builder.SplitForHost(targets, host)
+	if len(buildable) == 0 {
+		fail(fmt.Errorf("none of these targets can be built and signed on this %s host", host), 4)
+	}
+	odir := buildOut
+	if odir == "" {
+		odir = filepath.Join(core.SupportDir(), "builds", req.ID)
+	}
+	bctx, cerr := buildContext()
+	check(cerr)
+	if bctx != nil && req.BuildAPIKey != "" {
+		bctx.BuildKey = req.BuildAPIKey
+	}
+	b := &builder.Builder{Signer: k, Chain: chain, OutDir: odir, Host: host, Context: bctx,
+		IconsRoot: iconsRoot(), Emit: progressEmitter()}
+	res, err := b.Run(ctx, req, buildable)
+	check(err)
+	if inboxPath != "" {
+		_ = builder.ConsumeRequest(inboxPath)
+	}
+	out(map[string]interface{}{"result": res, "deferred": deferredList(deferred)}, func() {
+		for _, a := range res.Artifacts {
+			fmt.Printf("built %s -> %s\n", a.Label, a.Filename)
+		}
+		for _, d := range deferred {
+			fmt.Printf("deferred %s: build and sign on %s\n", d.Platform, builder.DeviceFor(d.Platform))
+		}
+		fmt.Println("SHA256SUMS:", res.SumsPath)
+	})
+}
+
+// applySigningDefaults fills --bundle/--label/--service from config.json or signing.json when flags are empty
+// so a Finder- or URL-launched app (no shell env) still finds the signing identity (QA v2 N2).
+func applySigningDefaults() {
+	if signBundle != "" && (signLabel != "" || signKey != "") {
+		return
+	}
+	dir := core.SupportDir()
+	if cfg, err := core.LoadConfig(dir); err == nil && cfg.Signing != nil {
+		if signBundle == "" {
+			signBundle = cfg.Signing.Bundle
+		}
+		if signLabel == "" {
+			signLabel = cfg.Signing.Label
+		}
+		if signService == "" {
+			signService = cfg.Signing.Service
+		}
+	}
+	if signBundle == "" || signLabel == "" {
+		if b, err := os.ReadFile(filepath.Join(dir, "signing.json")); err == nil {
+			var sc core.SigningConfig
+			if json.Unmarshal(b, &sc) == nil {
+				if signBundle == "" {
+					signBundle = sc.Bundle
+				}
+				if signLabel == "" {
+					signLabel = sc.Label
+				}
+				if signService == "" {
+					signService = sc.Service
+				}
+			}
+		}
+	}
+	if signLabel == "" {
+		// Device registration may record the Keychain label.
+		if b, err := os.ReadFile(filepath.Join(dir, "devhub", "device.json")); err == nil {
+			var d map[string]interface{}
+			if json.Unmarshal(b, &d) == nil {
+				for _, k := range []string{"keychainLabel", "label"} {
+					if v, ok := d[k].(string); ok && v != "" {
+						signLabel = v
+						break
+					}
+				}
+			}
+		}
+	}
+}
+
 func loadSigner() (core.Signer, []core.Cert) {
+	applySigningDefaults()
 	if signBundle == "" {
-		fail(errors.New("signing needs --bundle (make it with rottencore-ca)"), 2)
+		fail(errors.New("signing is not set up: pass --bundle, or save signing.bundle in Rotten Core's config.json (or signing.json in the support dir)"), 2)
 	}
 	var (
 		k   core.Signer
 		err error
 	)
 	switch {
-	case signKeychain:
+	case signKeychain || (signLabel != "" && signKey == ""):
 		if signLabel == "" {
-			fail(errors.New("signing with --keychain needs --label (e.g. josh-mega)"), 2)
+			fail(errors.New("signing with the Keychain needs --label (e.g. josh-mega), or signing.label in config.json"), 2)
 		}
 		if signKey != "" {
 			fail(errors.New("pass either --keychain --label or --key, not both"), 2)
 		}
+		signKeychain = true
 		k, err = ca.KeychainStore{Service: signService}.Get(signLabel)
 	case signKey != "":
 		k, err = ca.ReadKey(signKey)
 	default:
-		fail(errors.New("signing needs --key <file> or --keychain --label <label> (and --bundle)"), 2)
+		fail(errors.New("signing needs --key <file> or --keychain --label <label> (and --bundle); or save them under signing in config.json"), 2)
 	}
 	check(err)
 	b, err := ca.ReadBundle(signBundle)

@@ -116,26 +116,40 @@ public final class RottenCoreCLI {
     public func search(_ q: String) async throws -> [Listing] { try await run(["search", q], as: [Listing].self) }
 
     /// Loads and runs a QuickLaunch build request from the inbox (`rottencore build-inbox <id>`).
-    public func buildInbox(id: String) async throws -> Outcome {
-        var args = ["build-inbox", id]
-        if let label = environment["ROTTENCORE_SIGN_LABEL"], !label.isEmpty {
+    /// `confirmed` must be true (adds `--yes`); the app shows a confirmation sheet first (QA v2 N3).
+    /// Signing flags come from Rotten Core's config / support dir when the shell env is empty (QA v2 N2).
+    public func buildInbox(id: String, confirmed: Bool = false) async throws -> Outcome {
+        guard BuildInbox.validateID(id) else {
+            throw RottenCoreError.refused("build id must be 8-64 characters of [A-Za-z0-9_-]")
+        }
+        guard confirmed else {
+            throw RottenCoreError.refused("confirm the build before it runs")
+        }
+        var args = ["build-inbox", id, "--yes"]
+        let signing = SigningConfig.resolve(environment: environment)
+        if let label = signing.label, !label.isEmpty {
             args += ["--keychain", "--label", label]
         }
-        if let bundle = environment["ROTTENCORE_SIGN_BUNDLE"], !bundle.isEmpty {
+        if let bundle = signing.bundle, !bundle.isEmpty {
             args += ["--bundle", bundle]
         }
-        // The build command returns a JSON result; map success to an Outcome card.
+        if signing.bundle == nil || signing.bundle?.isEmpty == true {
+            throw RottenCoreError.failed(signing.errorMessage ?? "Signing is not set up: save a certificate bundle path in Rotten Core's config (signing.bundle) or support dir, or register a device with a Keychain label.")
+        }
+        struct BuildEnvelope: Decodable {
+            var result: BuildResult?
+        }
         struct BuildResult: Decodable {
             var sumsPath: String?
+            var artifacts: [BuildArtifact]?
         }
-        // Use a permissive decode via Data path: call run and ignore typed shape by catching decode-as-failed
-        do {
-            let _: BuildResult = try await run(args, as: BuildResult.self)
-            return Outcome(kind: .success, title: "Build finished", detail: "Request \(id) built and signed.")
-        } catch RottenCoreError.failed(let m) where m.contains("unreadable") {
-            // Engine printed ok:true with a shape we don't model; treat as success.
-            return Outcome(kind: .success, title: "Build started", detail: "Request \(id) was handed to the builder.")
+        struct BuildArtifact: Decodable {
+            var filename: String?
         }
+        // N6: empty or unreadable output is an error, not "Build started".
+        let env: BuildEnvelope = try await run(args, as: BuildEnvelope.self)
+        let sums = env.result?.sumsPath ?? "(no SHA256SUMS path)"
+        return Outcome(kind: .success, title: "Build finished", detail: "Request \(id) built and signed. \(sums)")
     }
 
     /// Live rollback of a hosted rollout through `rottencore host rollback <id>` (the updater's rollout card).

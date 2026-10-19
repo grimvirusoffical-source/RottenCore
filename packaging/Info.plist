@@ -3,8 +3,8 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleIdentifier</key><string>com.redxai.rottencore.installer</string>
-	<key>CFBundleName</key><string>RottenCore Installer</string>
-	<key>CFBundleDisplayName</key><string>RottenCore Installer</string>
+	<key>CFBundleName</key><string>Rotten Core</string>
+	<key>CFBundleDisplayName</key><string>Rotten Core</string>
 	<key>CFBundleExecutable</key><string>RottenCoreInstaller</string>
 	<key>CFBundlePackageType</key><string>APPL</string>
 	<key>CFBundleShortVersionString</key><string>@VERSION@</string>
@@ -14,6 +14,19 @@
 	<key>LSApplicationCategoryType</key><string>public.app-category.utilities</string>
 	<key>NSHighResolutionCapable</key><true/>
 	<key>NSHumanReadableCopyright</key><string>© Red-XAI LLC. All rights reserved.</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.redxai.rottencore.build</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>rottencore</string>
+			</array>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+		</dict>
+	</array>
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>
