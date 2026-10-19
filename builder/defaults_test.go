@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/grimvirusoffical-source/RottenCore/builder"
@@ -62,5 +63,30 @@ func TestWriteCrossRepoFixture(t *testing.T) {
 	raw, _ := json.MarshalIndent(fixture, "", "  ")
 	if err := os.WriteFile(filepath.Join(dir, "ql-platform-only-request.json"), append(raw, '\n'), 0o644); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// N5: the default Go build must set GOOS/GOARCH (and CGO_ENABLED=0) per target so a Mac never labels a
+// Mach-O as Linux or an arm64 binary as Intel.
+func TestDefaultGoCommandSetsGOOSGOARCH(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module m\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	want := map[string][2]string{
+		builder.PlatformMacArm64: {"darwin", "arm64"},
+		builder.PlatformMacIntel: {"darwin", "amd64"},
+		builder.PlatformWindows:  {"windows", "amd64"},
+		builder.PlatformLinux:    {"linux", "amd64"},
+	}
+	for plat, ga := range want {
+		cmd, _ := builder.DefaultCommand(plat, dir)
+		joined := strings.Join(cmd, " ")
+		if !strings.Contains(joined, "GOOS="+ga[0]) || !strings.Contains(joined, "GOARCH="+ga[1]) || !strings.Contains(joined, "CGO_ENABLED=0") {
+			t.Fatalf("%s: expected env GOOS=%s GOARCH=%s CGO_ENABLED=0, got %v", plat, ga[0], ga[1], cmd)
+		}
+		if !strings.Contains(joined, "go build") {
+			t.Fatalf("%s: expected go build, got %v", plat, cmd)
+		}
 	}
 }

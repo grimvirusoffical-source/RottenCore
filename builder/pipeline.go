@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/grimvirusoffical-source/RottenCore/core"
@@ -131,6 +132,7 @@ func (b *Builder) Run(ctx context.Context, r *Request, targets []Target) (*Resul
 
 func (b *Builder) one(ctx context.Context, p Project, t Target) (*Artifact, error) {
 	src := t.Prebuilt
+	requireBin := false
 	if src == "" {
 		out := t.Artifact
 		if !filepath.IsAbs(out) {
@@ -140,6 +142,10 @@ func (b *Builder) one(ctx context.Context, p Project, t Target) (*Artifact, erro
 			return nil, err
 		}
 		src = out
+		requireBin = isGoBuildCommand(t.Command)
+	}
+	if err := VerifyArtifactPlatform(src, t.Platform, requireBin); err != nil {
+		return nil, err
 	}
 	name := Filename(p, t.Platform)
 	dst := filepath.Join(b.OutDir, name)
@@ -184,7 +190,35 @@ func (b *Builder) build(ctx context.Context, dir string, command []string) error
 	cmd := exec.CommandContext(ctx, command[0], command[1:]...)
 	cmd.Dir = dir
 	cmd.Stdout, cmd.Stderr = os.Stderr, os.Stderr
+	// N4: never let the build API key (or a general store key) leak into npm scripts / install hooks.
+	// Build a clean env from the process, dropping RA_API_KEY / ROTTENCORE_BUILD_API_KEY.
+	cmd.Env = scrubBuildEnv(os.Environ())
 	return cmd.Run()
+}
+
+// isGoBuildCommand reports whether the command is the default go build (possibly wrapped in env).
+func isGoBuildCommand(command []string) bool {
+	for i, a := range command {
+		if a == "go" && i+1 < len(command) && command[i+1] == "build" {
+			return true
+		}
+	}
+	return false
+}
+
+// scrubBuildEnv drops Rotten Apple / Rotten Core API keys so they never reach child build processes.
+func scrubBuildEnv(in []string) []string {
+	out := make([]string, 0, len(in))
+	for _, e := range in {
+		switch {
+		case strings.HasPrefix(e, "RA_API_KEY="),
+			strings.HasPrefix(e, "ROTTENCORE_BUILD_API_KEY="),
+			strings.HasPrefix(e, "RA_HOST_KEY="):
+			continue
+		}
+		out = append(out, e)
+	}
+	return out
 }
 
 func (b *Builder) writeSums(in []Artifact) (string, error) {

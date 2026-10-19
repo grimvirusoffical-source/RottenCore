@@ -5,46 +5,69 @@ import (
 	"path/filepath"
 )
 
+// goTarget is GOOS/GOARCH (and CGO_ENABLED=0) for the default Go build of each desktop target (QA v2 N5).
+// Without these the host binary is labelled as another platform: a Mac builds a Mach-O for "linux", and
+// Apple Silicon produces an arm64 binary labelled Intel. The builder verifies the real headers after the
+// command before labelling and signing (VerifyArtifactPlatform).
+func goTarget(platform string) (goos, goarch string) {
+	switch platform {
+	case PlatformMacArm64:
+		return "darwin", "arm64"
+	case PlatformMacIntel:
+		return "darwin", "amd64"
+	case PlatformWindows:
+		return "windows", "amd64"
+	case PlatformLinux:
+		return "linux", "amd64"
+	}
+	return "", ""
+}
+
 // DefaultCommand returns the agreed per-platform build command when QuickLaunch (or another client)
 // sends a target with neither command nor prebuilt. Both repos use this convention
 // (docs/BUILDER.md §Defaults; quick-launch/internal/rottencore.DefaultCommand).
 //
 // Detection is by project files in dir:
 //   - package.json  → npm/electron-builder style
-//   - go.mod        → go build
+//   - go.mod        → go build with GOOS/GOARCH (and CGO_ENABLED=0) for the target
 //   - otherwise     → a clearly-named stub that fails loudly
 func DefaultCommand(platform, dir string) (command []string, artifact string) {
 	hasPkg := fileExists(filepath.Join(dir, "package.json"))
 	hasGo := fileExists(filepath.Join(dir, "go.mod"))
 	out := filepath.Join("dist", platform)
+	goos, goarch := goTarget(platform)
+	goCmd := func(bin string) []string {
+		return []string{"env", "CGO_ENABLED=0", "GOOS=" + goos, "GOARCH=" + goarch,
+			"go", "build", "-o", filepath.Join(out, bin), "."}
+	}
 	switch platform {
 	case PlatformMacArm64:
 		if hasPkg {
 			return []string{"npm", "run", "build:mac-arm64", "--if-present"}, filepath.Join(out, "app.dmg")
 		}
 		if hasGo {
-			return []string{"go", "build", "-o", filepath.Join(out, "app"), "."}, filepath.Join(out, "app")
+			return goCmd("app"), filepath.Join(out, "app")
 		}
 	case PlatformMacIntel:
 		if hasPkg {
 			return []string{"npm", "run", "build:mac-x64", "--if-present"}, filepath.Join(out, "app.dmg")
 		}
 		if hasGo {
-			return []string{"go", "build", "-o", filepath.Join(out, "app"), "."}, filepath.Join(out, "app")
+			return goCmd("app"), filepath.Join(out, "app")
 		}
 	case PlatformWindows:
 		if hasPkg {
 			return []string{"npm", "run", "build:win", "--if-present"}, filepath.Join(out, "app.exe")
 		}
 		if hasGo {
-			return []string{"go", "build", "-o", filepath.Join(out, "app.exe"), "."}, filepath.Join(out, "app.exe")
+			return goCmd("app.exe"), filepath.Join(out, "app.exe")
 		}
 	case PlatformLinux:
 		if hasPkg {
 			return []string{"npm", "run", "build:linux", "--if-present"}, filepath.Join(out, "app.AppImage")
 		}
 		if hasGo {
-			return []string{"go", "build", "-o", filepath.Join(out, "app"), "."}, filepath.Join(out, "app")
+			return goCmd("app"), filepath.Join(out, "app")
 		}
 	case PlatformExtensions:
 		if hasPkg {
