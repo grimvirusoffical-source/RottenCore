@@ -233,3 +233,11 @@ func ParseSHA256SUMS(b []byte) (map[string]string, error) {
 	}
 	return out, sc.Err()
 }
+
+// ClientForUploads returns an HTTP client suitable for large chunked uploads (long timeout, the same
+// redirect safety as client()). Used by the uploader.
+func (n *Net) ClientForUploads() *http.Client {
+	c := n.client()
+	c.Timeout = 30 * time.Minute
+	return c
+}

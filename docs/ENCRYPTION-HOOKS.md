@@ -31,6 +31,7 @@ rg "ENCRYPTION-HOOK"
 | `certgen.cert-bundle` | `CertBundle` | `ca.WriteBundle` | a cert-bundle file (the chain alone stays plain elsewhere) |
 | `certgen.cert-bundle-open` | `CertBundle` | `ca.ReadBundle` | the same bundle after reading |
 | `builder.package` | `BuildArtifact` | `builder` packaging (`sealCopy`) | each built artifact before it is hashed, signed (`.rasig`) and uploaded |
+| `uploader.body` | `Upload` | `uploader` (RACoreStore.Upload) | each upload chunk before it is hashed (X-Chunk-SHA256) and sent to the store |
 
 The macOS **Keychain** key store (`ca.KeychainStore`) is a second at-rest protection for private keys and is
 independent of this hook: the OS encrypts Keychain items. The seal hook still runs for keys written to files.
@@ -38,7 +39,6 @@ independent of this hook: the OS encrypts Keychain items. The seal hook still ru
 ### Planned (reserved `seal.Purpose`, call sites land with their packages)
 | id | purpose | where (coming) |
 |---|---|---|
-| `uploader.body` | `Upload` | the uploader, before each chunk leaves for a store |
 | `installer.payload` | `InstallPayload` | the installer, around downloaded/opened payloads |
 | `updater.payload` | `UpdatePayload` | the updater, around downloaded update artifacts |
 | `launcher.package-install` | `LauncherPackage` | Poison Apple, around signed dependency package installs |
