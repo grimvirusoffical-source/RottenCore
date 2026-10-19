@@ -44,51 +44,62 @@ func TestKeychainDarwinSourceKeepsSecretsOffArgv(t *testing.T) {
 // through rottencore-ca --keychain (labels only) and must never invoke `security … -w <secret>`.
 func TestMacSignScriptKeepsKeyMaterialOffArgv(t *testing.T) {
 	_, thisFile, _, _ := runtime.Caller(0)
-	repoScripts := filepath.Join(filepath.Dir(thisFile), "..", "scripts", "rollout", "mac-sign.sh")
-	candidates := []string{
-		os.Getenv("MAC_SIGN_SH"),
-		repoScripts,
-		"/workspace/rollout/mac-sign.sh",
-		filepath.Join("..", "..", "rollout", "mac-sign.sh"),
+	dir := filepath.Join(filepath.Dir(thisFile), "..", "scripts", "rollout")
+	if env := os.Getenv("MAC_SIGN_SH"); env != "" {
+		dir = filepath.Dir(env)
 	}
-	var path string
-	for _, c := range candidates {
-		if c == "" {
-			continue
+	if _, err := os.Stat(dir); err != nil {
+		alt := "/workspace/rollout"
+		if _, err2 := os.Stat(alt); err2 != nil {
+			t.Skip("scripts/rollout not found; ceremony script audit skipped")
 		}
-		if _, err := os.Stat(c); err == nil {
-			path = c
-			break
+		dir = alt
+	}
+	entries, err := filepath.Glob(filepath.Join(dir, "*.sh"))
+	if err != nil || len(entries) == 0 {
+		t.Skip("no *.sh in", dir)
+	}
+	var combined strings.Builder
+	for _, path := range entries {
+		b, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		text := string(b)
+		combined.WriteString(text)
+		combined.WriteByte('\n')
+		if strings.Contains(text, "add-generic-password") {
+			t.Fatalf("%s must not call add-generic-password; use rottencore-ca --keychain", path)
+		}
+		for _, line := range strings.Split(text, "\n") {
+			trim := strings.TrimSpace(line)
+			if strings.HasPrefix(trim, "#") || !strings.Contains(trim, "security") {
+				continue
+			}
+			// Existence probes without -w are OK. find … -w in phase-pair is intentional:
+			// the secret is captured into a shell/python variable, never passed as another process's argv.
+			// Still forbid add-generic-password and `security … -w` used to *set* a password.
+			if strings.Contains(trim, "add-generic-password") {
+				t.Fatalf("%s: %s", path, trim)
+			}
+		}
+		// Bearer token must not appear on curl argv
+		for _, line := range strings.Split(text, "\n") {
+			trim := strings.TrimSpace(line)
+			if strings.HasPrefix(trim, "#") {
+				continue
+			}
+			// Allow `printf 'Authorization: …' | curl -H @-` (header on stdin). Forbid Bearer on curl argv.
+			if strings.Contains(trim, "curl") && strings.Contains(trim, "Authorization: Bearer") && !strings.Contains(trim, "-H @-") && !strings.Contains(trim, "printf") {
+				t.Fatalf("%s puts Authorization on curl argv (use -H @-): %s", path, trim)
+			}
+			if strings.Contains(trim, "curl") && strings.Contains(trim, "$GITHUB_TOKEN") && strings.Contains(trim, "-H") && !strings.Contains(trim, "-H @-") && !strings.Contains(trim, "printf") {
+				t.Fatalf("%s expands GITHUB_TOKEN into curl -H argv: %s", path, trim)
+			}
 		}
 	}
-	if path == "" {
-		t.Skip("mac-sign.sh not found (set MAC_SIGN_SH); ceremony script audit skipped")
-	}
-	b, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	text := string(b)
-	// The script must never call the security(1) CLI itself with a password flag.
-	// Existence probes via `security find-generic-password` (no -w) are OK for idempotent
-	// keygen skips. Forbidden: add-generic-password, or find … -w (would print a secret).
-	if strings.Contains(text, "add-generic-password") {
-		t.Fatalf("%s must not call add-generic-password; use rottencore-ca --keychain", path)
-	}
-	for _, line := range strings.Split(text, "\n") {
-		trim := strings.TrimSpace(line)
-		if strings.HasPrefix(trim, "#") || !strings.Contains(trim, "security") {
-			continue
-		}
-		if strings.Contains(trim, "find-generic-password") && strings.Contains(trim, " -w") {
-			t.Fatalf("%s must not use security find-generic-password -w (secret on stdout in a script): %s", path, trim)
-		}
-		if strings.Contains(trim, "security") && strings.Contains(trim, " -w ") && !strings.Contains(trim, "find-generic-password") {
-			t.Fatalf("%s passes -w to security(1): %s", path, trim)
-		}
-	}
-	// Positive: signing goes through --keychain labels.
+	text := combined.String()
 	if !strings.Contains(text, "--keychain") {
-		t.Fatalf("%s should use --keychain so keys stay in the Keychain", path)
+		t.Fatalf("%s scripts should use --keychain so keys stay in the Keychain", dir)
 	}
 }

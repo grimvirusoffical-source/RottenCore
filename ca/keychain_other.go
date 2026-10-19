@@ -10,7 +10,11 @@ import (
 
 // KeychainStore is only available on macOS; on other systems its methods return an error so the ceremony
 // tooling compiles everywhere but the root key can only be made and kept on Josh's Mac.
-type KeychainStore struct{ Service string }
+// TrustedApps mirrors the darwin field so callers can set ROTTEN_KEYCHAIN_TRUST on every OS.
+type KeychainStore struct {
+	Service     string
+	TrustedApps []string
+}
 
 func (KeychainStore) Kind() string { return "macOS Keychain (unavailable on this OS)" }
 
