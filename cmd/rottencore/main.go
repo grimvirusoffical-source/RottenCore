@@ -74,6 +74,8 @@ func main() {
 	fs.StringVar(&signPlatform, "platform", "", "sign: target platform (inferred from the file name when omitted)")
 	fs.StringVar(&signHost, "sign-host", "", "sign/build: override the signing device OS (darwin|windows|linux); defaults to this machine")
 	fs.StringVar(&buildOut, "out", "", "build: output directory")
+	fs.StringVar(&devTeam, "team", "", "device approve: team id (omit with --individual)")
+	fs.BoolVar(&devIndividual, "individual", false, "device approve: approve under an individual account")
 	fs.Parse(reorder(args[1:]))
 	rest := fs.Args()
 
@@ -97,6 +99,9 @@ func main() {
 		return
 	}
 	if runM1(ctx, cmd, rest, *kid, *lastSeq) {
+		return
+	}
+	if runDevice(ctx, cmd, rest) {
 		return
 	}
 	if runSign(ctx, cmd, rest) {
@@ -339,7 +344,7 @@ func progress() func(int64, int64) {
 // reorder lets flags come after positional arguments.
 func reorder(a []string) []string {
 	var flags, pos []string
-	valued := map[string]bool{"--admin": true, "-admin": true, "--store-url": true, "-store-url": true, "--accounts-issuer": true, "-accounts-issuer": true, "--theme": true, "-theme": true, "--limit": true, "-limit": true, "--progress": true, "-progress": true, "--kid": true, "-kid": true, "--last-seq": true, "-last-seq": true, "--trust-test-root": true, "-trust-test-root": true, "--key": true, "-key": true, "--bundle": true, "-bundle": true, "--app": true, "-app": true, "--app-version": true, "-app-version": true, "--platform": true, "-platform": true, "--sign-host": true, "-sign-host": true, "--out": true, "-out": true}
+	valued := map[string]bool{"--admin": true, "-admin": true, "--store-url": true, "-store-url": true, "--accounts-issuer": true, "-accounts-issuer": true, "--theme": true, "-theme": true, "--limit": true, "-limit": true, "--progress": true, "-progress": true, "--kid": true, "-kid": true, "--last-seq": true, "-last-seq": true, "--trust-test-root": true, "-trust-test-root": true, "--key": true, "-key": true, "--bundle": true, "-bundle": true, "--app": true, "-app": true, "--app-version": true, "-app-version": true, "--platform": true, "-platform": true, "--sign-host": true, "-sign-host": true, "--out": true, "-out": true, "--team": true, "-team": true}
 	for i := 0; i < len(a); i++ {
 		if strings.HasPrefix(a[i], "-") && a[i] != "-" {
 			flags = append(flags, a[i])

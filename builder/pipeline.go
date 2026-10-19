@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/grimvirusoffical-source/RottenCore/core"
+	"github.com/grimvirusoffical-source/RottenCore/devhub"
 	"github.com/grimvirusoffical-source/RottenCore/seal"
 )
 
@@ -31,20 +32,23 @@ type Artifact struct {
 
 // Result is a finished build set.
 type Result struct {
-	Request   string     `json:"request"`
-	Project   Project    `json:"project"`
-	OutDir    string     `json:"outDir"`
-	Artifacts []Artifact `json:"artifacts"`
-	SumsPath  string     `json:"sumsPath"` // SHA256SUMS
+	Request      string     `json:"request"`
+	Project      Project    `json:"project"`
+	OutDir       string     `json:"outDir"`
+	Artifacts    []Artifact `json:"artifacts"`
+	SumsPath     string     `json:"sumsPath"`               // SHA256SUMS
+	ManifestPath string     `json:"manifestPath,omitempty"` // signed build-manifest.json (with a dev-hub context)
+	SDKs         []string   `json:"sdks,omitempty"`
 }
 
 // Builder runs a request. Signer and Chain are the developer's ra-core identity (from the CA / cert bundle).
 type Builder struct {
 	Signer    core.Signer
 	Chain     []core.Cert
-	OutDir    string // where artifacts, .rasig files and SHA256SUMS are written
-	IconsRoot string // root of the app-icon sets (assets/icons); "" disables icon embedding
-	Host      string // build-and-sign device GOOS; "" means HostOS(); targets this host may not sign are refused
+	OutDir    string               // where artifacts, .rasig files and SHA256SUMS are written
+	IconsRoot string               // root of the app-icon sets (assets/icons); "" disables icon embedding
+	Host      string               // build-and-sign device GOOS; "" means HostOS(); targets this host may not sign are refused
+	Context   *devhub.BuildContext // dev-hub build context (device platform, team/individual, build key, SDKs); nil = local build
 	Emit      func(core.ProgressEvent)
 	Now       func() time.Time
 }
@@ -69,6 +73,21 @@ func (b *Builder) Run(ctx context.Context, r *Request, targets []Target) (*Resul
 	for _, t := range targets {
 		if !CanSignOn(t.Platform, host) {
 			return nil, &ErrWrongHost{Platform: t.Platform, Host: host}
+		}
+	}
+	var sdks []string
+	if b.Context != nil {
+		if err := b.Context.RequireBuildKey(); err != nil {
+			return nil, err
+		}
+		for _, t := range targets {
+			if b.Context.Device != nil && !b.Context.Device.Platform.Allows(t.Platform) {
+				return nil, fmt.Errorf("your registered %s device may not build %s assets", b.Context.Device.Platform, t.Platform)
+			}
+		}
+		var err error
+		if sdks, err = b.Context.ValidateSDKs(r.SDKs); err != nil {
+			return nil, err
 		}
 	}
 	if err := os.MkdirAll(b.OutDir, 0o755); err != nil {
@@ -97,6 +116,15 @@ func (b *Builder) Run(ctx context.Context, r *Request, targets []Target) (*Resul
 		return nil, err
 	}
 	res.SumsPath = sums
+	res.SDKs = sdks
+	if b.Context != nil {
+		mp, err := b.writeBuildManifest(r.Project, b.Context, sdks, res.Artifacts)
+		if err != nil {
+			pr.Fail(err)
+			return nil, err
+		}
+		res.ManifestPath = mp
+	}
 	pr.StepDone()
 	return res, nil
 }

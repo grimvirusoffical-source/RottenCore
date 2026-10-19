@@ -30,6 +30,7 @@ type Request struct {
 	CreatedMs   int64     `json:"createdMs"`
 	Project     Project   `json:"project"`
 	Targets     []Target  `json:"targets"`
+	SDKs        []string  `json:"sdks,omitempty"`   // SDKs this build declares; validated against the store selection
 	Upload      *UploadTo `json:"upload,omitempty"` // nil = build and sign only
 }
 

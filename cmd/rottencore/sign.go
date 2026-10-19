@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -64,7 +65,10 @@ func runSign(ctx context.Context, cmd string, rest []string) bool {
 		if odir == "" {
 			odir = filepath.Join(core.SupportDir(), "builds", req.ID)
 		}
-		b := &builder.Builder{Signer: k, Chain: chain, OutDir: odir, Host: host, Emit: progressEmitter()}
+		bctx, cerr := buildContext()
+		check(cerr)
+		b := &builder.Builder{Signer: k, Chain: chain, OutDir: odir, Host: host, Context: bctx,
+			IconsRoot: iconsRoot(), Emit: progressEmitter()}
 		res, err := b.Run(ctx, req, buildable)
 		check(err)
 		out(map[string]interface{}{"result": res, "deferred": deferredList(deferred)}, func() {
@@ -102,4 +106,30 @@ func loadSigner() (core.Signer, []core.Cert) {
 		fail(errors.New("the certificate bundle has no chain"), 2)
 	}
 	return k, b.Chain
+}
+
+// iconsRoot locates the app-icon sets. ROTTENCORE_ICONS overrides; otherwise assets/icons beside the binary
+// or the repo. "" (not found) disables icon embedding rather than failing a local build.
+func dirExists(p string) bool {
+	fi, err := os.Stat(p)
+	return err == nil && fi.IsDir()
+}
+
+func iconsRoot() string {
+	if v := envOr("ROTTENCORE_ICONS", ""); v != "" {
+		return v
+	}
+	for _, c := range []string{"assets/icons", "../assets/icons"} {
+		if dirExists(c) {
+			return c
+		}
+	}
+	return ""
+}
+
+func envOr(k, d string) string {
+	if v := os.Getenv(k); v != "" {
+		return v
+	}
+	return d
 }

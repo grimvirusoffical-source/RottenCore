@@ -13,6 +13,7 @@ import (
 	"github.com/grimvirusoffical-source/RottenCore/builder"
 	"github.com/grimvirusoffical-source/RottenCore/ca"
 	"github.com/grimvirusoffical-source/RottenCore/core"
+	"github.com/grimvirusoffical-source/RottenCore/devhub"
 )
 
 func devKey(t *testing.T) (core.Signer, []core.Cert, core.ChainPolicy, time.Time) {
@@ -223,4 +224,55 @@ func filepathBase(p string) string {
 		}
 	}
 	return p
+}
+
+func TestBuilderContextGatesDeviceSDKAndSignsManifest(t *testing.T) {
+	k, chain, pol, now := devKey(t)
+	src := t.TempDir()
+	mk := func(n string) string { p := filepath.Join(src, n); os.WriteFile(p, []byte(n), 0o644); return p }
+	req := &builder.Request{Schema: builder.RequestSchema, ID: "build-ctx", Project: builder.Project{Name: "QuickLaunch", ID: "com.redx.quicklaunch", Version: "1.0.0"},
+		Targets: []builder.Target{{Platform: builder.PlatformMacArm64, Prebuilt: mk("mac")}}, SDKs: []string{"analytics", "updates"}}
+	tg, _ := req.Validate()
+	macDev := &devhub.Device{Platform: devhub.PlatformMac, Approved: true, TeamID: "T-josh"}
+
+	// no build API key -> the exact ErrNoBuildKey message
+	b := &builder.Builder{Signer: k, Chain: chain, OutDir: t.TempDir(), Host: "darwin", Now: func() time.Time { return now },
+		Context: &devhub.BuildContext{Role: "developer", TeamID: "T-josh", Device: macDev, SDKs: devhub.SDKSelection{Selected: []string{"analytics", "updates"}, Unlocked: []string{"analytics", "updates"}}}}
+	if _, err := b.Run(context.Background(), req, tg); err != devhub.ErrNoBuildKey {
+		t.Fatalf("missing build key: %v", err)
+	}
+
+	// an undeclared/unselected SDK is refused
+	b.Context.BuildKey = "ra_sk_x"
+	bad := *req
+	bad.SDKs = []string{"corepay"}
+	if _, err := b.Run(context.Background(), &bad, tg); err == nil {
+		t.Fatal("unselected SDK built")
+	}
+
+	// a Windows target on a Mac device is refused by the device-platform rule (before the host check even)
+	winReq := &builder.Request{Schema: builder.RequestSchema, ID: "build-win-01", Project: req.Project, Targets: []builder.Target{{Platform: builder.PlatformWindows, Prebuilt: mk("w")}}}
+	winTg, _ := winReq.Validate()
+	if _, err := b.Run(context.Background(), winReq, winTg); err == nil {
+		t.Fatal("mac device built a windows target")
+	}
+
+	// happy path: builds, signs artifacts, writes a signed build manifest naming the SDKs and account
+	res, err := b.Run(context.Background(), req, tg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.ManifestPath == "" {
+		t.Fatal("no build manifest")
+	}
+	m, err := builder.VerifyBuildManifest(mustReadFile(t, res.ManifestPath), pol)
+	if err != nil {
+		t.Fatalf("verify manifest: %v", err)
+	}
+	if m.DevicePlatform != "mac" || m.Account != "team T-josh" || len(m.SDKs) != 2 || m.SDKs[0] != "analytics" || m.SDKExempt {
+		t.Fatalf("manifest: %+v", m)
+	}
+	if len(m.Artifacts) != 1 || m.Artifacts[0].Platform != builder.PlatformMacArm64 {
+		t.Fatalf("manifest artifacts: %+v", m.Artifacts)
+	}
 }
