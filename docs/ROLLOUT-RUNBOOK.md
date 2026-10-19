@@ -6,6 +6,23 @@ live signed rollout (2026-10-19).** QA Dev runs the Mac steps on xlr1-mac via Ta
 signed files are copied back. Do **not** modify any GitHub release until the Mac ceremony has finished and
 the public root fingerprint is recorded.
 
+## Phased Mac ceremony (server-hosted issuing CA)
+
+The **issuing CA private key lives on ra-core**, not the Mac. Grok Bot runs `issuing-csr` on the
+server and drops `issuing.csr.json` for the Mac.
+
+1. `./mac-sign.sh root` — production root in Keychain; sign the CSR → `issuing.bundle.json` + `root.cert.json`
+2. Load the bundle on the server; confirm `GET /v1/devhub/ca/chain` shows `issuing:true`
+3. `./mac-sign.sh pair` — device + Mega keys in Keychain; pair via `/v1/devhub/pairings`; Mega cert from `/certs`
+4. `./mac-sign.sh sign` — latest-only sign → staging → tarball
+5. Box verifies sha256; `./mac-cleanup.sh --confirm <sha256>` (required form)
+
+`ROTTEN_KEYCHAIN_TRUST` lists absolute paths of `rottencore` and `rottencore-ca` so Keychain Get works
+over Tailscale SSH without a GUI prompt. Unlock the login keychain first (`security unlock-keychain`,
+password over stdin). Clients send `X-RA-Launcher: 0.2.0`.
+
+See `scripts/rollout/QA-README.md`.
+
 ## Box-side scripts (Josh plan 2026-10-19 21:06 UTC)
 
 Canonical copies for QA live under `/workspace/rollout/` and are also committed in

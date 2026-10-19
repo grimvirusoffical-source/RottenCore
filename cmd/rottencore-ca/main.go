@@ -28,6 +28,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/grimvirusoffical-source/RottenCore/ca"
@@ -221,7 +222,16 @@ func main() {
 
 func keystore(keychain bool, dir, service string) ca.KeyStore {
 	if keychain {
-		return ca.KeychainStore{Service: service}
+		var trust []string
+		// ROTTEN_KEYCHAIN_TRUST=colon-separated absolute binary paths (rottencore:rottencore-ca)
+		// so Get works over Tailscale SSH without a GUI prompt. Items stay non-exportable.
+		for _, p := range strings.Split(os.Getenv("ROTTEN_KEYCHAIN_TRUST"), ":") {
+			p = strings.TrimSpace(p)
+			if p != "" {
+				trust = append(trust, p)
+			}
+		}
+		return ca.KeychainStore{Service: service, TrustedApps: trust}
 	}
 	return ca.FileStore{Dir: dir}
 }

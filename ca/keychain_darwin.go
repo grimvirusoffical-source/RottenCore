@@ -7,6 +7,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -21,10 +22,22 @@ import (
 // Put feeds `security -i` over stdin so the private-key blob never appears in process argv (visible to
 // `ps`). Get uses `security find-generic-password -w`, which prints the secret on stdout only.
 //
+// TrustedApps lists absolute paths of binaries that may read the item without a GUI prompt
+// (repeated -T). Over Tailscale SSH a prompt fails with errSecInteractionNotAllowed; trusting
+// rottencore and rottencore-ca avoids that. Items stay non-exportable. Empty TrustedApps falls
+// back to -T "" (may prompt). Unlock the login keychain for headless runs:
+//
+//	security unlock-keychain -p <pw-via-stdin> ~/Library/Keychains/login.keychain-db
+//
+// (password over stdin only — never argv).
+//
 // This is a software-key store: the bytes exist in Keychain, not in the Secure Enclave (the Enclave only
 // holds P-256 keys, which these tiers do not use). For the production root, the runbook also calls for an
 // offline USB backup; Keychain is the live copy.
-type KeychainStore struct{ Service string }
+type KeychainStore struct {
+	Service     string
+	TrustedApps []string // absolute paths trusted for -T (SSH-safe Get)
+}
 
 func (KeychainStore) Kind() string { return "macOS Keychain" }
 
@@ -52,7 +65,23 @@ func (s KeychainStore) Put(label string, k core.Signer) error {
 	blob := k.Alg() + ":" + hex.EncodeToString(privBytes(k))
 	// Interactive mode: the add-generic-password line is read from stdin. argv is only ["security","-i"],
 	// so the private-key hex never appears in process arguments or the environment.
-	line := fmt.Sprintf("add-generic-password -a %s -s %s -w %s -T \"\" -D RottenCore\\ CA\\ private\\ key\n", label, svc, blob)
+	trust := ""
+	for _, app := range s.TrustedApps {
+		app = strings.TrimSpace(app)
+		if app == "" {
+			continue
+		}
+		if !filepath.IsAbs(app) {
+			return fmt.Errorf("keychain TrustedApps entry %q must be an absolute path", app)
+		}
+		// Quote for the interactive security line; paths are absolute and should not contain spaces
+		// that break -T (caller must use paths without spaces, e.g. /Users/.../bin/rottencore).
+		trust += fmt.Sprintf(" -T %s", app)
+	}
+	if trust == "" {
+		trust = ` -T ""` // no apps trusted — Get may prompt (fails over SSH)
+	}
+	line := fmt.Sprintf("add-generic-password -a %s -s %s -w %s%s -D RottenCore\\ CA\\ private\\ key\n", label, svc, blob, trust)
 	cmd := exec.Command("security", "-i")
 	cmd.Stdin = strings.NewReader(line)
 	var errb bytes.Buffer

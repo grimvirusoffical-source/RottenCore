@@ -24,6 +24,13 @@ import (
 // hubProto is the domain prefix for every signed dev-hub message.
 const hubProto = "rottenapple-devhub-v1"
 
+// LauncherHeader is required by ra-core HubMinLauncher (DEV_HUB_API.md §B6 / N1).
+const LauncherHeader = "X-RA-Launcher"
+
+// LauncherVersion is what Rotten Core sends as X-RA-Launcher. Must be >= HubMinLauncher (0.2.0).
+// Kept separate from core.Version so the hub gate tracks the Poison Apple launcher floor.
+const LauncherVersion = "0.2.0"
+
 // DeviceKey is a device or signing key held on this machine. Only the public bytes ever leave it; signing
 // happens here. Software keys are Ed25519 (spec §2); a Secure Enclave key would implement the same shape.
 type DeviceKey interface {
@@ -160,6 +167,8 @@ func (c *Client) do(ctx context.Context, method, path string, body interface{}, 
 		return err
 	}
 	req.Header.Set("Accept", "application/json")
+	// HubMinLauncher gate: ra-core refuses hub packages / some routes without a new-enough launcher.
+	req.Header.Set(LauncherHeader, LauncherVersion)
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
@@ -251,15 +260,29 @@ func (c *Client) PollPairing(ctx context.Context, code, pollSecret string) (*Pai
 
 // ---- CA chain (spec §4) ----
 
+// CAChainInfo is the public GET /v1/devhub/ca/chain answer.
+type CAChainInfo struct {
+	Chain      []json.RawMessage `json:"chain"`
+	Issuing    bool              `json:"issuing"`
+	Production bool              `json:"production"`
+}
+
 // CAChain returns the issuing chain (public GET /v1/devhub/ca/chain), as the raw cert JSON objects.
 func (c *Client) CAChain(ctx context.Context) ([]json.RawMessage, error) {
-	var out struct {
-		Chain []json.RawMessage `json:"chain"`
+	info, err := c.CAChainInfo(ctx)
+	if err != nil {
+		return nil, err
 	}
+	return info.Chain, nil
+}
+
+// CAChainInfo returns the full public CA status (chain + whether an issuer is loaded).
+func (c *Client) CAChainInfo(ctx context.Context) (*CAChainInfo, error) {
+	var out CAChainInfo
 	if err := c.do(ctx, "GET", "/v1/devhub/ca/chain", nil, false, &out); err != nil {
 		return nil, err
 	}
-	return out.Chain, nil
+	return &out, nil
 }
 
 // ---- Device proofs (spec §3) ----

@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -412,4 +413,42 @@ func TestHTTPDeviceServiceFlow(t *testing.T) {
 	if err != nil || !got.Approved {
 		t.Fatalf("current: %+v %v", got, err)
 	}
+}
+
+func TestLauncherHeaderSent(t *testing.T) {
+	var got string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		got = r.Header.Get(LauncherHeader)
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"chain":[],"issuing":false,"production":true}`))
+	}))
+	defer srv.Close()
+	c := &Client{BaseURL: srv.URL, HTTP: srv.Client()}
+	if _, err := c.CAChainInfo(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if got != LauncherVersion {
+		t.Fatalf("X-RA-Launcher %q, want %q", got, LauncherVersion)
+	}
+	if compareHub(got, "0.2.0") < 0 {
+		t.Fatalf("%q older than HubMinLauncher 0.2.0", got)
+	}
+}
+
+// compareHub is a tiny dotted-int compare for the test (same idea as ra-core validVersion).
+func compareHub(a, b string) int {
+	as, bs := strings.Split(a, "."), strings.Split(b, ".")
+	for i := 0; i < len(as) || i < len(bs); i++ {
+		var ai, bi int
+		if i < len(as) {
+			fmt.Sscanf(as[i], "%d", &ai)
+		}
+		if i < len(bs) {
+			fmt.Sscanf(bs[i], "%d", &bi)
+		}
+		if ai != bi {
+			return ai - bi
+		}
+	}
+	return 0
 }
