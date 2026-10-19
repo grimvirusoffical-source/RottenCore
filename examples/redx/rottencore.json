@@ -1,0 +1,16 @@
+{
+  "schema": 1,
+  "appId": "com.redx.app",
+  "name": "RedX",
+  "version": "0.4.3",
+  "source": "github",
+  "github": {
+    "owner": "grimvirusoffical-source",
+    "repo": "RedX",
+    "tag": "v0.4.3",
+    "assetPattern": "redx-{version}-macos-universal.dmg"
+  },
+  "install": { "bundle": "RedX.app", "pkgIds": ["com.redx.pkg"] },
+  "minMacOS": "12.0",
+  "ageRating": "everyone"
+}
