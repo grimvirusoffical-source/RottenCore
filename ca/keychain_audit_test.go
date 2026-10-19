@@ -52,7 +52,7 @@ var allowedSecretLines = map[string]bool{
 	// lib.sh load_github_token: one Keychain read into an unexported shell variable.
 	`GH_RELEASE_TOKEN=$(/usr/bin/security find-generic-password -a github-token -s "${KEYCHAIN_SERVICE:-com.redx.rottencore.ca}" -w) \`: true,
 	// lib.sh curl_github: the header goes to curl on stdin (-H @-).
-	`printf 'Authorization: Bearer %s\n' "$GH_RELEASE_TOKEN" | curl -sS -L --fail \`: true,
+	`res=$(printf 'Authorization: Bearer %s\n' "$GH_RELEASE_TOKEN" | curl -sS --proto =https --max-redirs 0 \`: true,
 	// lib.sh load_github_token: move a session token into the unexported variable.
 	`GH_RELEASE_TOKEN="$GITHUB_TOKEN"`: true,
 	// lib.sh: hidden prompt.
@@ -72,6 +72,8 @@ var (
 	keySubstRe     = regexp.MustCompile(`--(key|seed|priv[a-z]*|secret|token)[= ]+["']?\$\(|\$\(\s*(cat|<)\s*[^)]*(key|seed|priv|secret|token)`)
 	accountsReadRe = regexp.MustCompile(`(?i)\bread\b.*accounts`)
 	exportRe       = regexp.MustCompile(`(^|[;&\s])export\s+([A-Za-z_][A-Za-z0-9_]*)`)
+	curlCmdRe      = regexp.MustCompile(`(^|[;&|(\s$])curl(\s|$)`)
+	curlFollowRe   = regexp.MustCompile(`(^|[\s"'=,\[])(-[A-Za-z]*L[A-Za-z]*|--location(-trusted)?)(["'\s,\]=]|$)`)
 	printVerbRe    = regexp.MustCompile(`(^|[;&|(\s])(echo|printf|log|cat|tee|print)\b|print\(`)
 )
 
@@ -90,11 +92,20 @@ func secretVar(name string) bool {
 func auditRolloutScript(name, text string) []string {
 	var bad []string
 	add := func(i int, why, line string) { bad = append(bad, fmt.Sprintf("%s:%d: %s: %s", name, i+1, why, line)) }
+	inCurl := false // inside a backslash-continued curl command
 	for i, line := range strings.Split(text, "\n") {
 		trim := strings.TrimSpace(line)
 		if trim == "" || strings.HasPrefix(trim, "#") {
+			inCurl = false
 			continue
 		}
+		// QA D3: curl must never follow redirects (-L would re-send headers to the redirect target).
+		// Checked before the allow-list, on every curl line, its continuations, and Python curl arg lists.
+		curlish := inCurl || curlCmdRe.MatchString(trim) || strings.Contains(trim, `"curl"`) || strings.Contains(trim, "run_curl(") || strings.Contains(trim, "curl([")
+		if curlish && curlFollowRe.MatchString(trim) {
+			add(i, "curl follows redirects (-L/--location); handle the 3xx explicitly (QA D3)", trim)
+		}
+		inCurl = (inCurl || curlCmdRe.MatchString(trim)) && strings.HasSuffix(trim, "\\")
 		if allowedSecretLines[trim] {
 			continue
 		}
@@ -246,6 +257,16 @@ func TestRolloutAuditCatchesLeaks(t *testing.T) {
 		`curl -H "X-RedX-Accounts-Key: $K" https://api.rottenapplestore.org`,
 		`rottencore devhub-pair --accounts-key "$K"`,
 		`printf '%s\n' "$ACCOUNTS_TOKEN" | curl -H @- x`,
+		// QA D3: no curl may follow redirects
+		`curl -sS -L --fail -o out https://api.github.com/x`,
+		`curl -sSL https://x`,
+		`curl --location https://x`,
+		`curl --location-trusted https://x`,
+		`x=$(curl -fsSL https://x)`,
+		"curl -sS \\\n  -L -o out https://x",
+		`return subprocess.run(["curl", "-sS", "-L", "-H", "@-", *args], input=AUTH_LINE)`,
+		`r = curl(["-L", "-X", "GET", url])`,
+		`r = run_curl(["--location", url])`,
 	}
 	for _, line := range bad {
 		if len(auditRolloutScript("fixture.sh", line+"\n")) == 0 {
@@ -258,6 +279,9 @@ func TestRolloutAuditCatchesLeaks(t *testing.T) {
 		`echo "ROOT_FINGERPRINT=$ROOT_FP"`,
 		`/usr/bin/security find-generic-password -a "$label" -s "${KEYCHAIN_SERVICE:-com.redx.rottencore.ca}" >/dev/null 2>&1`,
 		`echo ">> You will also be asked for the Red-XAI Accounts key (hidden; not stored) and to type yes." >&2`,
+		`curl -sS --fail --proto =https --max-redirs 0 -o "$dest" "$loc" || { rm -f "$dest"; return 1; }`,
+		`ls -L /tmp`,
+		`cp -L a b`,
 	}
 	for _, line := range ok {
 		if v := auditRolloutScript("fixture.sh", line+"\n"); len(v) != 0 {

@@ -128,7 +128,7 @@ func (h *HostClient) http() *http.Client {
 	if n == nil {
 		n = &Net{AllowLoopbackHTTP: h.AllowLoopbackHTTP}
 	}
-	c := *n.client()
+	c := *NoRedirects(n.client()) // host key + confirm headers never follow a redirect (QA D3)
 	if c.Timeout == 0 || c.Timeout > time.Minute {
 		c.Timeout = time.Minute
 	}
@@ -172,6 +172,9 @@ func (h *HostClient) do(ctx context.Context, method, p string, q url.Values, bod
 		return nil, nil, err
 	}
 	defer resp.Body.Close()
+	if err := RefuseRedirect(resp); err != nil {
+		return resp.Header, nil, err
+	}
 	b, err := io.ReadAll(io.LimitReader(resp.Body, 8<<20))
 	if err != nil {
 		return nil, nil, err

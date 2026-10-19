@@ -7,15 +7,15 @@ import (
 	"time"
 )
 
-// TestLiveCAChainGET hits production /v1/devhub/ca/chain read-only. Skipped unless
-// RA_DEVHUB_LIVE=1 (or always runs against the public URL — network required).
+// TestLiveCAChainGET hits production /v1/devhub/ca/chain read-only. Opt-in (QA L3): it runs only with
+// RA_DEVHUB_LIVE=1, so the default test run is hermetic (no network).
 func TestLiveCAChainGET(t *testing.T) {
+	if os.Getenv("RA_DEVHUB_LIVE") != "1" {
+		t.Skip("live dev-hub test: set RA_DEVHUB_LIVE=1 to run (network)")
+	}
 	base := os.Getenv("RA_DEVHUB_URL")
 	if base == "" {
 		base = "https://api.rottenapplestore.org"
-	}
-	if os.Getenv("RA_DEVHUB_LIVE") == "0" {
-		t.Skip("RA_DEVHUB_LIVE=0")
 	}
 	c := &Client{BaseURL: base}
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)

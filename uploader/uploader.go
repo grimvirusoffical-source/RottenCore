@@ -77,7 +77,7 @@ func (s *RACoreStore) http() *http.Client {
 	if n == nil {
 		n = &core.Net{AllowLoopbackHTTP: s.AllowLoopbackHTTP}
 	}
-	c := *n.ClientForUploads()
+	c := *core.NoRedirects(n.ClientForUploads()) // build key never follows a redirect (QA D3)
 	return &c
 }
 
@@ -102,6 +102,9 @@ func (s *RACoreStore) do(ctx context.Context, method, path string, hdr map[strin
 		return err
 	}
 	defer resp.Body.Close()
+	if err := core.RefuseRedirect(resp); err != nil {
+		return err
+	}
 	b, _ := io.ReadAll(io.LimitReader(resp.Body, 8<<20))
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
 		return &StoreError{Status: resp.StatusCode, Body: string(bytes.TrimSpace(b))}

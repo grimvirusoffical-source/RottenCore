@@ -59,7 +59,7 @@ func devhubClient(ctx context.Context, withDevice bool) (*devhub.Client, error) 
 	if err != nil {
 		plat = devhub.PlatformMac // reads (context) do not depend on the platform
 	}
-	c := &devhub.Client{BaseURL: devhubURL(), APIKey: apiKey(), Platform: plat}
+	c := &devhub.Client{BaseURL: devhubURL(), AllowLoopbackHTTP: testLoopbackHTTP, APIKey: apiKey(), Platform: plat}
 	if withDevice {
 		k, err := loadOrCreateDeviceKey(ctx)
 		if err != nil {
@@ -153,3 +153,7 @@ func runDevice(ctx context.Context, cmd string, rest []string) bool {
 	}
 	return true
 }
+
+// testLoopbackHTTP lets tests talk to an httptest (http://127.0.0.1) hub. There is no flag or env for it:
+// the shipped binary only ever talks https to the dev hub.
+var testLoopbackHTTP = false

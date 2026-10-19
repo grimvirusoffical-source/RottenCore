@@ -9,9 +9,11 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"os/signal"
 	"regexp"
 	"sort"
 	"strings"
+	"syscall"
 
 	"github.com/grimvirusoffical-source/RottenCore/core"
 	"github.com/grimvirusoffical-source/RottenCore/devhub"
@@ -78,9 +80,22 @@ func zero(b []byte) {
 	}
 }
 
+// promptSignals subscribes the hidden prompt to the abort signals; a var so tests can inject one.
+var promptSignals = func(c chan<- os.Signal) { signal.Notify(c, os.Interrupt, syscall.SIGTERM, syscall.SIGHUP) }
+
+// promptInterrupted ends the process after an abort at the hidden prompt (echo already restored).
+var promptInterrupted = func() {
+	fail(errors.New("interrupted at the Red-XAI Accounts key prompt: nothing was sent or stored"), 130)
+}
+
 // readTTYLine reads one line byte-by-byte (no bufio copy) into a fixed buffer. The caller zeroes it.
 func readTTYLine(r io.Reader, max int) ([]byte, error) {
-	buf := make([]byte, 0, max)
+	return readTTYLineInto(r, make([]byte, 0, max))
+}
+
+// readTTYLineInto is readTTYLine into a caller-owned buffer (len 0), so an abort can zero it.
+func readTTYLineInto(r io.Reader, buf []byte) ([]byte, error) {
+	max := cap(buf)
 	one := make([]byte, 1)
 	for {
 		n, err := r.Read(one)
@@ -120,7 +135,25 @@ func readAccountsKey() ([]byte, error) {
 	if err := ttyEcho(tty, false); err != nil {
 		return nil, fmt.Errorf("cannot hide input: %w", err)
 	}
-	k, rerr := readTTYLine(tty, 4096)
+	// QA L4: Ctrl-C (or SIGTERM/SIGHUP) at the hidden prompt aborts at once: echo back on, partial input
+	// zeroed, exit 130. Without this the main NotifyContext swallowed SIGINT and the read kept blocking.
+	buf := make([]byte, 0, 4096)
+	sig := make(chan os.Signal, 1)
+	promptSignals(sig)
+	done := make(chan struct{})
+	go func() {
+		select {
+		case <-sig:
+			zero(buf[:cap(buf)])
+			_ = ttyEcho(tty, true)
+			fmt.Fprintln(tty)
+			promptInterrupted()
+		case <-done:
+		}
+	}()
+	k, rerr := readTTYLineInto(tty, buf)
+	close(done)
+	signal.Stop(sig)
 	_ = ttyEcho(tty, true)
 	fmt.Fprintln(tty)
 	if rerr != nil {
@@ -146,44 +179,44 @@ func readAccountsKey() ([]byte, error) {
 // ready, contexts not exactly one, or any disagreement between account.subject, cert and contexts[0].
 func validateAccountStatus(st *devhub.AccountStatusResponse) ([]byte, error) {
 	if st == nil {
-		return nil, errors.New("ra-core returned no account status")
+		return nil, errors.New("STOP: ra-core sent an empty answer to GET /v1/devhub/account-status. Nothing was signed; try again later or tell QA")
 	}
 	a := &st.Account
 	if !a.RxaLinked || a.Sub == "" {
-		return nil, errors.New("this ra-core account is not linked to Red-XAI Accounts yet (account.rxaLinked=false): an operator must run ra-core rxa-link first")
+		return nil, errors.New("STOP: your ra-core account is not linked to Red-XAI Accounts yet. Verify your email in Red-XAI Accounts first, then get the account linked (the link matches that verified email), and run this again")
 	}
 	if !a.HasSubject() {
-		return nil, errors.New("ra-core has no certificate subject for this account yet (account.subject is null): the account or team still lacks a Red-XAI id; stop and fix it on the server")
+		return nil, errors.New("STOP: ra-core has no certificate subject for your account yet, so no Mega cert can be issued. Make sure your email is verified and the account is linked to Red-XAI Accounts, then run this again")
 	}
 	if !st.Cert.Ready || st.Cert.Subject == "" {
-		return nil, errors.New("ra-core says the certificate ids are not ready (cert.ready=false): stop and fix the account/team ids on the server")
+		return nil, errors.New("STOP: ra-core says your certificate ids are not ready yet (your Red-XAI id or team id is missing). Verify your email in Red-XAI Accounts and get the account linked, then run this again")
 	}
 	if len(st.Contexts) != 1 {
-		return nil, fmt.Errorf("ra-core returned %d developer contexts for this key; exactly one is required (one Mega cert per key/team)", len(st.Contexts))
+		return nil, fmt.Errorf("STOP: this Accounts key belongs to %d developer contexts (teams); signing needs exactly one. Use the key of the account that owns the one team you are signing for", len(st.Contexts))
 	}
 	want := []byte(st.Cert.Subject)
 	if !bytes.Equal(bytes.TrimSpace(a.Subject), want) {
-		return nil, fmt.Errorf("ra-core is inconsistent: account.subject %s != cert.subject %s", a.Subject, want)
+		return nil, fmt.Errorf("STOP: ra-core gave two different subjects for your account (%s vs %s). Nothing was signed; tell QA", a.Subject, want)
 	}
 	var sub core.CertSubject
 	if err := json.Unmarshal(want, &sub); err != nil {
-		return nil, fmt.Errorf("cert.subject is not a subject object: %w", err)
+		return nil, fmt.Errorf("STOP: ra-core's certificate subject is not {name,teamId,devId}: %w. Nothing was signed; tell QA", err)
 	}
 	dev, team := core.SubjectIDs(sub)
 	kind, err := core.ValidateIDPair(dev, team)
 	if err != nil {
-		return nil, fmt.Errorf("ra-core subject failed the id check: %w", err)
+		return nil, fmt.Errorf("STOP: ra-core's certificate subject has an invalid id (%w). Nothing was signed; tell QA", err)
 	}
 	c := st.Contexts[0]
 	switch {
 	case dev != a.Sub || dev != st.Cert.DevID:
-		return nil, fmt.Errorf("subject devId %q disagrees with account.sub %q / cert.devId %q", dev, a.Sub, st.Cert.DevID)
+		return nil, fmt.Errorf("STOP: ra-core's developer ids disagree (subject devId %q, account %q, cert %q). Nothing was signed; tell QA", dev, a.Sub, st.Cert.DevID)
 	case team != st.Cert.TeamID || team != c.CertTeamID:
-		return nil, fmt.Errorf("subject teamId %q disagrees with cert.teamId %q / contexts[0].certTeamId %q", team, st.Cert.TeamID, c.CertTeamID)
+		return nil, fmt.Errorf("STOP: ra-core's team ids disagree (subject teamId %q, cert %q, team %q). Nothing was signed; tell QA", team, st.Cert.TeamID, c.CertTeamID)
 	case sub.Name != c.Name:
-		return nil, fmt.Errorf("subject name %q disagrees with contexts[0].name %q", sub.Name, c.Name)
+		return nil, fmt.Errorf("STOP: the certificate name %q is not the team name %q ra-core reports. Nothing was signed; tell QA", sub.Name, c.Name)
 	case (kind == core.TeamIndividual) != (c.Kind == "individual"):
-		return nil, fmt.Errorf("context kind %q does not fit teamId %q (individual = the owner's rxa_, team = rxt_)", c.Kind, team)
+		return nil, fmt.Errorf("STOP: ra-core says this is a %q context but the team id is %q (an individual uses your rxa_ id, a team an rxt_ id). Nothing was signed; tell QA", c.Kind, team)
 	}
 	return want, nil
 }
@@ -241,9 +274,9 @@ func explainHubError(err error) error {
 	case devhub.IsPairingAccountMismatch(err):
 		return fmt.Errorf("STOP: this pairing was started with another account's Red-XAI Accounts key (403 pairing_account_mismatch). Approve it while signed in as the key's account, or start again")
 	case devhub.IsAccountsKeyRequired(err):
-		return fmt.Errorf("STOP: ra-core did not accept the Red-XAI Accounts key (401 accounts_key_required)")
+		return fmt.Errorf("STOP: ra-core did not accept that Red-XAI Accounts key (401 accounts_key_required). Create a new one on the Dev page under API keys > Red-XAI Accounts key and paste it at the prompt")
 	case devhub.IsRxaLinkRequired(err):
-		return fmt.Errorf("STOP: the ra-core account is not linked to Red-XAI Accounts (409 rxa_link_required)")
+		return fmt.Errorf("STOP: your ra-core account is not linked to Red-XAI Accounts (409 rxa_link_required). Verify your email in Red-XAI Accounts first, then get the account linked, and run this again")
 	}
 	return err
 }
@@ -276,7 +309,7 @@ func signingIdentityCheck(ctx context.Context) error {
 		return err
 	}
 	defer zero(akey)
-	c := &devhub.Client{BaseURL: base, Platform: devhub.PlatformMac, AccountsKey: akey}
+	c := &devhub.Client{BaseURL: base, AllowLoopbackHTTP: testLoopbackHTTP, Platform: devhub.PlatformMac, AccountsKey: akey}
 	st, err := c.AccountStatus(ctx)
 	c.AccountsKey = nil
 	zero(akey)

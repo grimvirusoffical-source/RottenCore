@@ -59,6 +59,11 @@ func runSign(ctx context.Context, cmd string, rest []string) bool {
 		need(rest, 1)
 		jobs, err := readSignList(rest[0])
 		check(err)
+		// Josh's rule for the rollout: the Mac signs only macOS and iOS builds. Refuse the whole batch
+		// (before any prompt or Keychain read) if any line resolves to another platform.
+		if err := requireMacIOSBatch(jobs); err != nil {
+			fail(err, 4)
+		}
 		// Signing-time identity check (final design): the Accounts key is typed at the tty, ra-core says
 		// who it is, the bundle's leaf subject must equal that subject byte for byte, the chain must
 		// verify to the ceremony root, and Josh types yes. Done BEFORE the Keychain read of the Mega key.
@@ -327,4 +332,29 @@ func envOr(k, d string) string {
 		return v
 	}
 	return d
+}
+
+// requireMacIOSBatch refuses a sign-batch list unless every asset's platform (the 4th column, or detected
+// from the file name) is macOS or iOS. Linux and extensions have no signing host yet; Windows and Android
+// need the Windows host.
+func requireMacIOSBatch(jobs [][4]string) error {
+	var bad []string
+	for _, j := range jobs {
+		plat := j[3]
+		if plat == "" {
+			plat = builder.PlatformFromName(filepath.Base(j[0]))
+		}
+		switch plat {
+		case builder.PlatformMacArm64, builder.PlatformMacIntel, builder.PlatformIOS:
+		default:
+			if plat == "" {
+				plat = "undetectable"
+			}
+			bad = append(bad, fmt.Sprintf("%s (%s)", filepath.Base(j[0]), plat))
+		}
+	}
+	if len(bad) > 0 {
+		return fmt.Errorf("sign-batch signs only macOS and iOS assets on this Mac; refusing the whole batch: %s", strings.Join(bad, ", "))
+	}
+	return nil
 }

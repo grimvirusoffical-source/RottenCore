@@ -208,7 +208,7 @@ func (f *fakeStore) handler() http.Handler {
 }
 
 func newTestClient(t *testing.T, srv *httptest.Server, dev DeviceKey, key string) *Client {
-	return &Client{BaseURL: srv.URL, HTTP: srv.Client(), APIKey: key, Device: dev, Platform: PlatformMac}
+	return &Client{BaseURL: srv.URL, AllowLoopbackHTTP: true, HTTP: srv.Client(), APIKey: key, Device: dev, Platform: PlatformMac}
 }
 
 func genEd(t *testing.T) EdKey {
@@ -423,7 +423,7 @@ func TestLauncherHeaderSent(t *testing.T) {
 		w.Write([]byte(`{"chain":[],"issuing":false,"production":true}`))
 	}))
 	defer srv.Close()
-	c := &Client{BaseURL: srv.URL, HTTP: srv.Client()}
+	c := &Client{BaseURL: srv.URL, AllowLoopbackHTTP: true, HTTP: srv.Client()}
 	if _, err := c.CAChainInfo(context.Background()); err != nil {
 		t.Fatal(err)
 	}

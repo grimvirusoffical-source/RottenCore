@@ -92,7 +92,7 @@ func runDevhubPair(ctx context.Context) {
 		kc = s
 	}
 
-	c := &devhub.Client{BaseURL: base, Platform: devhub.PlatformMac}
+	c := &devhub.Client{BaseURL: base, AllowLoopbackHTTP: testLoopbackHTTP, Platform: devhub.PlatformMac}
 	info, err := c.CAChainInfo(ctx)
 	check(err)
 	if !info.Issuing {

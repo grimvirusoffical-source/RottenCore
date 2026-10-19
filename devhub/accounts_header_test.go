@@ -26,7 +26,7 @@ func TestAccountsKeyHeaderOnlyOnContractRoutes(t *testing.T) {
 		w.Write([]byte(`{}`))
 	}))
 	defer srv.Close()
-	c := &Client{BaseURL: srv.URL, APIKey: "build", AccountsKey: []byte(key)}
+	c := &Client{BaseURL: srv.URL, AllowLoopbackHTTP: true, APIKey: "build", AccountsKey: []byte(key)}
 	ctx := context.Background()
 	for _, p := range []string{"/v1/devhub/pairings", "/v1/devhub/pairings/status", "/v1/devhub/challenge", "/v1/devhub/certs", AccountStatusPath, "/v1/devhub/context", "/v1/devhub/apps/x/sdks", "/v1/devhub/ca/chain"} {
 		_ = c.do(ctx, "POST", p, map[string]string{}, false, nil)

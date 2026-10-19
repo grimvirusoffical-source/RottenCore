@@ -26,7 +26,8 @@ type Session struct {
 // ErrAccountsComingSoon is what the stub answers.
 var ErrAccountsComingSoon = errors.New("Red-XAI Accounts sign-in is coming soon")
 
-// StubAccounts is the placeholder until Red-XAI Accounts has an API.
+// StubAccounts stands in for interactive Red-XAI Accounts sign-in in the app (not used by the dev-hub
+// signing flow, which identifies the account through ra-core's /v1/devhub/account-status).
 type StubAccounts struct{}
 
 func (StubAccounts) SignIn(context.Context) (*Session, error) { return nil, ErrAccountsComingSoon }

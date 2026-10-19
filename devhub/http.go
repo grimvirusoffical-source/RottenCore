@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/grimvirusoffical-source/RottenCore/core"
 	"io"
 	"net/http"
 	"net/url"
@@ -143,16 +144,20 @@ type Client struct {
 	Device   DeviceKey
 	Platform Platform
 	Now      func() time.Time
+	// AllowLoopbackHTTP permits http:// to localhost / loopback IPs (tests only). Anything else must be https.
+	AllowLoopbackHTTP bool
 	// AccountsKey is the Red-XAI Accounts key typed at the tty prompt. It is sent only in
 	// AccountsKeyHeader and the caller zeroes it after use (net/http needs a string copy per request).
 	AccountsKey []byte
 }
 
+// httpClient never follows redirects, whatever HTTP was supplied (QA D3: net/http would forward
+// X-RedX-Accounts-Key to another host); do turns any 3xx into a hard error.
 func (c *Client) httpClient() *http.Client {
 	if c.HTTP != nil {
-		return c.HTTP
+		return core.NoRedirects(c.HTTP)
 	}
-	return &http.Client{Timeout: 30 * time.Second}
+	return core.NoRedirects(&http.Client{Timeout: 30 * time.Second})
 }
 
 func (c *Client) now() time.Time {
@@ -166,6 +171,9 @@ func (c *Client) now() time.Time {
 func (c *Client) do(ctx context.Context, method, path string, body interface{}, withKey bool, out interface{}) error {
 	if strings.TrimRight(c.BaseURL, "/") == "" {
 		return errors.New("no dev-hub base URL configured")
+	}
+	if !core.ValidOrigin(strings.TrimRight(c.BaseURL, "/"), c.AllowLoopbackHTTP) {
+		return fmt.Errorf("dev-hub base URL must be https (got scheme of %q); keys are never sent over plain http", schemeOf(c.BaseURL))
 	}
 	var rd io.Reader
 	if body != nil {
@@ -200,6 +208,9 @@ func (c *Client) do(ctx context.Context, method, path string, body interface{}, 
 		return err
 	}
 	defer resp.Body.Close()
+	if err := core.RefuseRedirect(resp); err != nil {
+		return err
+	}
 	b, err := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
 	if err != nil {
 		return err
@@ -562,4 +573,11 @@ func (a *AppSDKs) SelectionFor(unlocked []string) SDKSelection {
 		sel.Selected = append([]string(nil), a.Selected...)
 	}
 	return sel
+}
+
+func schemeOf(raw string) string {
+	if i := strings.Index(raw, "://"); i > 0 {
+		return raw[:i]
+	}
+	return "(none)"
 }

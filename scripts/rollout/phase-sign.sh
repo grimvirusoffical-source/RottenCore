@@ -37,12 +37,11 @@ app = app_map.get(repo, "com.redx." + repo.lower().replace("_","-"))
 ver = (tag or "0.0.0").lstrip("v")
 if ver.startswith("untagged-"): ver = "0.0.0-untagged"
 n = asset.lower()
-if cat == "extension": plat = "extensions"
-elif cat == "ios": plat = "ios"
-elif cat == "linux": plat = "linux"
+if cat == "ios": plat = "ios"
 elif cat == "mac":
   plat = "macos-arm64" if ("arm64" in n or "universal" in n) else "macos-intel"
-else: plat = ""
+else:
+  sys.exit(f"STOP: {repo}/{tag}/{asset} is {cat!r}: this Mac signs only macOS and iOS builds")
 print(app); print(ver); print(plat)
 PY
 }
@@ -68,7 +67,7 @@ PY
   [[ -n "$aid" ]] || die "no asset id for $repo/$tag/$name"
   # QA L-e: a failed download leaves nothing behind in staging.
   if ! curl_github "https://api.github.com/repos/grimvirusoffical-source/${repo}/releases/assets/${aid}" \
-    -o "$dest.partial"; then
+    "$dest.partial"; then
     rm -f "$dest.partial"
     die "download failed for $repo/$tag/$name (partial file removed)"
   fi
@@ -87,6 +86,9 @@ python3 - "$INVENTORY" <<'PY' > "$ROOT_DIR/work/sign-list.tsv"
 import json,sys
 inv=json.load(open(sys.argv[1]))
 for a in inv["sign_on_mac"]:
+  # The Mac signs only macOS and iOS builds (Linux/extensions: no host yet; Windows/Android: Windows host).
+  if a.get("category") not in ("mac", "ios"):
+    sys.exit(f"STOP: {a['repo']}/{a['tag']}/{a['asset']} is {a.get('category')!r}, not macOS/iOS; this Mac signs only Mac and iOS builds")
   print("\t".join([a["repo"], a["tag"], a["asset"], a.get("url",""), a["category"], str(a.get("size",0))]))
 PY
 
@@ -110,7 +112,7 @@ while IFS=$'\t' read -r REPO TAG ASSET URL CAT SIZE <&3; do
     die "digest mismatch for $REPO/$TAG/$ASSET — removed from staging; STOP"
   fi
   rm -f "$LOCAL.rasig"   # re-sign from scratch after a partial run
-  META=$(app_meta "$REPO" "$TAG" "$ASSET" "$CAT")
+  META=$(app_meta "$REPO" "$TAG" "$ASSET" "$CAT") || die "not a macOS/iOS asset: $REPO/$TAG/$ASSET"
   META_APP=$(sed -n '1p' <<<"$META"); META_VER=$(sed -n '2p' <<<"$META"); META_PLAT=$(sed -n '3p' <<<"$META")
   printf '%s\t%s\t%s\t%s\n' "$LOCAL" "$META_APP" "$META_VER" "$META_PLAT" >> "$BATCH"
   PENDING+=("$MARK|$LOCAL")

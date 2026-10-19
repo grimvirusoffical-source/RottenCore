@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # publish.sh — run on the box AFTER signed files land in /workspace/rollout/signed/<repo>/<tag>/.
-# Replaces each asset in place on GitHub (EXACT original filename and label), uploads .rasig sidecars,
-# replaces SHA256SUMS. Then converts every OTHER (older) release in those repos to a draft — only when
+# Replaces ONLY the signed macOS/iOS assets in place on GitHub (EXACT original filename and label), uploads
+# their .rasig sidecars, and updates the release checksum file by MERGING (only the signed assets' lines may
+# change; deferred Linux/extension/Windows/Android lines are kept as published). Deferred and other latest
+# assets are never deleted or re-uploaded. Then converts every OTHER (older) release in those repos to a draft — only when
 # every asset of that release is fully backed up under /workspace/release-backups (sha256 verified).
 # Git tags are left alone. --dry-run prints the plan without changing GitHub.
 set -euo pipefail
@@ -32,7 +34,7 @@ log "publish starting dry_run=$DRY_RUN signed=$SIGNED"
 
 PLAN=$ROOT/work/publish-plan.json
 
-python3 - "$INVENTORY" "$SIGNED" "$BACKUP" "$PLAN" <<'PY'
+python3 - "$INVENTORY" "$SIGNED" "$BACKUP" "$PLAN" "$ROOT/work/sums" <<'PY'
 import hashlib, json, pathlib, sys
 
 inv = json.load(open(sys.argv[1]))
@@ -43,7 +45,9 @@ by_key = {(a["repo"], a["tag"], a["name"]): a for a in manifest["assets"]}
 
 plan = {
     "replacements": [], "rasigs": [], "sums": [], "missing_signed": [],
-    "skipped_deferred": inv.get("deferred_windows_android", []),
+    "skipped_deferred": inv.get("deferred", []),
+    "untouched_latest": inv.get("untouched_latest", []),
+    "sums_unchanged": [], "sums_blocked": [],
     "convert_to_draft": [], "convert_to_draft_blocked": [],
     "flagged_newer_drafts": inv.get("flagged_newer_drafts", []),
 }
@@ -63,8 +67,12 @@ def sha256(p):
             h.update(c)
     return h.hexdigest()
 
+if "deferred_windows_android" in inv:
+    raise SystemExit("inventory.json is the old format (deferred_windows_android); regenerate it")
 for a in inv.get("sign_on_mac", []):
     repo, tag, name = a["repo"], a["tag"], a["asset"]
+    if a.get("category") not in ("mac", "ios"):
+        raise SystemExit(f"STOP: {repo}/{tag}/{name} is {a.get('category')!r}: only macOS/iOS assets are signed and replaced")
     local = signed_root / repo / tag / name
     rasig = pathlib.Path(str(local) + ".rasig")
     if not local.exists():
@@ -91,27 +99,64 @@ for a in inv.get("sign_on_mac", []):
         })
     touched.add((repo, tag))
 
+sums_dir = pathlib.Path(sys.argv[5])
+signed_names = {(a["repo"], a["tag"]): set() for a in inv.get("sign_on_mac", [])}
+for a in inv.get("sign_on_mac", []):
+    signed_names[(a["repo"], a["tag"])].add(a["asset"])
 for repo, tag in sorted(touched):
     rel = rel_index[(repo, tag)]
-    sums_local = signed_root / repo / tag / "SHA256SUMS"
-    if not sums_local.exists():
-        alt = signed_root / repo / tag / "SHA256SUMS.txt"
-        if alt.exists():
-            sums_local = alt
-    if not sums_local.exists():
-        continue
     existing = None
     for x in rel["assets"]:
-        if x.get("category") == "checksum" or x["name"] in ("SHA256SUMS", "SHA256SUMS.txt", "CHECKSUMS"):
+        if x.get("category") == "checksum" or x["name"] in ("SHA256SUMS", "SHA256SUMS.txt", "CHECKSUMS", "sha256.txt"):
             existing = x
             break
+    if not existing:
+        continue  # no published checksum file: nothing to update (never add one that omits deferred assets)
+    orig_path = backup / repo / tag / existing["name"]
+    m = by_key.get((repo, tag, existing["name"]))
+    if not orig_path.is_file() or not m or sha256(orig_path) != m["sha256"]:
+        plan["sums_blocked"].append({"repo": repo, "tag": tag, "name": existing["name"], "reason": "backup copy missing or not the MANIFEST digest"})
+        continue
+    orig = orig_path.read_text()
+    lines, seen, bad = [], set(), False
+    for ln in orig.splitlines():
+        parts = ln.split(None, 1)
+        if len(parts) != 2 or len(parts[0]) != 64:
+            lines.append(ln); continue
+        fname = parts[1].lstrip("*").strip()
+        if fname in signed_names.get((repo, tag), set()):
+            local = signed_root / repo / tag / fname
+            if not local.exists():
+                bad = True; break
+            lines.append(f"{sha256(local)}  {fname}"); seen.add(fname)
+        else:
+            lines.append(ln)  # deferred / untouched asset: kept exactly as published
+    if bad:
+        plan["sums_blocked"].append({"repo": repo, "tag": tag, "name": existing["name"], "reason": "a listed signed asset is missing locally"})
+        continue
+    merged = "\n".join(lines) + ("\n" if orig.endswith("\n") else "")
+    if merged == orig:
+        plan["sums_unchanged"].append({"repo": repo, "tag": tag, "name": existing["name"]})
+        continue
+    out = sums_dir / repo / tag / existing["name"]
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(merged)
     plan["sums"].append({
         "repo": repo, "tag": tag, "release_id": rel["id"],
-        "name": existing["name"] if existing else "SHA256SUMS",
-        "asset_id": existing["id"] if existing else None,
-        "label": (existing.get("label") if existing else None) or "",
-        "local": str(sums_local), "size": sums_local.stat().st_size,
+        "name": existing["name"], "asset_id": existing["id"],
+        "label": existing.get("label") or "",
+        "local": str(out), "size": out.stat().st_size, "merged_lines_changed": sorted(seen),
     })
+
+# Hard guard: nothing deferred or untouched may be deleted or re-uploaded, except a merged checksum file.
+protected = {(e["repo"], e["tag"], e["asset"]) for e in plan["skipped_deferred"] + plan["untouched_latest"]}
+sums_keys = {(x["repo"], x["tag"], x["name"]) for x in plan["sums"]}
+for item in plan["replacements"] + plan["rasigs"]:
+    if (item["repo"], item["tag"], item["name"]) in protected:
+        raise SystemExit(f"STOP: plan would touch deferred/untouched asset {item['repo']}/{item['tag']}/{item['name']}")
+for k in sums_keys:
+    if k in protected and not any(e["category"] == "checksum" for e in plan["untouched_latest"] if (e["repo"], e["tag"], e["asset"]) == k):
+        raise SystemExit(f"STOP: plan would replace non-checksum asset {k}")
 
 # Draft conversion candidates from inventory (older published releases).
 # Full inventory (all releases) may be at inventory.full.json for asset lists.
@@ -173,7 +218,8 @@ print(f"Would REPLACE/UPLOAD {len(p['sums'])} SHA256SUMS")
 print(f"Missing signed copies: {len(p['missing_signed'])}")
 for m in p["missing_signed"][:10]:
   print(f"  MISSING {m}")
-print(f"Deferred (untouched): {len(p['skipped_deferred'])} windows/android")
+print(f"Deferred (left exactly as published): {len(p['skipped_deferred'])} (Linux/extensions: no signing host yet; Windows/Android: Windows host)")
+print(f"Other latest assets left as published: {len(p['untouched_latest'])}; checksum files unchanged: {len(p['sums_unchanged'])}, blocked: {len(p['sums_blocked'])}")
 print(f"\nWould CONVERT TO DRAFT {len(p['convert_to_draft'])} older releases (tags kept):")
 for c in p["convert_to_draft"]:
   print(f"  {c['repo']}/{c['tag']}  release_id={c['release_id']}  assets_verified={c['assets_verified']}")

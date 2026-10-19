@@ -30,7 +30,18 @@
 > Stops (no retry, nothing issued): `account.subject` is null, `cert.ready` is false, there is not exactly one
 > context, account/cert/context disagree, `403 pairing_account_mismatch` (the pairing was started with a
 > different account's key: delete `work/pairing.json`, pair again), `403 accounts_key_mismatch` (the
-> Accounts key and the build key belong to different accounts), `409 rxa_link_required`.
+> Accounts key and the build key belong to different accounts), `409 rxa_link_required` (see below).
+>
+> **ra-core links need a verified email.** The Accounts key only works for a ra-core account linked to
+> Red-XAI Accounts, and the link is matched against the **verified** Red-XAI Accounts email.
+> `409 rxa_link_required` (or `account.rxaLinked=false` / `account.subject: null`) means: **verify the email in
+> Red-XAI Accounts first**, then get the account linked, then run the phase again. Nothing is issued or signed meanwhile.
+>
+> **No redirects (QA D3).** RottenCore's HTTP clients that carry a key (dev hub, account-status, uploads,
+> host API, GitHub with a token) never follow a redirect; any 3xx is a hard error that names only the status
+> and the target host. The dev-hub base URL must be `https://`. The scripts' curl calls never use `-L`: the
+> GitHub asset download handles GitHub's 302 itself and fetches the signed asset URL (GitHub asset host,
+> https only) without the token.
 
 Josh's plan:
 - The issuing CA key lives on ra-core. The Mac holds only the root, device and Mega keys.
@@ -71,7 +82,7 @@ The tgz holds:
 - `tiers-ed25519.json`
 - this README
 - **`MANIFEST.json` + `MANIFEST.json.sha256`**, the box backup manifest (QA B3). phase-sign HARD-STOPS if the manifest is missing or its sha256 isn't the pinned
-  `81c30f1041bc5501e4de6a00e93485799c84530e347988ce6b2ab0015a8de414`, and on any asset digest mismatch.
+  `ca16acf820c69848007aff6351bbe99fb528b51c73b4252b86f06783c128900d`, and on any asset digest mismatch.
 
 ```bash
 # on the box
@@ -139,7 +150,35 @@ certs in `~/redx-ceremony` stay.
 
 ## Inventory
 
-The latest **published** release for each repo, Gendragoon included. Windows and Android are deferred. Older releases become drafts after publish, and only once they're fully backed up.
+The latest **published** release for each repo, Gendragoon included. **The Mac signs only macOS and iOS builds**
+(Josh's rule): every latest asset was classified by its content in the box backup (Mach-O, `.pkg` xar, `.dmg`
+UDIF, `.app` zip, `.ipa`, macOS installer script), cross-checked against the filename
+(`tools/classify-inventory.py`, box-only).
+
+| Repo | Release | sign_on_mac |
+|---|---|---|
+| RedX | v0.4.5 | 8 |
+| quick-launch | v1.0.0-beta.1 | 8 |
+| RottenApple | v0.1.0-beta.1 | 2 (darwin tar.gz) |
+| gendragoon-cloud-ssd | v0.18.0-rc.3 | 2 (`GenDragoon-Cloud-SSD-Mac-v0.18.0.zip`, `install-macos.py`) |
+| Gendragoon-Releases | all-platforms-2026-10-19 | 0 (no Mac or iOS asset) |
+| **Total** | | **20** |
+
+- **Deferred (31), left exactly as published:** Linux (14) and browser extensions (5): no signing host yet;
+  Windows (10) and Android (2): need the Windows host. Each entry in `inventory.json` `deferred` has its reason.
+- **Untouched latest (7):** checksum files and metadata. `publish.sh` never deletes or re-uploads a deferred or
+  untouched asset; a checksum file is only **merged** (the signed assets' lines may change, every other line is
+  kept as published), and skipped when nothing changed.
+- `gendragoon-cloud-ssd/Install.command` is a macOS installer launcher (it runs `install-macos.py`), but it is
+  **not** in the signing set; flagged for Josh.
+- `sign-batch` refuses the whole batch if any line is not macOS/iOS (exit 4, before any prompt or Keychain
+  read); `phase-sign` and the MANIFEST (`action: sign_on_mac`) refuse it too.
+- Older releases become drafts after publish, and only once they're fully backed up.
+
+**Serialisation (QA L5):** the exact subject compare is on **bytes as served by the HTTP API** (Go
+`json.Marshal` / `json.Encoder`, HTML-escaped: `A<B & C>` is `A\u003cB \u0026 C\u003e` on the wire). Signed
+bytes (cert TBS, fingerprints) are escape-off on both sides (`rarxai` `tbs()` and `core.canonJSON`), so
+`core.canonJSON` deliberately keeps `SetEscapeHTML(false)`; tests pin both.
 
 ## ra-core contract (final, RottenApple `rxa-cert-ids` @ 711171b)
 

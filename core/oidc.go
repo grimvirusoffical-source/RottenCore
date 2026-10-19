@@ -122,11 +122,14 @@ func (o *OIDCAccounts) Exchange(ctx context.Context, p PKCE, code, redirect stri
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	resp, err := o.Net.client().Do(req)
+	resp, err := NoRedirects(o.Net.client()).Do(req) // the code + verifier never follow a redirect
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
+	if err := RefuseRedirect(resp); err != nil {
+		return nil, err
+	}
 	b, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("token endpoint answered %d", resp.StatusCode)

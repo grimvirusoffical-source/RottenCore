@@ -119,12 +119,14 @@ func (h *fakeHub) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		if ready {
 			cs = h.subject
 		}
+		var subj core.CertSubject
+		_ = json.Unmarshal([]byte(h.subject), &subj)
 		var ctxs []map[string]interface{}
 		for i := 0; i < h.contexts; i++ {
-			ctxs = append(ctxs, map[string]interface{}{"team": i + 1, "kind": h.ctxKind, "name": "Josh Franklinn", "certTeamId": joshRXA, "role": "owner", "mega": true})
+			ctxs = append(ctxs, map[string]interface{}{"team": i + 1, "kind": h.ctxKind, "name": subj.Name, "certTeamId": subj.TeamID, "role": "owner", "mega": true})
 		}
 		enc.Encode(map[string]interface{}{"account": h.account(),
-			"cert":     map[string]interface{}{"devId": joshRXA, "teamId": joshRXA, "subject": cs, "ready": ready},
+			"cert":     map[string]interface{}{"devId": subj.DevID, "teamId": subj.TeamID, "subject": cs, "ready": ready},
 			"contexts": ctxs})
 	case "/v1/devhub/challenge":
 		h.sawBearer.Store(r.Header.Get("Authorization"))
@@ -188,7 +190,7 @@ func newPairEnv(t *testing.T, tweak func(*fakeHub)) *pairEnv {
 	kc := &fakeKC{items: map[string]core.Signer{}}
 	dev, _ := ensureKeychainKey(context.Background(), kc, "rottencore-device")
 	mega, _ := ensureKeychainKey(context.Background(), kc, "josh-mega")
-	c := &devhub.Client{BaseURL: srv.URL, APIKey: testBuildKey, Device: dev, Platform: devhub.PlatformMac, AccountsKey: []byte(testAccountsKey)}
+	c := &devhub.Client{BaseURL: srv.URL, AllowLoopbackHTTP: true, APIKey: testBuildKey, Device: dev, Platform: devhub.PlatformMac, AccountsKey: []byte(testAccountsKey)}
 	pairState = filepath.Join(t.TempDir(), "pairing.json")
 	pairName = "xlr1-mac"
 	return &pairEnv{hub: hub, srv: srv, c: c, mega: mega, rootPub: rootPub}
@@ -254,10 +256,10 @@ func TestContractPairStops(t *testing.T) {
 		noCert bool
 	}{
 		{"null subject", func(h *fakeHub) { h.nullSubject = true }, "yes\n", "approved pairing carries no account", true},
-		{"cert not ready", func(h *fakeHub) { h.notReady = true }, "yes\n", "cert.ready=false", true},
+		{"cert not ready", func(h *fakeHub) { h.notReady = true }, "yes\n", "not ready yet", true},
 		{"no contexts", func(h *fakeHub) { h.contexts = 0 }, "yes\n", "exactly one", true},
 		{"two contexts", func(h *fakeHub) { h.contexts = 2 }, "yes\n", "exactly one", true},
-		{"kind vs team id", func(h *fakeHub) { h.ctxKind = "team" }, "yes\n", "does not fit", true},
+		{"kind vs team id", func(h *fakeHub) { h.ctxKind = "team" }, "yes\n", "context but the team id", true},
 		{"no yes", nil, "y\n", "not confirmed", true},
 		{"accounts_key_mismatch", func(h *fakeHub) { h.certMismatch = true }, "yes\n", "accounts_key_mismatch", false},
 		{"pairing without account", func(h *fakeHub) { h.noPollAccount = true }, "yes\n", "carries no account", true},
@@ -484,5 +486,38 @@ func TestSigningIdentityCheck(t *testing.T) {
 	trustRootHex = ""
 	if err := signingIdentityCheck(context.Background()); err == nil {
 		t.Fatal("empty --trust-root accepted")
+	}
+}
+
+// QA L5: a team name with < > & goes through the whole flow: ra-core serves HTML-escaped wire bytes
+// (json.Marshal / Encoder) and signs escape-off TBS; the exact compare is wire vs wire and the chain verifies.
+func TestContractHTMLCharsInTeamName(t *testing.T) {
+	rxt := "rxt_ABCDEFGHIJKLMNOPQRSTUVWX27"
+	sb, _ := json.Marshal(struct {
+		Name   string `json:"name"`
+		TeamID string `json:"teamId"`
+		DevID  string `json:"devId"`
+	}{"A<B & C>", rxt, joshRXA})
+	if !strings.Contains(string(sb), `\u003c`) {
+		t.Fatal("premise: ra-core's CertSubjectString escapes")
+	}
+	e := newPairEnv(t, func(h *fakeHub) { h.subject = string(sb); h.ctxKind = "team" })
+	chain, raw, subject, err := e.run(t, "yes\n", "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(subject) != string(sb) || chain[0].Subject.Name != "A<B & C>" {
+		t.Fatalf("subject %s name %q", subject, chain[0].Subject.Name)
+	}
+	if _, err := core.VerifyCertChain(chain, core.ChainPolicy{Roots: []core.CARoot{{Name: "r", PublicKey: e.rootPub}}, Production: true}); err != nil {
+		t.Fatalf("chain: %v", err)
+	}
+	out := filepath.Join(t.TempDir(), "b.json")
+	if err := writeBundleExact(out, raw); err != nil {
+		t.Fatal(err)
+	}
+	leaf, _, err := readBundleLeaf(out)
+	if err != nil || core.EqualSubjectBytes(leaf, subject) != nil {
+		t.Fatalf("bundle round trip: %v", err)
 	}
 }

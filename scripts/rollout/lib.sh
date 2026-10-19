@@ -43,16 +43,33 @@ load_github_token() {
   [[ -n "${GH_RELEASE_TOKEN:-}" ]] || die "no GitHub token entered"
 }
 
-# curl_github URL -o DEST — Authorization header via stdin, never argv (ps-safe).
+# curl_github URL DEST — Authorization header via stdin, never argv (ps-safe). QA D3: curl never follows
+# a redirect (no -L): the authenticated API call answers 302 to a signed, short-lived asset URL; that
+# URL is checked (https, a GitHub asset host) and fetched WITHOUT any credential. Any other 3xx, host or
+# status is a hard error that names only the status and host.
+GITHUB_ASSET_HOSTS_RE='^(objects|release-assets|github-releases)\.githubusercontent\.com$'
 curl_github() {
-  local url="$1"; shift
+  local url="$1" dest="$2" res code loc host
   [[ -n "${GH_RELEASE_TOKEN:-}" ]] || die "GitHub token not loaded (load_github_token)"
   # -H @- reads the header line from stdin
-  printf 'Authorization: Bearer %s\n' "$GH_RELEASE_TOKEN" | curl -sS -L --fail \
+  res=$(printf 'Authorization: Bearer %s\n' "$GH_RELEASE_TOKEN" | curl -sS --proto =https --max-redirs 0 \
     -H @- \
     -H "Accept: application/octet-stream" \
     -H "X-GitHub-Api-Version: 2022-11-28" \
-    "$@" "$url"
+    -o "$dest" -w '%{http_code} %{redirect_url}' "$url") || { rm -f "$dest"; return 1; }
+  code="${res%% *}"; loc="${res#* }"
+  case "$code" in
+    200) return 0 ;;
+    301|302|303|307|308) rm -f "$dest" ;;
+    *) rm -f "$dest"; echo "GitHub answered HTTP $code" >&2; return 1 ;;
+  esac
+  host="${loc#https://}"; host="${host%%/*}"; host="${host%%\?*}"
+  if [[ "$loc" != https://* || ! "$host" =~ $GITHUB_ASSET_HOSTS_RE ]]; then
+    echo "refusing HTTP $code redirect to host ${host:-(none)}" >&2
+    return 1
+  fi
+  # Signed asset URL: no Authorization, no further redirects.
+  curl -sS --fail --proto =https --max-redirs 0 -o "$dest" "$loc" || { rm -f "$dest"; return 1; }
 }
 
 # QA F2: Keychain reads are done by /usr/bin/security, so the item ACL cannot single out our binaries.
@@ -96,14 +113,25 @@ optional_id_crosscheck() {
 
 # The Red-XAI Accounts key is typed at rottencore's hidden /dev/tty prompt ONLY. Refuse if
 # anything that looks like it is in the environment (names only are printed, never values).
+# Case-insensitive, like Go's (?i) accountsKeyEnvRe (QA L1): names are lower-cased before matching.
 refuse_accounts_key_env() {
-  local n bad=()
+  local n l bad=()
   while IFS= read -r n; do
-    if [[ "$n" =~ [Aa][Cc][Cc][Oo][Uu][Nn][Tt][Ss]?.*([Kk][Ee][Yy]|[Tt][Oo][Kk][Ee][Nn]|[Ss][Ee][Cc][Rr][Ee][Tt]) || "$n" =~ ^(REDX|RED_XAI|RXA)_.*(KEY|TOKEN|SECRET) ]]; then
+    l=$(printf '%s' "$n" | tr '[:upper:]' '[:lower:]')
+    if [[ "$l" =~ accounts?.*(key|token|secret) || "$l" =~ ^(redx|red_xai|rxa)_.*(key|token|secret) ]]; then
       bad+=("$n")
     fi
   done < <(compgen -e)
   [[ ${#bad[@]} -eq 0 ]] || die "unset ${bad[*]}: the Red-XAI Accounts key is typed at the prompt only, never the environment"
+}
+
+# require_https_devhub URL — QA L2: the dev hub is https only (keys ride on these requests); plain http
+# only to loopback (local test hubs). An origin only: no path, query, fragment or user info.
+require_https_devhub() {
+  local u="$1"
+  if [[ "$u" =~ ^https://[A-Za-z0-9.-]+(:[0-9]+)?/?$ ]]; then return 0; fi
+  if [[ "$u" =~ ^http://(localhost|127\.0\.0\.1|\[::1\])(:[0-9]+)?/?$ ]]; then return 0; fi
+  die "RA_DEVHUB_URL must be an https:// origin (plain http only to localhost/127.0.0.1); got scheme ${u%%:*}"
 }
 
 require_mac_terminal() {
@@ -127,7 +155,7 @@ keychain_prompt_notice() {
 }
 
 # Pinned public values from the box (QA B3 / M4). Override only with values Grok Bot gives you.
-BACKUP_MANIFEST_SHA256_PIN="${ROTTEN_MANIFEST_SHA256:-81c30f1041bc5501e4de6a00e93485799c84530e347988ce6b2ab0015a8de414}"
+BACKUP_MANIFEST_SHA256_PIN="${ROTTEN_MANIFEST_SHA256:-ca16acf820c69848007aff6351bbe99fb528b51c73b4252b86f06783c128900d}"
 ISSUING_CSR_FP_PIN="${ROTTEN_ISSUING_CSR_FP:-sha256:30af5d5eff2a398cba6e560cf9c00d51babe9775618e11c2f3db69d058379183}"
 
 sha256_of() { shasum -a 256 "$1" | awk '{print $1}'; }
@@ -170,6 +198,8 @@ assets = json.load(open(man))["assets"]
 want = None
 for a in assets:
     if a["repo"]==repo and a["tag"]==tag and a["name"]==name:
+        if a.get("action") != "sign_on_mac" or a.get("category") not in ("mac", "ios"):
+            sys.exit(f"MANIFEST marks {repo}/{tag}/{name} {a.get('action')!r}/{a.get('category')!r}: this Mac signs only macOS and iOS builds")
         want = a["sha256"]; break
 if not want:
     sys.exit(f"no MANIFEST entry for {repo}/{tag}/{name}")
@@ -199,6 +229,7 @@ setup_rollout_env() {
   TARBALL_OUT="${ROTTEN_SIGNED_TGZ:-$HOME/rottencore-signed.tgz}"
   require_abs "$TARBALL_OUT" "ROTTEN_SIGNED_TGZ"
   DEVHUB_URL="${RA_DEVHUB_URL:-https://api.rottenapplestore.org}"
+  require_https_devhub "$DEVHUB_URL"
   # QA F2: no -T trust list. Reads go through /usr/bin/security, so trusting our binaries would not help;
   # items are written with -T "" and every read prompts (click Allow, never Always Allow).
   unset ROTTEN_KEYCHAIN_TRUST

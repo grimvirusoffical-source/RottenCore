@@ -87,13 +87,19 @@ func (n *Net) get(ctx context.Context, raw string, accept string) (*http.Respons
 	if accept != "" {
 		req.Header.Set("Accept", accept)
 	}
+	hc := n.client() // public, unauthenticated reads may follow https redirects (release assets do)
 	if n.GitHubToken != "" {
 		if api, err := url.Parse(n.ghAPI()); err == nil && api.Host == u.Host && u.Scheme == "https" {
 			req.Header.Set("Authorization", "Bearer "+n.GitHubToken)
+			hc = NoRedirects(hc) // QA D3: a request with a token never follows a redirect
 		}
 	}
-	resp, err := n.client().Do(req)
+	resp, err := hc.Do(req)
 	if err != nil {
+		return nil, err
+	}
+	if err := RefuseRedirect(resp); err != nil {
+		resp.Body.Close()
 		return nil, err
 	}
 	if resp.StatusCode != 200 {
@@ -235,9 +241,10 @@ func ParseSHA256SUMS(b []byte) (map[string]string, error) {
 }
 
 // ClientForUploads returns an HTTP client suitable for large chunked uploads (long timeout, the same
-// redirect safety as client()). Used by the uploader.
+// https-only origin checks as client()). Used by the uploader.
+// Uploads carry the build key, so the client never follows a redirect (QA D3).
 func (n *Net) ClientForUploads() *http.Client {
-	c := n.client()
+	c := NoRedirects(n.client())
 	c.Timeout = 30 * time.Minute
 	return c
 }
