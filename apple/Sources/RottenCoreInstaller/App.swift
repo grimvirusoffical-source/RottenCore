@@ -127,10 +127,19 @@ final class AppModel: ObservableObject {
         }
     }
 
-    /// Rolls back one hosted app's rollout. The host restores only this app's own state (M4);
-    /// wiring to `rottencore host rollback` lands with the hosted CLI.
+    /// Rolls back one hosted app's rollout live, through `rottencore host rollback <id>`. The host restores
+    /// only this app's own state (M4). The host URL and key come from the environment; the key is never shown.
     func rollback(_ r: HostRollout) async {
-        message = "Rollback requested for \(r.appId). Hosted rollout control is wired through the Rotten Apple store."
+        guard let cli = cli else { return }
+        if r.rolloutID.isEmpty {
+            error = "This rollout has no id to roll back."
+            return
+        }
+        if let res = await work("Rolling back \(r.appId)…", { try await cli.hostRollback(r.rolloutID) }) {
+            message = "Rolled back rollout \(res.rolledBack)."
+            // reflect the new state locally
+            rollouts = rollouts.map { var x = $0; if x.rolloutID == r.rolloutID { x.phase = "rolled_back" }; return x }
+        }
     }
 
     func uninstall(_ a: InstalledApp) async {

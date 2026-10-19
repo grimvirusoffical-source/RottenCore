@@ -126,8 +126,24 @@ func runM1(ctx context.Context, cmd string, rest []string, kid string, lastSeq i
 // trust to non-production for this run: test chains verify and are labelled TEST, never production.
 var testRootHex string
 
+// trustRootHex is --trust-root: a PRODUCTION CA root (hex) trusted for this run only. Used by the Mac
+// ceremony to verify signatures against tonight's newly made root before it is pinned in PinnedCARoots.
+// Unlike --trust-test-root, production mode stays on and test certificates are still refused.
+var trustRootHex string
+
 func chainPolicy() core.ChainPolicy {
 	pol := core.ChainPolicy{Roots: core.PinnedCARoots, Production: true}
+	if trustRootHex != "" {
+		k, err := hex.DecodeString(trustRootHex)
+		if err != nil {
+			fail(errors.New("--trust-root must be hex"), 2)
+		}
+		alg := core.AlgEd25519
+		if len(k) == 97 {
+			alg = core.AlgP384
+		}
+		pol.Roots = append(append([]core.CARoot{}, pol.Roots...), core.CARoot{Name: "ceremony-root", Alg: alg, PublicKey: k, Test: false})
+	}
 	if testRootHex != "" {
 		k, err := hex.DecodeString(testRootHex)
 		if err != nil {

@@ -276,3 +276,25 @@ func TestBuilderContextGatesDeviceSDKAndSignsManifest(t *testing.T) {
 		t.Fatalf("manifest artifacts: %+v", m.Artifacts)
 	}
 }
+
+func Testbuilder.PlatformFromName(t *testing.T) {
+	cases := map[string]string{
+		"rotten-apple-0.1.0-darwin-arm64.tar.gz": "macos-arm64",
+		"rotten-apple-0.1.0-darwin-amd64.tar.gz": "macos-intel",
+		"redx-0.4.5-macos-arm64.dmg":             "macos-arm64",
+		"redx-0.4.5-macos-amd64.pkg":             "macos-intel",
+		"redx-0.4.5-linux-amd64.tar.gz":          "linux",
+		"redx_0.4.5_amd64.deb":                   "linux",
+		"QuickLaunch-1.0.0-beta.1-darwin-x64.dmg": "macos-intel",
+		"rotten-apple-extension-0.1.0.zip":       "extensions",
+		"GenDragoon-Cloud-SSD-Mac-v0.18.0.zip":   "macos-intel",
+		"install-macos.py":                      "macos-intel",
+		"something-windows-x64.exe":              "windows",
+		"app-android.apk":                        "android",
+	}
+	for name, want := range cases {
+		if got := builder.PlatformFromName(name); got != want {
+			t.Errorf("%s: got %q want %q", name, got, want)
+		}
+	}
+}

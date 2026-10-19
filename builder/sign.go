@@ -72,20 +72,28 @@ func SignFile(path, appID, version, platform string, host string, k core.Signer,
 func PlatformFromName(name string) string {
 	n := strings.ToLower(name)
 	switch {
-	case strings.Contains(n, "macos-arm64") || strings.Contains(n, "mac-arm64") || strings.Contains(n, "-arm64.dmg"):
-		return PlatformMacArm64
-	case strings.Contains(n, "macos-intel") || strings.Contains(n, "mac-intel") || strings.Contains(n, "-x64.dmg") || strings.HasSuffix(n, ".dmg"):
-		return PlatformMacIntel
-	case strings.HasSuffix(n, ".ipa"):
-		return PlatformIOS
-	case strings.HasSuffix(n, ".exe") || strings.HasSuffix(n, ".msi"):
-		return PlatformWindows
-	case strings.HasSuffix(n, ".apk") || strings.HasSuffix(n, ".aab"):
-		return PlatformAndroid
-	case strings.HasSuffix(n, ".appimage") || strings.HasSuffix(n, ".deb") || strings.HasSuffix(n, ".rpm"):
-		return PlatformLinux
 	case strings.Contains(n, "extension") || strings.HasSuffix(n, ".crx") || strings.HasSuffix(n, ".xpi"):
 		return PlatformExtensions
+	case strings.HasSuffix(n, ".ipa") || strings.Contains(n, "-ios-") || strings.Contains(n, "_ios_"):
+		return PlatformIOS
+	case strings.HasSuffix(n, ".apk") || strings.HasSuffix(n, ".aab") || strings.Contains(n, "android"):
+		return PlatformAndroid
+	case strings.HasSuffix(n, ".exe") || strings.HasSuffix(n, ".msi") || strings.Contains(n, "windows") || strings.Contains(n, "win32") || strings.Contains(n, "win64"):
+		return PlatformWindows
+	case strings.Contains(n, "macos-arm64") || strings.Contains(n, "mac-arm64") || strings.Contains(n, "darwin-arm64") ||
+		strings.Contains(n, "-arm64.dmg") || strings.Contains(n, "-arm64.pkg") || strings.Contains(n, "macos-universal") ||
+		(strings.Contains(n, "mac") && strings.Contains(n, "arm64")):
+		return PlatformMacArm64
+	case strings.Contains(n, "macos-intel") || strings.Contains(n, "mac-intel") || strings.Contains(n, "darwin-amd64") ||
+		strings.Contains(n, "darwin-x64") || strings.Contains(n, "macos-amd64") || strings.Contains(n, "-x64.dmg") ||
+		strings.Contains(n, "-x64.pkg") || strings.Contains(n, "-amd64.dmg") || strings.Contains(n, "-amd64.pkg") ||
+		strings.HasSuffix(n, ".dmg") || strings.HasSuffix(n, ".pkg") ||
+		(strings.Contains(n, "mac") && (strings.Contains(n, "amd64") || strings.Contains(n, "x64") || strings.Contains(n, "intel"))) ||
+		strings.Contains(n, "-mac-") || strings.Contains(n, "_mac_") || strings.HasPrefix(n, "mac-") ||
+		strings.Contains(n, "install-macos"):
+		return PlatformMacIntel // Intel/x64; also the fallback for undifferentiated "Mac" assets signed on a Mac
+	case strings.Contains(n, "linux") || strings.HasSuffix(n, ".appimage") || strings.HasSuffix(n, ".deb") || strings.HasSuffix(n, ".rpm"):
+		return PlatformLinux
 	default:
 		return ""
 	}

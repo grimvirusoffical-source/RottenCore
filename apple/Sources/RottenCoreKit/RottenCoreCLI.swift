@@ -114,4 +114,17 @@ public final class RottenCoreCLI {
 
     public func uninstall(_ appId: String) async throws -> InstalledApp { try await run(["uninstall", appId], as: InstalledApp.self) }
     public func search(_ q: String) async throws -> [Listing] { try await run(["search", q], as: [Listing].self) }
+
+    /// Live rollback of a hosted rollout through `rottencore host rollback <id>` (the updater's rollout card).
+    /// The host URL and key come from the environment (RA_HOST_URL / RA_HOST_KEY); the key is never shown.
+    public func hostRollback(_ rolloutID: String, reason: String? = nil) async throws -> HostRollbackResult {
+        var c = ["host", "rollback", rolloutID]
+        if let r = reason, !r.isEmpty { c.append(r) }
+        return try await run(c, as: HostRollbackResult.self)
+    }
+
+    /// One hosted app's live rollout status (`rottencore host rollout <id>`).
+    public func hostRollout(_ rolloutID: String) async throws -> HostRollout {
+        try await run(["host", "rollout", rolloutID], as: HostRollout.self)
+    }
 }

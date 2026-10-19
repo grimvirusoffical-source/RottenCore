@@ -65,6 +65,7 @@ func main() {
 	limit := fs.Int("limit", 25, "search: at most this many results")
 	fs.StringVar(&progressMode, "progress", "", "fetch: progress as json (NDJSON on stderr) for the loading screen")
 	fs.StringVar(&testRootHex, "trust-test-root", "", "trust a TEST Red-XAI CA root (hex) for this run; results are labelled TEST")
+	fs.StringVar(&trustRootHex, "trust-root", "", "trust a PRODUCTION Red-XAI CA root (hex) for this run (ceremony verify before pin)")
 	kid := fs.String("kid", "", "verify-update-manifest: X-RedX-Key-Id")
 	lastSeq := fs.Int64("last-seq", 0, "verify-update-manifest: last applied sequence for the app")
 	fs.StringVar(&signKey, "key", "", "sign/build: developer private key file (rottencore-ca keygen); mutually exclusive with --keychain")
@@ -79,6 +80,7 @@ func main() {
 	fs.StringVar(&buildOut, "out", "", "build: output directory")
 	fs.StringVar(&devTeam, "team", "", "device approve: team id (omit with --individual)")
 	fs.BoolVar(&devIndividual, "individual", false, "device approve: approve under an individual account")
+	fs.StringVar(&hostBase, "host", "", "host: Red-XAI Host origin for `rottencore host ...` (or RA_HOST_URL)")
 	fs.Parse(reorder(args[1:]))
 	rest := fs.Args()
 
@@ -108,6 +110,9 @@ func main() {
 		return
 	}
 	if runSign(ctx, cmd, rest) {
+		return
+	}
+	if runHost(ctx, cmd, rest) {
 		return
 	}
 	if cmd == "config" {
@@ -347,7 +352,7 @@ func progress() func(int64, int64) {
 // reorder lets flags come after positional arguments.
 func reorder(a []string) []string {
 	var flags, pos []string
-	valued := map[string]bool{"--admin": true, "-admin": true, "--store-url": true, "-store-url": true, "--accounts-issuer": true, "-accounts-issuer": true, "--theme": true, "-theme": true, "--limit": true, "-limit": true, "--progress": true, "-progress": true, "--kid": true, "-kid": true, "--last-seq": true, "-last-seq": true, "--trust-test-root": true, "-trust-test-root": true, "--key": true, "-key": true, "--label": true, "-label": true, "--service": true, "-service": true, "--bundle": true, "-bundle": true, "--app": true, "-app": true, "--app-version": true, "-app-version": true, "--platform": true, "-platform": true, "--sign-host": true, "-sign-host": true, "--out": true, "-out": true, "--team": true, "-team": true}
+	valued := map[string]bool{"--admin": true, "-admin": true, "--store-url": true, "-store-url": true, "--accounts-issuer": true, "-accounts-issuer": true, "--theme": true, "-theme": true, "--limit": true, "-limit": true, "--progress": true, "-progress": true, "--kid": true, "-kid": true, "--last-seq": true, "-last-seq": true, "--trust-test-root": true, "-trust-test-root": true, "--trust-root": true, "-trust-root": true, "--key": true, "-key": true, "--label": true, "-label": true, "--service": true, "-service": true, "--bundle": true, "-bundle": true, "--app": true, "-app": true, "--app-version": true, "-app-version": true, "--platform": true, "-platform": true, "--sign-host": true, "-sign-host": true, "--out": true, "-out": true, "--team": true, "-team": true, "--host": true, "-host": true}
 	for i := 0; i < len(a); i++ {
 		if strings.HasPrefix(a[i], "-") && a[i] != "-" {
 			flags = append(flags, a[i])

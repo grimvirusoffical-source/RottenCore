@@ -127,17 +127,31 @@ public struct RolloutHealth: Codable, Equatable {
     public var crashRate: Double?
     public var samples: Int?
 
+    enum CodingKeys: String, CodingKey {
+        case successRate = "success_rate"
+        case errorRate = "error_rate"
+        case crashRate = "crash_rate"
+        case samples
+    }
+
+    /// The number of canary samples before health is considered known (Go core.CanaryMinSamples).
+    public static let minSamples = 20
+
     public init(successRate: Double? = nil, errorRate: Double? = nil, crashRate: Double? = nil, samples: Int? = nil) {
         self.successRate = successRate; self.errorRate = errorRate; self.crashRate = crashRate; self.samples = samples
     }
 
-    /// True only when the host has reported real rates. Mirrors Go RolloutHealth.Known().
-    public var known: Bool { successRate != nil && errorRate != nil && crashRate != nil }
+    /// True only once the host has real rates AND at least minSamples canary samples. Mirrors Go
+    /// RolloutHealth.Known() after fbc2098.
+    public var known: Bool {
+        (samples ?? 0) >= RolloutHealth.minSamples && (successRate != nil || errorRate != nil || crashRate != nil)
+    }
 }
 
 /// One app's hosted rollout. `awaitingHealthData` means nothing auto-promotes yet.
 public struct HostRollout: Codable, Equatable, Identifiable {
-    public var id: String { appId }
+    public var id: String { rolloutID.isEmpty ? appId : rolloutID }
+    public var rolloutID: String    // the host rollout id, for a live rollback
     public var appId: String
     public var version: String
     public var phase: String        // staged | rolling | promoted | rolledback | failed
@@ -145,12 +159,34 @@ public struct HostRollout: Codable, Equatable, Identifiable {
     public var health: RolloutHealth
     public var updatedAt: String?
 
-    public init(appId: String, version: String, phase: String, fromVersion: String? = nil, health: RolloutHealth = RolloutHealth(), updatedAt: String? = nil) {
-        self.appId = appId; self.version = version; self.phase = phase; self.fromVersion = fromVersion; self.health = health; self.updatedAt = updatedAt
+    enum CodingKeys: String, CodingKey {
+        case rolloutID = "rollout_id"
+        case appId = "app"
+        case version
+        case phase = "state"
+        case fromVersion
+        case health
+        case updatedAt
     }
 
-    /// Mirrors Go HostRollout.AwaitingHealthData: rolling but no health reported yet.
-    public var awaitingHealthData: Bool { phase == "rolling" && !health.known }
+    public init(rolloutID: String = "", appId: String, version: String, phase: String, fromVersion: String? = nil, health: RolloutHealth = RolloutHealth(), updatedAt: String? = nil) {
+        self.rolloutID = rolloutID; self.appId = appId; self.version = version; self.phase = phase; self.fromVersion = fromVersion; self.health = health; self.updatedAt = updatedAt
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        rolloutID = (try? c.decode(String.self, forKey: .rolloutID)) ?? ""
+        appId = (try? c.decode(String.self, forKey: .appId)) ?? ""
+        version = (try? c.decode(String.self, forKey: .version)) ?? ""
+        phase = (try? c.decode(String.self, forKey: .phase)) ?? ""
+        fromVersion = try? c.decode(String.self, forKey: .fromVersion)
+        // health may be null (the host has not reported yet)
+        health = (try? c.decode(RolloutHealth.self, forKey: .health)) ?? RolloutHealth()
+        updatedAt = try? c.decode(String.self, forKey: .updatedAt)
+    }
+
+    /// Mirrors Go HostRollout.AwaitingHealthData: no known health yet (nothing auto-promotes).
+    public var awaitingHealthData: Bool { !health.known }
 
     public var healthSummary: String {
         if !health.known { return "awaiting health data" }
@@ -178,4 +214,11 @@ public struct Outcome: Identifiable, Equatable {
     public init(kind: Kind, title: String, detail: String) {
         self.kind = kind; self.title = title; self.detail = detail
     }
+}
+
+
+/// What `rottencore host rollback` returns.
+public struct HostRollbackResult: Codable, Equatable {
+    public var rolledBack: String
+    public init(rolledBack: String) { self.rolledBack = rolledBack }
 }
