@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -201,19 +202,59 @@ func TestDaemonResetReasons(t *testing.T) {
 
 func TestKeyringSecretStaysOffArgv(t *testing.T) {
 	dir := t.TempDir()
-	script := "#!/bin/sh\nprintf '%s\\n' \"$*\" > \"$0.argv\"\ncat > \"$0.stdin\"\n"
-	bin := filepath.Join(dir, "secret-tool")
+	// The helper the OS keyring actually execs. A fake earlier on PATH records
+	// argv and stdin and exits 0, so this never talks to a real keychain.
+	name := "secret-tool"
+	switch runtime.GOOS {
+	case "darwin":
+		name = "python3"
+	case "windows":
+		name = "powershell"
+	}
+	script := "#!/bin/sh\nprintf '%s\\n' \"$*\" > \"$0.argv\"\ncat > \"$0.stdin\"\nprintf '%s\\n' 'ZHVtbXk='\n"
+	bin := filepath.Join(dir, name)
 	if err := os.WriteFile(bin, []byte(script), 0o700); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
 	const secret = "kr-sentinel-44"
-	if err := (OSKeyring{}).Put("access-token", []byte(secret)); err != nil {
+	kr := OSKeyring{Dir: dir}
+	if err := kr.Put("access-token", []byte(secret)); err != nil {
 		t.Fatal(err)
 	}
-	argv, _ := os.ReadFile(bin + ".argv")
-	stdin, _ := os.ReadFile(bin + ".stdin")
-	if strings.Contains(string(argv), secret) || string(stdin) != secret {
-		t.Fatalf("argv %s stdin %q", argv, stdin)
+	argv, err := os.ReadFile(bin + ".argv")
+	if err != nil {
+		t.Fatal(err)
+	}
+	stdin, err := os.ReadFile(bin + ".stdin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(argv), secret) {
+		t.Fatalf("secret on argv: %s", argv)
+	}
+	switch runtime.GOOS {
+	case "darwin":
+		if !strings.Contains(string(stdin), secret) {
+			t.Fatal("darwin keychain stdin dropped the framed secret")
+		}
+	case "windows":
+		if strings.Contains(string(stdin), secret) {
+			t.Fatal("DPAPI stdin held the plaintext")
+		}
+		matches, _ := filepath.Glob(filepath.Join(dir, "keyring", "*.dpapi"))
+		if len(matches) == 0 {
+			t.Fatal("DPAPI put wrote no ciphertext file")
+		}
+		for _, p := range matches {
+			b, _ := os.ReadFile(p)
+			if strings.Contains(string(b), secret) {
+				t.Fatal("DPAPI file held the plaintext")
+			}
+		}
+	default:
+		if string(stdin) != secret {
+			t.Fatalf("stdin %q", stdin)
+		}
 	}
 }
