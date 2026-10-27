@@ -453,10 +453,18 @@ func waitAgent(t *testing.T, c *Core, errCh <-chan error) {
 }
 
 func TestAgentSocketStaysDialable(t *testing.T) {
-	short := &Core{State: &State{Dir: t.TempDir()}}
-	p, err := short.agentSocket()
-	if err != nil || !strings.HasSuffix(p, "sign-agent.sock") || !unixSocketFits(p) {
+	dir := t.TempDir()
+	c := &Core{State: &State{Dir: dir}}
+	p, err := c.agentSocket()
+	if err != nil || !unixSocketFits(p) || len(p) > 103 {
 		t.Fatalf("%s %v", p, err)
+	}
+	preferred := filepath.Join(dir, "sign-agent.sock")
+	if unixSocketFits(preferred) && p != preferred {
+		t.Fatalf("got %s want %s", p, preferred)
+	}
+	if !unixSocketFits(preferred) && !strings.HasPrefix(p, "/tmp/rc-") {
+		t.Fatalf("long support dir should use a short socket, got %s", p)
 	}
 	long := &Core{State: &State{Dir: "/tmp/" + strings.Repeat("a", 180)}}
 	p, err = long.agentSocket()
