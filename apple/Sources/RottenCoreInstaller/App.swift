@@ -33,7 +33,7 @@ struct RottenCoreInstallerApp: App {
 }
 
 enum SidebarItem: String, CaseIterable, Identifiable {
-    case install = "Install", installed = "Installed", updates = "Updates", store = "Store", settings = "Settings"
+    case install = "Install", installed = "Installed", updates = "Updates", store = "Store", sign = "Sign", settings = "Settings"
     var id: String { rawValue }
     var icon: String {
         switch self {
@@ -41,6 +41,7 @@ enum SidebarItem: String, CaseIterable, Identifiable {
         case .installed: return "square.grid.2x2"
         case .updates: return "arrow.triangle.2.circlepath"
         case .store: return "bag"
+        case .sign: return "signature"
         case .settings: return "gearshape"
         }
     }
@@ -57,7 +58,12 @@ final class AppModel: ObservableObject {
     @Published var installed: [InstalledApp] = []
     @Published var updates: [UpdateInfo] = []
     @Published var results: [Listing] = []
+    @Published var signSession: SignIdentity?
+    @Published var signFile: URL?
+    @Published var signPlatform = ""
     let accounts: AccountProvider = RedXAIAccountsStub()
+    /// Kept for the login. Changing sidebar sections does not stop it. Sign-out does.
+    let signingAgent = SigningAgent()
     private var cli: RottenCoreCLI?
 
     init() {
@@ -66,7 +72,10 @@ final class AppModel: ObservableObject {
         // An app that embeds RottenCore starts it with the file to install as the first argument.
         let args = CommandLine.arguments.dropFirst().filter { !$0.hasPrefix("-") }
         if let f = args.first, FileManager.default.fileExists(atPath: f) { Task { await self.inspect(URL(fileURLWithPath: f)) } }
-        Task { await refresh() }
+        Task {
+            await refresh()
+            await refreshSignSession(quiet: true)
+        }
     }
 
     func open(_ url: URL) { if url.isFileURL { Task { await inspect(url) } } }
@@ -134,6 +143,102 @@ final class AppModel: ObservableObject {
         guard let cli = cli else { return }
         if let r = await work("Searching the Rotten Apple store…", { try await cli.search(q) }) { results = r }
     }
+
+    /// Quiet failures stay off the status bar. A poll that fails does not drop a session
+    /// that was already shown; sign-out clears it.
+    func refreshSignSession(quiet: Bool) async {
+        guard let cli = cli else { return }
+        do {
+            let who = try await cli.whoami()
+            signSession = who
+            if signPlatform.isEmpty || !who.platforms.contains(signPlatform) {
+                signPlatform = who.platforms.first ?? ""
+            }
+        } catch {
+            if !quiet {
+                self.error = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            }
+        }
+    }
+
+    func pickSignFile() {
+        let p = NSOpenPanel()
+        p.canChooseFiles = true
+        p.canChooseDirectories = true
+        p.treatsFilePackagesAsDirectories = false
+        p.allowsOtherFileTypes = true
+        if p.runModal() == .OK, let u = p.url { signFile = u }
+    }
+
+    /// password is the view's copy. It is not stored on the model, in preferences, or in the child environment.
+    func unlockSigning(password: String) async {
+        guard let cli = cli else { return }
+        guard signSession?.role == "owner" else {
+            error = "Only an owner session can unlock the lifetime cert."
+            return
+        }
+        guard let token = cli.environment["ROTTENCORE_ACCESS_TOKEN"], !token.isEmpty else {
+            error = "Sign in with a Red-XAI owner account first."
+            return
+        }
+        busy = "Unlocking the lifetime certificate…"
+        error = nil
+        defer { busy = nil }
+        let agent = signingAgent
+        let binary = cli.binary
+        let env = cli.environment
+        do {
+            try await withCheckedThrowingContinuation { (cont: CheckedContinuation<Void, Error>) in
+                DispatchQueue.global(qos: .userInitiated).async {
+                    do {
+                        try agent.start(binary: binary, environment: env, token: token, password: password)
+                        cont.resume()
+                    } catch {
+                        cont.resume(throwing: error)
+                    }
+                }
+            }
+        } catch {
+            self.error = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            return
+        }
+        for _ in 0..<40 {
+            if let who = try? await cli.whoami(), who.agentRunning {
+                signSession = who
+                if signPlatform.isEmpty || !who.platforms.contains(signPlatform) {
+                    signPlatform = who.platforms.first ?? ""
+                }
+                message = "Lifetime certificate unlocked for this login."
+                return
+            }
+            try? await Task.sleep(nanoseconds: 250_000_000)
+        }
+        error = "The signing agent did not unlock."
+    }
+
+    func performSign(withLauncher: Bool) async {
+        guard let cli = cli, let file = signFile, let who = signSession else { return }
+        let control = withLauncher
+            ? SignGate.withLauncher(role: who.role, launcherInstalled: who.launcherInstalled, launcherRunning: who.launcherRunning, agentRunning: who.agentRunning)
+            : SignGate.withoutLauncher(role: who.role, agentRunning: who.agentRunning)
+        guard control == .enabled else { return }
+        if let result = await work("Signing \(file.lastPathComponent)…", {
+            try await cli.sign(file: file, platform: signPlatform, withLauncher: withLauncher, viaAgent: true)
+        }) {
+            message = "Signed \(result.appId) \(result.version)."
+        }
+    }
+
+    func signOut() async {
+        if let cli = cli {
+            await signingAgent.stop(using: cli)
+            cli.environment.removeValue(forKey: "ROTTENCORE_ACCESS_TOKEN")
+        }
+        signSession = nil
+        signFile = nil
+        signPlatform = ""
+        message = "Signed out. The signing agent was stopped."
+    }
 }
 
 struct ContentView: View {
@@ -157,6 +262,7 @@ struct ContentView: View {
         case .installed: InstalledView()
         case .updates: UpdatesView()
         case .store: StoreView()
+        case .sign: SignView()
         case .settings: SettingsView()
         }
     }
@@ -392,12 +498,21 @@ struct SettingsView: View {
                 ForEach(Theme.allCases) { Text($0.label).tag($0.rawValue) }
             }
             .pickerStyle(.segmented)
-            HStack {
-                Text("Red-XAI Account")
-                Spacer()
-                Button("Sign In") { Task { _ = await model.work("Signing in…") { try await model.accounts.signIn() } } }
-                    .disabled(!model.accounts.isAvailable)
-                Text("Coming soon").foregroundColor(.secondary)
+            if let who = model.signSession {
+                HStack {
+                    Text("Red-XAI Account")
+                    Spacer()
+                    Text("\(who.email) · \(who.role)").foregroundColor(.secondary)
+                    Button("Sign Out") { Task { await model.signOut() } }
+                }
+            } else {
+                HStack {
+                    Text("Red-XAI Account")
+                    Spacer()
+                    Button("Sign In") { Task { _ = await model.work("Signing in…") { try await model.accounts.signIn() } } }
+                        .disabled(!model.accounts.isAvailable)
+                    Text("Coming soon").foregroundColor(.secondary)
+                }
             }
             Text("RottenCore sends no telemetry. The store address and account settings live in ~/Library/Application Support/RottenCore/config.json.")
                 .font(.caption).foregroundColor(.secondary)

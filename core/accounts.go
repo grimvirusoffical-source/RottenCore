@@ -26,6 +26,37 @@ type Session struct {
 // ErrAccountsComingSoon is what the stub answers.
 var ErrAccountsComingSoon = errors.New("Red-XAI Accounts sign-in is coming soon")
 
+// ErrSignInRequired is returned when a command needs an access token and none was given.
+var ErrSignInRequired = errors.New("sign in to Red-XAI Accounts first")
+
+// Profile is the rxa-account view RottenCore needs. The access token is not stored here.
+type Profile struct {
+	Sub               string
+	Email             string
+	PreferredUsername string
+	AgeBand           string
+	Verified          bool
+	AdultVerified     bool
+	IDVerified        bool
+	IDVerifiedMs      int64
+	MFA               bool
+	AMR               []string
+	sawID             bool
+}
+
+// LifetimeCert is an Accounts document of kind rxa-lifetime-cert.
+// PrivateEnc is Red-SecretsXAI ciphertext. Accounts returns it only for an owner session.
+// RottenCore decrypts it in memory and does not keep this field after that.
+type LifetimeCert struct {
+	Kind        string   `json:"kind"`
+	CertID      string   `json:"cert_id"`
+	PubKey      string   `json:"pubkey"`
+	PrivateEnc  string   `json:"private_enc,omitempty"`
+	Issued      string   `json:"issued,omitempty"`
+	OwnerEmails []string `json:"owner_emails"`
+	SigIDPrefix string   `json:"sig_id_prefix"`
+}
+
 // StubAccounts is the placeholder until Red-XAI Accounts has an API.
 type StubAccounts struct{}
 

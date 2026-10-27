@@ -6,6 +6,9 @@
 //	rottencore search <words> | info <app id>            the Rotten Apple store catalog (optional)
 //	rottencore config [--store-url URL] [--accounts-issuer URL] [--theme dark|light|system]
 //	rottencore signin                                    Red-XAI Accounts (coming soon)
+//	rottencore whoami                                    the signed-in account, without secrets
+//	rottencore sign --lifetime --with-launcher|--without-launcher --platform macos|ios|android|windows|linux <file>
+//	rottencore agent                                     in-memory signing agent the Mac app keeps running
 //
 // Every command takes --json (one JSON object on stdout: {"ok":true,"result":...} or {"ok":false,"error":...,"code":...}).
 // Exit codes: 0 ok, 1 error, 2 usage, 3 untrusted (accept the warning to continue), 4 refused (checksum mismatch).
@@ -63,6 +66,12 @@ func main() {
 	issuer := fs.String("accounts-issuer", "", "config: Red-XAI Accounts OIDC issuer")
 	theme := fs.String("theme", "", "config: dark | light | system")
 	limit := fs.Int("limit", 25, "search: at most this many results")
+	lifetime := fs.Bool("lifetime", false, "sign with the Red-XAI lifetime certificate")
+	withLauncher := fs.Bool("with-launcher", false, "sign so the Rotten Apple launcher is required")
+	withoutLauncher := fs.Bool("without-launcher", false, "sign without requiring the launcher")
+	platformFlag := fs.String("platform", "", "macos | ios | android | windows | linux")
+	viaAgent := fs.Bool("via-agent", false, "ask the in-memory signing agent")
+	secretsStdin := fs.Bool("secrets-stdin", false, "read the Red-SecretsXAI password from stdin")
 	fs.Parse(reorder(args[1:]))
 	rest := fs.Args()
 
@@ -222,6 +231,14 @@ func main() {
 	case "signin":
 		_, err := c.Accounts.SignIn(ctx)
 		check(err)
+	case "whoami":
+		w, err := c.WhoAmI(ctx, os.Getenv("ROTTENCORE_ACCESS_TOKEN"))
+		check(err)
+		out(w, func() { printWho(w) })
+	case "sign":
+		runSign(ctx, c, rest, *lifetime, *withLauncher, *withoutLauncher, *viaAgent, *secretsStdin, *platformFlag)
+	case "agent":
+		runAgent(ctx, c, rest)
 	default:
 		usage()
 		os.Exit(2)
@@ -318,7 +335,7 @@ func progress() func(int64, int64) {
 // reorder lets flags come after positional arguments.
 func reorder(a []string) []string {
 	var flags, pos []string
-	valued := map[string]bool{"--admin": true, "-admin": true, "--store-url": true, "-store-url": true, "--accounts-issuer": true, "-accounts-issuer": true, "--theme": true, "-theme": true, "--limit": true, "-limit": true}
+	valued := map[string]bool{"--admin": true, "-admin": true, "--store-url": true, "-store-url": true, "--accounts-issuer": true, "-accounts-issuer": true, "--theme": true, "-theme": true, "--limit": true, "-limit": true, "--platform": true, "-platform": true}
 	for i := 0; i < len(a); i++ {
 		if strings.HasPrefix(a[i], "-") && a[i] != "-" {
 			flags = append(flags, a[i])
@@ -380,7 +397,10 @@ func usage() {
   list | check-updates | update <app id> | uninstall <app id>
   search <words> | info <app id>
   config [--store-url URL] [--accounts-issuer URL] [--theme dark|light|system]
+  whoami
+  sign --lifetime --with-launcher|--without-launcher --platform macos|ios|android|windows|linux <file>
+  agent | agent shutdown
   signin | version
-flags: --json --admin sudo|osascript
+flags: --json --admin sudo|osascript --secrets-stdin --via-agent
 `)
 }

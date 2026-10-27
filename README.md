@@ -25,6 +25,9 @@ rottencore install github:grimvirusoffical-source/RedX --accept-untrusted
 rottencore list
 rottencore check-updates
 rottencore uninstall com.redx.app
+
+# owner session (ROTTENCORE_ACCESS_TOKEN). The password is prompted, never an argument.
+rottencore sign --lifetime --without-launcher --platform macos ./RedX.zip
 ```
 
 ## Build

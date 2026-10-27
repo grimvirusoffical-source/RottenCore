@@ -102,6 +102,38 @@ public struct UpdateInfo: Codable, Equatable, Identifiable {
     public var error: String?
 }
 
+public struct SignIdentity: Codable, Equatable {
+    public var role: String
+    public var email: String
+    public var verified: Bool
+    public var idVerified: Bool
+    public var idVerifiedMs: Int64
+    public var mfa: Bool
+    public var platforms: [String]
+    public var launcherInstalled: Bool
+    public var launcherRunning: Bool
+    public var agentRunning: Bool
+    public var officialOSSigning: String
+}
+
+public struct SignResult: Codable, Equatable {
+    public var type: String
+    public var sigId: String
+    public var appId: String
+    public var version: String
+    public var hash: String
+    public var platforms: [String]
+    public var launcherRequired: Bool
+    public var certId: String
+    public var output: String
+    public var officialOSSigning: String
+    public var prevSigId: String?
+}
+
+public struct AgentAck: Codable, Equatable {
+    public var stopped: Bool
+}
+
 /// The trust rule the app enforces before it lets anyone press Install (the engine enforces it again).
 public enum InstallGate: Equatable {
     case refused(String)          // checksum mismatch: never installable

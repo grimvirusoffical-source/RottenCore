@@ -114,4 +114,15 @@ public final class RottenCoreCLI {
 
     public func uninstall(_ appId: String) async throws -> InstalledApp { try await run(["uninstall", appId], as: InstalledApp.self) }
     public func search(_ q: String) async throws -> [Listing] { try await run(["search", q], as: [Listing].self) }
+
+    public func whoami() async throws -> SignIdentity { try await run(["whoami"], as: SignIdentity.self) }
+
+    public func sign(file: URL, platform: String, withLauncher: Bool, viaAgent: Bool) async throws -> SignResult {
+        var command = ["sign", file.path, "--lifetime", "--platform", platform]
+        command.append(withLauncher ? "--with-launcher" : "--without-launcher")
+        if viaAgent { command.append("--via-agent") }
+        return try await run(command, as: SignResult.self)
+    }
+
+    public func stopAgent() async throws -> AgentAck { try await run(["agent", "shutdown"], as: AgentAck.self) }
 }
