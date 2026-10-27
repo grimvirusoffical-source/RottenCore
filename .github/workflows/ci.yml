@@ -20,6 +20,11 @@ jobs:
       - name: gofmt
         run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
       - run: go vet ./...
+      - name: Red-SecretsXAI
+        run: |
+          python3 -m venv "$RUNNER_TEMP/rsx"
+          "$RUNNER_TEMP/rsx/bin/pip" install 'red-xai-encrypt==0.3.0'
+          echo "$RUNNER_TEMP/rsx/bin" >> "$GITHUB_PATH"
       - run: go test -race -count=1 ./...
 
   macos:

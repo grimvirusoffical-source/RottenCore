@@ -114,4 +114,22 @@ public final class RottenCoreCLI {
 
     public func uninstall(_ appId: String) async throws -> InstalledApp { try await run(["uninstall", appId], as: InstalledApp.self) }
     public func search(_ q: String) async throws -> [Listing] { try await run(["search", q], as: [Listing].self) }
+
+    public func whoami() async throws -> SignIdentity { try await run(["whoami"], as: SignIdentity.self) }
+
+    /// Quick Login (red-xai.com/redxai-connect). The command opens the browser and polls.
+    /// Tokens stay in the OS keyring only when the server sets remember_device.
+    public func login() async throws -> SignIdentity { try await run(["login"], as: SignIdentity.self) }
+
+    /// Drops the keyring session (`rottencore logout`). Other Red-XAI apps keep their own tokens.
+    public func logout() async throws -> SessionAck { try await run(["logout"], as: SessionAck.self) }
+
+    public func sign(file: URL, platform: String, withLauncher: Bool, viaAgent: Bool) async throws -> SignResult {
+        var command = ["sign", file.path, "--lifetime", "--platform", platform]
+        command.append(withLauncher ? "--with-launcher" : "--without-launcher")
+        if viaAgent { command.append("--via-agent") }
+        return try await run(command, as: SignResult.self)
+    }
+
+    public func stopAgent() async throws -> AgentAck { try await run(["agent", "shutdown"], as: AgentAck.self) }
 }

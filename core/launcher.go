@@ -1,6 +1,7 @@
 package core
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -27,8 +28,25 @@ func LauncherCandidates() []string {
 	if p, err := exec.LookPath("ra-launcher"); err == nil {
 		c = append(c, p)
 	}
-	c = append(c, "/Applications/Rotten Apple.app/Contents/MacOS/ra-launcher", "/usr/local/bin/ra-launcher", "/opt/homebrew/bin/ra-launcher")
+	c = append(c,
+		"/Applications/Rotten Apple.app/Contents/MacOS/ra-launcher",
+		"/Applications/Poison Apple.app/Contents/MacOS/pa-launcher",
+		"/Applications/Poison Apple.app/Contents/MacOS/Poison Apple",
+		"/usr/local/bin/ra-launcher",
+		"/usr/local/bin/pa-launcher",
+		"/opt/homebrew/bin/ra-launcher",
+	)
 	return c
+}
+
+// LauncherStatus reports the Rotten Apple or Poison Apple launcher. installed means a
+// candidate binary exists; running means that binary, or a process named ra-launcher,
+// pa-launcher, "Rotten Apple" or "Poison Apple", is executing.
+func LauncherStatus() (path string, installed, running bool) {
+	path, err := FindLauncher()
+	installed = err == nil && path != ""
+	running = launcherRunning(path)
+	return path, installed, running
 }
 
 // FindLauncher returns the first ra-launcher that exists.
@@ -89,4 +107,98 @@ func (c *Core) UpdateViaLauncher(ctx context.Context, e *Entry) error {
 	}
 	_, err = c.Engine.R.Run(ctx, l, "--store", e.Store.URL, "update", e.AppID)
 	return err
+}
+
+var launcherComms = []string{"ra-launcher", "pa-launcher", "Rotten Apple", "Poison Apple"}
+
+func launcherName(name string) bool {
+	base := filepath.Base(name)
+	for _, n := range launcherComms {
+		if name == n || base == n {
+			return true
+		}
+	}
+	return false
+}
+
+func launcherRunning(bin string) bool {
+	// An explicit launcher path (tests, ROTTENCORE_RA_LAUNCHER) has to be that process.
+	// Otherwise any Rotten Apple or Poison Apple process counts.
+	strict := os.Getenv("ROTTENCORE_RA_LAUNCHER") != ""
+	if st, err := os.Stat("/proc/1"); err == nil && st.IsDir() {
+		return scanProc(bin, strict)
+	}
+	return scanPS(bin, strict)
+}
+
+func scanProc(bin string, strict bool) bool {
+	entries, err := os.ReadDir("/proc")
+	if err != nil {
+		return false
+	}
+	for _, e := range entries {
+		pid := e.Name()
+		if pid == "" || pid[0] < '0' || pid[0] > '9' {
+			continue
+		}
+		comm := ""
+		if b, err := os.ReadFile("/proc/" + pid + "/comm"); err == nil {
+			comm = strings.TrimSpace(string(b))
+		}
+		raw, err := os.ReadFile("/proc/" + pid + "/cmdline")
+		if err != nil {
+			continue
+		}
+		hitPath := false
+		hitName := launcherName(comm)
+		for _, a := range bytes.Split(raw, []byte{0}) {
+			if bin != "" && string(a) == bin {
+				hitPath = true
+			}
+			if launcherName(string(a)) || launcherName(filepath.Base(string(a))) {
+				hitName = true
+			}
+		}
+		if strict {
+			if hitPath {
+				return true
+			}
+			continue
+		}
+		if hitPath || hitName {
+			return true
+		}
+	}
+	return false
+}
+
+func scanPS(bin string, strict bool) bool {
+	// -ww: macOS ps otherwise clips the command at the window width, which hides a long temp path.
+	out, err := exec.Command("ps", "-axww", "-o", "command=").Output()
+	if err != nil {
+		return false
+	}
+	for _, line := range strings.Split(string(out), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "ps ") {
+			continue
+		}
+		hitPath := bin != "" && strings.Contains(line, bin)
+		hitName := false
+		for _, n := range launcherComms {
+			if strings.Contains(line, n) {
+				hitName = true
+			}
+		}
+		if strict {
+			if hitPath {
+				return true
+			}
+			continue
+		}
+		if hitPath || hitName {
+			return true
+		}
+	}
+	return false
 }

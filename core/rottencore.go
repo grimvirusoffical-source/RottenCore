@@ -26,6 +26,8 @@ type Core struct {
 	Arch     string // arm64 | x86_64
 	Now      func() time.Time
 	Accounts Accounts
+	// Secrets stores tokens and Red-SecretsXAI ciphertext. Nil uses the OS keyring.
+	Secrets SecretStore
 }
 
 // Errors the app shows by name.
@@ -538,6 +540,11 @@ func (c *Core) CheckUpdates(ctx context.Context) ([]UpdateInfo, error) {
 				break
 			}
 			u.Available = rel.ReleaseVersion()
+			if rel.Draft || rel.Prerelease {
+				u.Newer = false
+				u.Error = "the newest GitHub release is not a stable release"
+				break
+			}
 			u.Newer = CompareVersions(u.Available, e.Version) > 0
 			if a := PickMacAsset(rel, e.GitHub.AssetPattern, e.Kind, c.Arch); a != nil {
 				u.Asset = a.Name
@@ -619,6 +626,10 @@ func (c *Core) PrepareUpdate(ctx context.Context, appID string, progress func(in
 	}
 	if in.AppID == "" {
 		in.AppID = e.AppID
+	}
+	if in.Version != "" && CompareVersions(in.Version, e.Version) <= 0 {
+		in.Close()
+		return nil, errors.New("the release is not newer than the installed version")
 	}
 	return in, nil
 }

@@ -56,6 +56,76 @@ final class RottenCoreKitTests: XCTestCase {
         XCTAssertEqual(Theme.allCases.first, .dark)
     }
 
+    func testSignPaletteIsCharcoalCrimsonBone() {
+        XCTAssertEqual(SignPalette.charcoal, SignPalette.RGB(0x0C, 0x0D, 0x10))
+        XCTAssertEqual(SignPalette.crimson, SignPalette.RGB(0xE2, 0x3B, 0x3B))
+        XCTAssertEqual(SignPalette.bone, SignPalette.RGB(0xEC, 0xE8, 0xE4))
+        XCTAssertEqual(SignGate.officialNote, "Official OS signing is still recommended. This overlay works either way.")
+    }
+
+    func testSignGateKeepsDevelopersOnTheLauncher() {
+        XCTAssertEqual(
+            SignGate.withoutLauncher(role: "dev", agentRunning: true),
+            .disabled("Developers sign with the Rotten Apple launcher.")
+        )
+        XCTAssertEqual(
+            SignGate.withoutLauncher(role: "owner", agentRunning: false),
+            .disabled("Unlock the lifetime cert first.")
+        )
+        XCTAssertEqual(SignGate.withoutLauncher(role: "owner", agentRunning: true), .enabled)
+        XCTAssertEqual(
+            SignGate.withLauncher(role: "dev", launcherInstalled: true, launcherRunning: true, agentRunning: false),
+            .disabled("An owner has to unlock signing on this Mac.")
+        )
+        XCTAssertEqual(
+            SignGate.withLauncher(role: "owner", launcherInstalled: true, launcherRunning: false, agentRunning: false),
+            .disabled("Unlock the lifetime cert first.")
+        )
+        XCTAssertEqual(
+            SignGate.withLauncher(role: "owner", launcherInstalled: false, launcherRunning: false, agentRunning: true),
+            .disabled("The Rotten Apple launcher has to be installed and running.")
+        )
+        XCTAssertEqual(
+            SignGate.withLauncher(role: "dev", launcherInstalled: true, launcherRunning: true, agentRunning: true),
+            .enabled
+        )
+        XCTAssertEqual(
+            SignGate.withLauncher(role: "owner", launcherInstalled: true, launcherRunning: true, agentRunning: true),
+            .enabled
+        )
+    }
+
+    func testAgentHandshakeFramesTokenThenPassword() {
+        let data = AgentHandshake.frames(token: "ab", password: "c")
+        XCTAssertEqual([UInt8](data), [0, 0, 0, 2, 0x61, 0x62, 0, 0, 0, 1, 0x63])
+    }
+
+    func testDecodeSignResult() throws {
+        let j = """
+        {"ok":true,"result":{"type":"rotten_core_signed","sigId":"rxa_ab","appId":"com.redx.app","version":"1.2.3","hash":"aa","platforms":["macos"],"launcherRequired":false,"certId":"cert-1","output":"/tmp/a.rotten_core_signed","officialOSSigning":"Official OS signing is still recommended. This overlay works either way.","prevSigId":"rxa_prev"}}
+        """
+        let r = try RottenCoreCLI.decode(Data(j.utf8), as: SignResult.self)
+        XCTAssertEqual(r.type, "rotten_core_signed")
+        XCTAssertEqual(r.sigId, "rxa_ab")
+        XCTAssertEqual(r.appId, "com.redx.app")
+        XCTAssertFalse(r.launcherRequired)
+        XCTAssertEqual(r.prevSigId, "rxa_prev")
+        XCTAssertEqual(r.officialOSSigning, SignGate.officialNote)
+        let who = """
+        {"ok":true,"result":{"role":"owner","email":"support@infected-nation.com","verified":true,"idVerified":true,"idVerifiedMs":1700000000000,"mfa":true,"platforms":["macos","ios"],"launcherInstalled":false,"launcherRunning":false,"agentRunning":true,"officialOSSigning":"Official OS signing is still recommended. This overlay works either way."}}
+        """
+        let id = try RottenCoreCLI.decode(Data(who.utf8), as: SignIdentity.self)
+        XCTAssertEqual(id.role, "owner")
+        XCTAssertEqual(id.platforms, ["macos", "ios"])
+        XCTAssertTrue(id.agentRunning)
+        XCTAssertFalse(id.launcherInstalled)
+        let out = """
+        {"ok":true,"result":{"signedOut":true}}
+        """
+        let ack = try RottenCoreCLI.decode(Data(out.utf8), as: SessionAck.self)
+        XCTAssertTrue(ack.signedOut)
+    }
+
     /// Runs the real engine when CI provides it (ROTTENCORE_BIN), against a private support folder.
     func testRealBinary() async throws {
         guard let bin = ProcessInfo.processInfo.environment["ROTTENCORE_BIN"] else { throw XCTSkip("ROTTENCORE_BIN not set") }

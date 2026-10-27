@@ -172,7 +172,10 @@ Sign-in: a hook for **Red-XAI Accounts** (OIDC, authorization code + PKCE S256, 
 `/.well-known/openid-configuration`, contract: red-xai-accounts `docs/API.md`). Discovery, the authorize URL
 and the code exchange are implemented and tested against a fake provider; the browser round trip is not
 wired and sign-in shows **"coming soon"** until the issuer is live and a `rottencore` public client is
-registered. Age rules (13 and up) are enforced by Red-XAI Accounts and the store, not by RottenCore.
+registered. Quick Login (§15) is the first-run path. A session that already has an access token is used
+for lifetime signing (§11) from `ROTTENCORE_ACCESS_TOKEN` or, when Quick Login set `remember_device`,
+from the OS keyring. The token is not written to the support folder. Age rules
+(13 and up) are enforced by Red-XAI Accounts and the store, not by RottenCore.
 
 No telemetry. RottenCore talks only to the store, GitHub (public API; an optional `ROTTENCORE_GITHUB_TOKEN` is sent only to the GitHub API host, only to lift the anonymous rate limit, as CI does) and the account issuer.
 
@@ -190,7 +193,237 @@ rottencore install <file | github:owner/repo[@tag] | store:<app id>> [--accept-u
 rottencore list | check-updates | update <app id> | uninstall <app id>
 rottencore search <words> | info <app id>
 rottencore config [--store-url URL] [--accounts-issuer URL] [--theme dark|light|system]
+rottencore whoami | login | logout
+rottencore dev-cert
+rottencore open <file>
+rottencore sign --lifetime|--developer --with-launcher|--without-launcher --platform macos|ios|android|windows|linux <file>
+rottencore agent | agent shutdown
+rottencore daemon | daemon install | daemon uninstall
 rottencore signin | version
 --json  → {"ok":true,"result":…} | {"ok":false,"error":"…","code":"error|usage|untrusted|refused"}
+--secrets-stdin  the Red-SecretsXAI password on stdin (one line) for an owner one-shot sign
+--via-agent      ask the unlocked signing agent instead of prompting
+--no-browser     print the Quick Login URL without launching a browser
 exit 0 ok, 1 error, 2 usage, 3 untrusted (accept the warning), 4 refused (checksum mismatch)
 ```
+
+`whoami`, `sign` and `agent` are specified in §11. Developer certificates, opening a carrier, the daemon,
+updates and Quick Login are §12–§15. The password is never an argument.
+
+## 11. Lifetime certificate signing
+
+Owners sign a build with the Red-XAI lifetime certificate. Developers can sign the same matrix only while
+the Rotten Apple or Poison Apple launcher is installed and running, and only with the launcher required.
+Official OS signing (Developer ID, notarization, Authenticode) is still recommended. This overlay works
+either way, including on a build that is already signed.
+
+The Mac app's **Sign** section uses charcoal `#0C0D10`, crimson `#E23B3B` and bone `#ECE8E4`. On an owner
+login it offers **Sign with launcher** and **Sign without launcher**, plus the platform picker for this
+computer. **Sign without launcher stays disabled for developers**; seeing the launcher only enables
+**Sign with launcher**. The app keeps a background signing agent for the login. Leaving the Sign section
+does not stop it. Sign-out stops the agent and runs `logout`, which deletes this app's keyring tokens.
+
+### Who can sign
+
+An **owner** is an account whose email is `support@infected-nation.com` or `grimvirusoffical@gmail.com`,
+with `verified`, `idVerified` and a second factor, and whose email is listed on the lifetime cert
+(`owner_emails`). Anyone else with a session is a **developer**.
+
+| Computer | Platforms |
+|---|---|
+| Mac | macos, ios, android, windows, linux |
+| Windows | windows, macos, ios, linux, android |
+| Linux | linux, windows, android, macos |
+
+The command spells the Mac platform `macos`. A platform outside that computer's row is refused.
+
+| Role | Launcher | Result |
+|---|---|---|
+| Owner, verified + 2FA + idVerified | installed and running, or not | `--with-launcher` or `--without-launcher` |
+| Owner | not installed or not running | `--without-launcher` only |
+| Developer | installed and running | `--with-launcher` only |
+| Developer | anything else | refused |
+
+`--with-launcher` sets `launcher_required` and requires the launcher to be installed and running.
+`--without-launcher` is owner-only and sets `launcher_required` false.
+
+### Accounts
+
+RottenCore uses the OIDC stub in `core/oidc.go`. The access token is `ROTTENCORE_ACCESS_TOKEN`, the agent's
+handshake, or the OS keyring account `access-token` after Quick Login with `remember_device` (§15).
+It is not logged and it is not written to the support folder.
+
+| Call | When |
+|---|---|
+| discovery userinfo | every `whoami` and every sign |
+| `GET {issuer}/v1/rxa-account` | userinfo omitted `idVerified` / `id_verified`; merged fields are `idVerified` and `idVerifiedMs` |
+| `GET {issuer}/v1/rxa-lifetime-cert` | signing and unlocking, `Authorization: Bearer` |
+
+The lifetime-cert document is kind `rxa-lifetime-cert`: `cert_id`, `pubkey` (hex), `private_enc`
+(Red-SecretsXAI ciphertext only), `issued`, `owner_emails`, `sig_id_prefix`. `private_enc` is readable only
+by an owner session. A non-owner token is not decrypted in this process even if Accounts attaches a
+ciphertext. Responses are requested with `Cache-Control: no-store`. A non-200 body is discarded and is not
+copied into an error. Unknown fields on the cert are ignored.
+
+### Payload
+
+`internal/sign` is the swap point for the shared signing package. Callers use `Payload`, `Canonical`,
+`Sign`, `Verify` and `Sealer`. The cipher is not implemented here.
+
+The signed bytes are canonical JSON with `sig` omitted, field order:
+
+`type`, `sig_id`, `app_id`, `version`, `cert` (`id`, `pubkey`, `issuer`), `hash`, `nonce`, `prev_sig_id`
+when present, `platforms`, `launcher_required`.
+
+| Field | Value |
+|---|---|
+| `type` | `rotten_core_signed` |
+| `sig_id` | `sig_id_prefix` plus `_` plus 16 random bytes hex; empty prefix uses `rxa` |
+| `app_id`, `version` | from the local `rottencore.json` (or the app bundle). The store and GitHub are not contacted |
+| `cert.issuer` | `red-x-accounts-owner` |
+| `hash` | lowercase sha256 hex of the file. A directory or `.app` is a sorted regular-file tree: relative path, NUL, contents, NUL |
+| `sig` | ed25519 over the canonical JSON, lowercase hex. Stored last |
+| `nonce` | 32 random bytes, hex |
+| `prev_sig_id` | the previous `sig_id` for this `app_id`, from `sig-chain.json` in the support folder |
+| `platforms` | the one `--platform` |
+| `launcher_required` | true for `--with-launcher` |
+
+The same cert is used for later versions. Each signature gets a new `sig_id`, `nonce`, `hash` and `version`.
+The private key is the hex of a 32-byte seed or a 64-byte Go ed25519 key, decrypted in memory and wiped.
+It is checked against `pubkey` before use.
+
+The whole carrier JSON is then sealed with Red-SecretsXAI (password mode) and written to
+`<path>.rotten_core_signed` (mode 0600). When the sealer can write a file (`encrypt_file`,
+`output="image"`), the same plaintext is also sealed as `<path>.Red_SecretXAI`, a red-X PNG, and the
+temporary plaintext is wiped. `sig-chain.json` stores only `app_id` → `sig_id`.
+
+### Red-SecretsXAI
+
+RottenCore calls `red-xai-encrypt` through `python3` from `internal/sign/redsecrets.go`. It does not
+implement or change the cipher, and it does not modify the Red-SecretsXAI repository.
+
+| Python | Go | Used for |
+|---|---|---|
+| `encrypt_text` / `decrypt_text` (`mode="password"`) | `RedSecretsXAI.Encrypt` / `Decrypt` | text tokens (`RXAI2.`) and the `.rotten_core_signed` carrier |
+| `encrypt_file` / `decrypt_file` (`mode="password"`, `output="image"`) | `EncryptFile` / `DecryptFile` | the `.Red_SecretXAI` red-X PNG |
+
+The password and the payload are length-prefixed frames on stdin, never arguments and never environment
+variables. The child environment is limited to `PATH`, `HOME`, `LANG`, `LC_ALL`, `TMPDIR`, `TMP`, `TEMP`,
+`SYSTEMROOT` and `RSX_LIB`. If the child's output contains the password or the payload, the error is the
+generic "Red-SecretsXAI failed". `FILE_EXT` is `.Red_SecretXAI`. `TEXT_PREFIX` is `RXAI2.`.
+
+### Signing agent
+
+`rottencore agent` is the in-memory unlock used by the Mac app and by developers. The app writes two
+frames on stdin (access token, then Red-SecretsXAI password) and does not put either in the agent's
+environment. Only an owner session can unlock. The process keeps the key and the password until shutdown,
+then wipes both. The socket is `{support}/sign-agent.sock`, mode 0600. When that path does not fit in a unix address (macOS allows 104 bytes including the trailing NUL), it is a short private socket under `/tmp/rc-<hash>/s` instead. One agent answers. Requests are
+newline JSON (`status`, `shutdown`, `sign`) and unknown fields are refused without echoing the line.
+Every `sign` re-checks the caller's token. A developer using the owner cert may sign only with the
+launcher required and the launcher up. `rottencore sign --via-agent` and every Sign button talk to that
+socket. `rottencore sign --developer` uses that developer's own key and does not (§12). An owner can
+still sign once from the command line without the agent; that prompts on `/dev/tty` or reads
+`--secrets-stdin`.
+
+Nothing in the CLI JSON, the carrier, the chain file, or a log line is the plaintext private key.
+
+## 12. Developer certificates
+
+`rottencore dev-cert` and `rottencore sign --developer` mint one random ed25519 key for the signed-in
+email (`core/devcert.go`). A later call reuses that key. The private key is sealed with
+`encrypt_text` (`mode="password"`) and the ciphertext is stored in the OS keyring under
+`dev-priv:<email>`. The public record (`email`, `certId`, `pubkey`, `issuer`) is
+`developer-certs.json` in the support folder, mode 0600. That file has no private key.
+
+`cert.issuer` on a developer signature is `rotten-core-developer`. `sig_id_prefix` is `dev`.
+`--developer` always requires `--with-launcher` and the launcher installed and running. It does not
+decrypt the owner lifetime key and it does not go through the signing agent.
+
+Accounts has no published endpoint that registers a developer public key. `red-xai-accounts` (PR #5,
+commit `17162539`) is not a public repository from this client, and the Quick Login docs do not define
+a cert-registration schema. The public half stays on this computer. Registering it with Accounts is a
+follow-up once that API exists. Do not invent the schema here.
+
+## 13. Opening a signed download
+
+`rottencore open <path>` (`core/carrier.go`) installs a file RottenCore signed:
+
+1. A path ending in `.Red_SecretXAI` or `.rotten_core_signed` is the carrier; the artifact is the path
+   with that suffix removed. Otherwise the path is the artifact and a sibling carrier must exist.
+2. No carrier means the file is not ours (`this file is not signed by RottenCore`). It is not installed.
+3. A `.Red_SecretXAI` file is decrypted with `decrypt_file` (`mode="password"`, image carrier). A text
+   carrier must start with `RXAI2.` and is decrypted with `decrypt_text`.
+4. The signature is checked. An owner signature (`red-x-accounts-owner`) must match `owner-pub.json`
+   written when an owner last signed on this computer (public fields only). A developer signature must
+   match `developer-certs.json`. An unknown issuer is refused. Offline, an owner key that was never
+   seen here is not trusted.
+5. The artifact's sha256 must equal the payload `hash`.
+6. Install uses the existing engine. The Rotten Apple store is still the trusted source. Any other
+   source shows the not-trusted warning and needs `--accept-untrusted`.
+
+The password is prompted or read with `--secrets-stdin`. The daemon does not call `open`. It only
+records carrier paths in `pending-imports.json`.
+
+macOS moves the app to `/Applications` (or `~/Applications` with `--user`) through the existing installer.
+Windows and Linux can verify a carrier. Installing a `.app` with `ditto` remains a Mac step.
+
+## 14. Background daemon
+
+`rottencore daemon` is a low-impact loop (`core/daemon.go`). `daemon install` writes launch-at-login
+(`core/autostart.go`):
+
+| OS | File |
+|---|---|
+| macOS | `~/Library/LaunchAgents/com.redxai.rottencore.daemon.plist` (`RunAtLoad`, `KeepAlive`, `ProcessType` Background) |
+| Linux | `~/.config/systemd/user/rottencore.service` (`Nice=10`, `MemoryMax=128M`, `Restart=on-failure`) |
+| Windows | Startup `RottenCoreDaemon.cmd` |
+
+The supervised unit sets `ROTTENCORE_DAEMON_SUPERVISED=1`. Thresholds:
+
+| Limit | Value | What happens |
+|---|---|---|
+| Tick | 60 seconds | one pass, then sleep |
+| RSS | 64 MiB | process exits so the supervisor starts a fresh one |
+| Uptime | 12 hours | same reset |
+| Stall | 3 minutes | a pass that does not finish is a hung daemon; same reset |
+
+The CLI process also sets `GOMAXPROCS(1)` and a 96 MiB Go memory limit. A reset does not delete
+installed apps, the keyring, or the support folder. Without a supervisor, the process re-execs itself.
+Each pass notes carrier filenames in `~/Downloads` and writes `updates.json` from `check-updates`.
+It does not decrypt and it does not install.
+
+## 15. Quick Login and update sources
+
+First run is `scripts/first-run.sh` (`rottencore login`, then `rottencore daemon install`).
+
+Quick Login follows the public device flow in `red-xai-quick-login-docs` (protocol
+`redx-site-session-v1`). Those docs say the public authorization endpoint is **not deployed**.
+RottenCore calls it anyway and tests it against a local server. The client id is `rottencore` (public,
+PKCE). No `rxql_sk_` key is embedded.
+
+| Call | Body / result |
+|---|---|
+| `POST https://red-xai.com/redxai-connect/start` | `{client_id, code_challenge, code_challenge_method:S256}` → `device_code`, `user_code`, `verification_uri`, `expires_in`, `interval`, `protocol` |
+| `POST https://red-xai.com/redxai-connect/token` | `{client_id, device_code, code_verifier}` → 428 pending, 429 backoff, 400 denied, 200 bearer |
+| `GET https://red-xai.com/redxai-connect/userinfo` | `Authorization: Bearer`. The body is discarded after the status check |
+| `POST https://red-xai.com/redxai-connect/revoke` | `{token}` the refresh token, on logout. Other apps stay signed in |
+| OIDC userinfo, then `GET {issuer}/v1/rxa-account` | account state (`idVerified`, `idVerifiedMs`) after the token exists |
+| `GET {issuer}/v1/rxa-lifetime-cert` | owner signing only (§11) |
+
+`remember_device: false` deletes any keyring copies and does not store the new tokens.
+`remember_device: true` stores `access-token` and `refresh-token` in the OS keyring
+(macOS Keychain via Security.framework, Windows DPAPI, Linux `secret-tool`). The secret is a stdin
+frame, never an argument. If `secret-tool` is missing, RottenCore refuses to write a file instead.
+
+When `accountsIssuer` is set, Quick Login uses that origin so a test server can host both
+`/redxai-connect` and `/v1/rxa-account`. The default origin is `https://red-xai.com`.
+
+Update sources (`core/rottencore.go` `CheckUpdates` / `PrepareUpdate`):
+
+* GitHub: `GET /repos/{owner}/{repo}/releases/latest` (and a tag URL when one was pinned). Drafts and
+  prereleases are not newer. `PrepareUpdate` refuses a release whose version is not greater than the
+  installed version.
+* Rotten Apple store: the listing already stored for that app, default origin
+  `https://api.rottenapplestore.org`.
+* No red-xai.com app catalog was found in this repo or in the Quick Login docs. The daemon records
+  the check. It does not download or install an update by itself.

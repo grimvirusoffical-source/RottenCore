@@ -149,3 +149,168 @@ func (o *OIDCAccounts) SignIn(ctx context.Context) (*Session, error) {
 
 func (o *OIDCAccounts) SignOut(context.Context) error { o.session = nil; return nil }
 func (o *OIDCAccounts) Current() *Session             { return o.session }
+
+// UseToken keeps an access token in memory for this process. It is not written to disk.
+func (o *OIDCAccounts) UseToken(token string) error {
+	if strings.TrimSpace(token) == "" {
+		return ErrSignInRequired
+	}
+	if o.session == nil {
+		o.session = &Session{}
+	}
+	o.session.Token = token
+	return nil
+}
+
+// Profile reads userinfo and, when idVerified is absent there, GET {issuer}/v1/rxa-account.
+func (o *OIDCAccounts) Profile(ctx context.Context) (*Profile, error) {
+	if o.Net == nil || o.session == nil || strings.TrimSpace(o.session.Token) == "" {
+		return nil, ErrSignInRequired
+	}
+	if o.disc == nil {
+		if _, err := o.Discover(ctx); err != nil {
+			return nil, err
+		}
+	}
+	b, err := o.Net.GetBytesBearer(ctx, o.disc.UserinfoEndpoint, o.session.Token, 1<<20)
+	if err != nil {
+		return nil, errors.New("Accounts refused this session")
+	}
+	p, err := parseProfile(b)
+	if err != nil {
+		return nil, err
+	}
+	if !p.sawID && o.Issuer != "" {
+		ab, err := o.Net.GetBytesBearer(ctx, strings.TrimRight(o.Issuer, "/")+"/v1/rxa-account", o.session.Token, 1<<20)
+		if err == nil {
+			if extra, eerr := parseProfile(ab); eerr == nil && extra.sawID {
+				p.IDVerified = extra.IDVerified
+				p.IDVerifiedMs = extra.IDVerifiedMs
+				p.sawID = true
+			}
+		}
+	}
+	return p, nil
+}
+
+// LifetimeCert reads GET {issuer}/v1/rxa-lifetime-cert. A non-200 is a refusal with no body echoed.
+func (o *OIDCAccounts) LifetimeCert(ctx context.Context) (*LifetimeCert, error) {
+	if o.Net == nil || o.Issuer == "" || o.session == nil || strings.TrimSpace(o.session.Token) == "" {
+		return nil, ErrSignInRequired
+	}
+	b, err := o.Net.GetBytesBearer(ctx, strings.TrimRight(o.Issuer, "/")+"/v1/rxa-lifetime-cert", o.session.Token, 1<<20)
+	if err != nil {
+		return nil, errors.New("Accounts refused the lifetime cert")
+	}
+	var cert LifetimeCert
+	if err := json.Unmarshal(b, &cert); err != nil {
+		return nil, errors.New("Accounts sent a lifetime cert RottenCore could not read")
+	}
+	if cert.Kind != CertKindLifetime {
+		return nil, errors.New("Accounts did not return an rxa-lifetime-cert")
+	}
+	cert.PubKey = strings.ToLower(strings.TrimSpace(cert.PubKey))
+	cert.PrivateEnc = strings.TrimSpace(cert.PrivateEnc)
+	return &cert, nil
+}
+
+// CertKindLifetime is the Accounts kind RottenCore asks for. It matches sign.CertKind.
+const CertKindLifetime = "rxa-lifetime-cert"
+
+func parseProfile(b []byte) (*Profile, error) {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(b, &raw); err != nil {
+		return nil, errors.New("Accounts sent a profile RottenCore could not read")
+	}
+	p := &Profile{
+		Sub:               jsonString(raw, "sub"),
+		Email:             jsonString(raw, "email"),
+		PreferredUsername: jsonString(raw, "preferred_username"),
+		AgeBand:           firstString(raw, "age_band", "ageBand"),
+	}
+	p.Verified = jsonBool(raw, "email_verified") || jsonBool(raw, "emailVerified") || jsonBool(raw, "verified")
+	p.AdultVerified = jsonBool(raw, "adult_verified") || jsonBool(raw, "adultVerified")
+	if _, ok := raw["idVerified"]; ok {
+		p.IDVerified = jsonBool(raw, "idVerified")
+		p.sawID = true
+	} else if _, ok := raw["id_verified"]; ok {
+		p.IDVerified = jsonBool(raw, "id_verified")
+		p.sawID = true
+	}
+	p.IDVerifiedMs = firstInt(raw, "idVerifiedMs", "id_verified_ms")
+	p.MFA = jsonBool(raw, "mfa") || jsonBool(raw, "two_factor") || jsonBool(raw, "twoFactor")
+	p.AMR = jsonStrings(raw, "amr")
+	if !p.MFA && secondFactor(p.AMR) {
+		p.MFA = true
+	}
+	return p, nil
+}
+
+func jsonString(raw map[string]json.RawMessage, key string) string {
+	b, ok := raw[key]
+	if !ok {
+		return ""
+	}
+	var s string
+	if err := json.Unmarshal(b, &s); err != nil {
+		return ""
+	}
+	return s
+}
+
+func firstString(raw map[string]json.RawMessage, keys ...string) string {
+	for _, k := range keys {
+		if s := jsonString(raw, k); s != "" {
+			return s
+		}
+	}
+	return ""
+}
+
+func jsonBool(raw map[string]json.RawMessage, key string) bool {
+	b, ok := raw[key]
+	if !ok {
+		return false
+	}
+	var v bool
+	if err := json.Unmarshal(b, &v); err != nil {
+		return false
+	}
+	return v
+}
+
+func firstInt(raw map[string]json.RawMessage, keys ...string) int64 {
+	for _, k := range keys {
+		b, ok := raw[k]
+		if !ok {
+			continue
+		}
+		var n int64
+		if err := json.Unmarshal(b, &n); err == nil {
+			return n
+		}
+	}
+	return 0
+}
+
+func jsonStrings(raw map[string]json.RawMessage, key string) []string {
+	b, ok := raw[key]
+	if !ok {
+		return nil
+	}
+	var s []string
+	if err := json.Unmarshal(b, &s); err != nil {
+		return nil
+	}
+	return s
+}
+
+func secondFactor(amr []string) bool {
+	for _, a := range amr {
+		switch strings.ToLower(strings.TrimSpace(a)) {
+		case "otp", "totp", "mfa", "hwk", "sms", "swk", "pop":
+			return true
+		}
+	}
+	return false
+}

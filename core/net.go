@@ -113,6 +113,50 @@ type HTTPError struct {
 
 func (e *HTTPError) Error() string { return fmt.Sprintf("%s answered %d", e.URL, e.Status) }
 
+// GetBytesBearer fetches raw with an Authorization bearer. The token is never included in
+// an error, and a non-200 body is discarded so a refusal cannot echo a secret back.
+func (n *Net) GetBytesBearer(ctx context.Context, raw, bearer string, limit int64) ([]byte, error) {
+	if strings.TrimSpace(bearer) == "" {
+		return nil, errors.New("sign in to Red-XAI Accounts first")
+	}
+	u, err := url.Parse(raw)
+	if err != nil || !ValidOrigin(u.Scheme+"://"+u.Host, n.AllowLoopbackHTTP) {
+		return nil, fmt.Errorf("refusing to fetch %q: only https is allowed", raw)
+	}
+	req, err := http.NewRequestWithContext(ctx, "GET", raw, nil)
+	if err != nil {
+		return nil, err
+	}
+	ua := n.UserAgent
+	if ua == "" {
+		ua = "RottenCore/" + Version
+	}
+	req.Header.Set("User-Agent", ua)
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Cache-Control", "no-store")
+	req.Header.Set("Authorization", "Bearer "+bearer)
+	resp, err := n.client().Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 4096))
+		return nil, fmt.Errorf("accounts answered %d", resp.StatusCode)
+	}
+	if limit <= 0 {
+		limit = 8 << 20
+	}
+	b, err := io.ReadAll(io.LimitReader(resp.Body, limit+1))
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(b)) > limit {
+		return nil, errors.New("accounts response is too large")
+	}
+	return b, nil
+}
+
 // GetJSON fetches and decodes JSON (at most 8 MB).
 func (n *Net) GetJSON(ctx context.Context, raw string, out interface{}) error {
 	resp, err := n.get(ctx, raw, "application/json")
