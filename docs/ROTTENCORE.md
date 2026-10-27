@@ -302,7 +302,7 @@ password or the payload, the error is the generic "Red-SecretsXAI failed".
 `rottencore agent` is the in-memory unlock used by the Mac app and by developers. The app writes two
 frames on stdin (access token, then Red-SecretsXAI password) and does not put either in the agent's
 environment. Only an owner session can unlock. The process keeps the key and the password until shutdown,
-then wipes both. The socket is `{support}/sign-agent.sock`, mode 0600. One agent answers. Requests are
+then wipes both. The socket is `{support}/sign-agent.sock`, mode 0600. When that path does not fit in a unix address (macOS allows 104 bytes including the trailing NUL), it is a short private socket under `/tmp/rc-<hash>/s` instead. One agent answers. Requests are
 newline JSON (`status`, `shutdown`, `sign`) and unknown fields are refused without echoing the line.
 Every `sign` re-checks the caller's token. A developer may sign only with the launcher required and the
 launcher up, using the unlocked owner cert. `rottencore sign --via-agent` (and every developer sign, and

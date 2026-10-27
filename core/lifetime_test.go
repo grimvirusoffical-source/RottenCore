@@ -316,6 +316,9 @@ func TestProfileReadsIDFromAccountDocument(t *testing.T) {
 
 func TestAgentSignsForDevOnlyWithLauncher(t *testing.T) {
 	c, _, owner, dev, _, password, seed, seal := lifetimeFixture(t)
+	// macOS unix addresses hold 104 bytes. A CI temp dir exceeds that, so this
+	// uses a path that does not fit on Darwin or Linux and must still listen.
+	c.State.Dir = filepath.Join(t.TempDir(), strings.Repeat("p", 180))
 	launcher := filepath.Join(t.TempDir(), "ra-launcher")
 	if err := os.Symlink("/bin/sleep", launcher); err != nil {
 		t.Fatal(err)
@@ -326,7 +329,7 @@ func TestAgentSignsForDevOnlyWithLauncher(t *testing.T) {
 	pw := append([]byte(nil), password...)
 	errCh := make(chan error, 1)
 	go func() { errCh <- c.RunAgent(ctx, owner, pw, seal) }()
-	waitAgent(t, c)
+	waitAgent(t, c, errCh)
 	sign.Wipe(pw)
 	path := zipTool(t, t.TempDir(), "2.0.0")
 	if _, err := c.AgentSign(ctx, dev, path, "linux", false); err == nil || !strings.Contains(err.Error(), sign.ErrDevLauncher.Error()) {
@@ -369,7 +372,11 @@ func TestAgentSignsForDevOnlyWithLauncher(t *testing.T) {
 	if err != nil || sign.Verify(payload) != nil || !payload.LauncherRequired {
 		t.Fatalf("%v %+v", err, payload)
 	}
-	sconn, err := net.DialTimeout("unix", c.agentSocket(), time.Second)
+	sock, err := c.agentSocket()
+	if err != nil {
+		t.Fatal(err)
+	}
+	sconn, err := net.DialTimeout("unix", sock, time.Second)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -428,14 +435,32 @@ func TestAgentHandshakeFrames(t *testing.T) {
 	sign.Wipe(pw)
 }
 
-func waitAgent(t *testing.T, c *Core) {
+func waitAgent(t *testing.T, c *Core, errCh <-chan error) {
 	t.Helper()
 	deadline := time.Now().Add(3 * time.Second)
 	for time.Now().Before(deadline) {
+		select {
+		case err := <-errCh:
+			t.Fatalf("signing agent exited: %v", err)
+		default:
+		}
 		if c.AgentRunning() {
 			return
 		}
 		time.Sleep(20 * time.Millisecond)
 	}
 	t.Fatal("signing agent did not start")
+}
+
+func TestAgentSocketStaysDialable(t *testing.T) {
+	short := &Core{State: &State{Dir: t.TempDir()}}
+	p, err := short.agentSocket()
+	if err != nil || !strings.HasSuffix(p, "sign-agent.sock") || !unixSocketFits(p) {
+		t.Fatalf("%s %v", p, err)
+	}
+	long := &Core{State: &State{Dir: "/tmp/" + strings.Repeat("a", 180)}}
+	p, err = long.agentSocket()
+	if err != nil || !unixSocketFits(p) || len(p) > 103 || strings.Contains(p, strings.Repeat("a", 40)) {
+		t.Fatalf("%s %v", p, err)
+	}
 }

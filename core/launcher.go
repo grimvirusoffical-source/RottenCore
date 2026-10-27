@@ -173,7 +173,8 @@ func scanProc(bin string, strict bool) bool {
 }
 
 func scanPS(bin string, strict bool) bool {
-	out, err := exec.Command("ps", "-ax", "-o", "command=").Output()
+	// -ww: macOS ps otherwise clips the command at the window width, which hides a long temp path.
+	out, err := exec.Command("ps", "-axww", "-o", "command=").Output()
 	if err != nil {
 		return false
 	}

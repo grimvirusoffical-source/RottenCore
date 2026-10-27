@@ -4,7 +4,9 @@ import (
 	"bufio"
 	"context"
 	"crypto/ed25519"
+	"crypto/sha256"
 	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"io"
@@ -13,6 +15,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/grimvirusoffical-source/RottenCore/internal/sign"
@@ -68,8 +71,46 @@ func readFrame(r io.Reader, max int) ([]byte, error) {
 	return buf, nil
 }
 
-func (c *Core) agentSocket() string {
-	return filepath.Join(c.State.Dir, "sign-agent.sock")
+// agentSocket is {support}/sign-agent.sock when that path fits in a unix address.
+// Darwin allows 104 bytes including the trailing NUL, and a test temp dir on macOS
+// is longer than that, so the socket then lives at a short private path under /tmp.
+func (c *Core) agentSocket() (string, error) {
+	if c == nil || c.State == nil || c.State.Dir == "" {
+		return "", errors.New("RottenCore has no support folder")
+	}
+	preferred := filepath.Join(c.State.Dir, "sign-agent.sock")
+	if unixSocketFits(preferred) {
+		return preferred, nil
+	}
+	sum := sha256.Sum256([]byte(preferred))
+	return filepath.Join("/tmp", "rc-"+hex.EncodeToString(sum[:8]), "s"), nil
+}
+
+func unixSocketFits(path string) bool {
+	// sun_path includes a trailing NUL: 104 bytes on Darwin, 108 on Linux.
+	max := 107
+	if runtime.GOOS == "darwin" || runtime.GOOS == "ios" {
+		max = 103
+	}
+	return len(path) <= max
+}
+
+func ensurePrivateDir(dir string) error {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return err
+	}
+	st, err := os.Lstat(dir)
+	if err != nil {
+		return err
+	}
+	if !st.IsDir() || st.Mode()&os.ModeSymlink != 0 || st.Mode().Perm()&0o077 != 0 {
+		return errors.New("the signing agent socket directory is not private")
+	}
+	sys, ok := st.Sys().(*syscall.Stat_t)
+	if ok && int(sys.Uid) != os.Getuid() {
+		return errors.New("the signing agent socket directory is not private")
+	}
+	return nil
 }
 
 type agentRequest struct {
@@ -143,7 +184,13 @@ func (c *Core) listenAgent() (net.Listener, error) {
 	if err := os.MkdirAll(c.State.Dir, 0o700); err != nil {
 		return nil, err
 	}
-	sock := c.agentSocket()
+	sock, err := c.agentSocket()
+	if err != nil {
+		return nil, err
+	}
+	if err := ensurePrivateDir(filepath.Dir(sock)); err != nil {
+		return nil, err
+	}
 	os.Remove(sock)
 	ln, err := net.Listen("unix", sock)
 	if err != nil {
@@ -279,7 +326,11 @@ func (c *Core) AgentRunning() bool {
 	if c == nil || c.State == nil || c.State.Dir == "" {
 		return false
 	}
-	conn, err := net.DialTimeout("unix", c.agentSocket(), 200*time.Millisecond)
+	sock, err := c.agentSocket()
+	if err != nil {
+		return false
+	}
+	conn, err := net.DialTimeout("unix", sock, 200*time.Millisecond)
 	if err != nil {
 		return false
 	}
@@ -306,7 +357,11 @@ func (c *Core) AgentSign(ctx context.Context, token, path, platform string, with
 	if !c.AgentRunning() {
 		return nil, ErrAgentDown
 	}
-	conn, err := net.DialTimeout("unix", c.agentSocket(), time.Second)
+	sock, err := c.agentSocket()
+	if err != nil {
+		return nil, ErrAgentDown
+	}
+	conn, err := net.DialTimeout("unix", sock, time.Second)
 	if err != nil {
 		return nil, ErrAgentDown
 	}
@@ -338,7 +393,11 @@ func (c *Core) ShutdownAgent(ctx context.Context) error {
 	if c == nil || c.State == nil {
 		return ErrAgentDown
 	}
-	conn, err := net.DialTimeout("unix", c.agentSocket(), time.Second)
+	sock, err := c.agentSocket()
+	if err != nil {
+		return ErrAgentDown
+	}
+	conn, err := net.DialTimeout("unix", sock, time.Second)
 	if err != nil {
 		return ErrAgentDown
 	}
