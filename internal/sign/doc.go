@@ -1,4 +1,4 @@
-// Package sign is RottenCore's lifetime-certificate signing.
+// Package sign is RottenCore's certificate signing.
 //
 // It is the internal stand-in for the shared Red-XAI signing module (Grok Bot owns that
 // module). Callers should stay on Payload, Canonical, Sign, Verify, and Sealer. Swapping

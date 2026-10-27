@@ -123,3 +123,34 @@ func TestRedSecretsXAIRoundTrip(t *testing.T) {
 	}
 	Wipe(out)
 }
+
+func TestRedSecretsFileRoundTrip(t *testing.T) {
+	if exec.Command("python3", "-c", "import redxai").Run() != nil {
+		t.Skip("red-xai-encrypt is not installed")
+	}
+	dir := t.TempDir()
+	src := filepath.Join(dir, "note.txt")
+	if err := os.WriteFile(src, []byte("hello-carrier"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	ctx := context.Background()
+	out, err := (RedSecretsXAI{}).EncryptFile(ctx, []byte("pw-file-1"), src)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasSuffix(out, FileExt) {
+		t.Fatal(out)
+	}
+	magic, err := os.ReadFile(out)
+	if err != nil || len(magic) < 8 || string(magic[:8]) != "\x89PNG\r\n\x1a\n" {
+		t.Fatalf("not a red-X PNG: %v", err)
+	}
+	back, err := (RedSecretsXAI{}).DecryptFile(ctx, []byte("pw-file-1"), out, dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, err := os.ReadFile(back)
+	if err != nil || string(b) != "hello-carrier" {
+		t.Fatalf("%q %v", b, err)
+	}
+}

@@ -229,9 +229,18 @@ final class AppModel: ObservableObject {
         }
     }
 
+    func quickLogin() async {
+        guard let cli = cli else { return }
+        if let who = await work("Opening Quick Login…", { try await cli.login() }) {
+            signSession = who
+            message = "Signed in as \(who.email)."
+        }
+    }
+
     func signOut() async {
         if let cli = cli {
             await signingAgent.stop(using: cli)
+            _ = try? await cli.logout()
             cli.environment.removeValue(forKey: "ROTTENCORE_ACCESS_TOKEN")
         }
         signSession = nil
@@ -509,9 +518,11 @@ struct SettingsView: View {
                 HStack {
                     Text("Red-XAI Account")
                     Spacer()
-                    Button("Sign In") { Task { _ = await model.work("Signing in…") { try await model.accounts.signIn() } } }
-                        .disabled(!model.accounts.isAvailable)
-                    Text("Coming soon").foregroundColor(.secondary)
+                Button("Sign In") { Task { _ = await model.work("Signing in…") { try await model.accounts.signIn() } } }
+                    .disabled(!model.accounts.isAvailable)
+                Text("Coming soon").foregroundColor(.secondary)
+                Button("Quick Login") { Task { await model.quickLogin() } }
+                    .disabled(model.busy != nil)
                 }
             }
             Text("RottenCore sends no telemetry. The store address and account settings live in ~/Library/Application Support/RottenCore/config.json.")

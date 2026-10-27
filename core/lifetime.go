@@ -211,7 +211,7 @@ func (c *Core) sealSigned(ctx context.Context, key ed25519.PrivateKey, cert *Lif
 		Cert: sign.Cert{
 			ID:     cert.CertID,
 			PubKey: strings.ToLower(cert.PubKey),
-			Issuer: sign.Issuer,
+			Issuer: certIssuer(cert),
 		},
 		Hash:             sum,
 		Nonce:            nonce,
@@ -236,8 +236,20 @@ func (c *Core) sealSigned(ctx context.Context, key ed25519.PrivateKey, cert *Lif
 	if err := writePrivate(out, append(append([]byte{}, ct...), '\n')); err != nil {
 		return nil, err
 	}
+	if err := c.writeRedX(ctx, sealer, password, raw, path); err != nil {
+		os.Remove(out)
+		return nil, err
+	}
+	if certIssuer(cert) == sign.Issuer {
+		if err := c.rememberOwnerPub(cert); err != nil {
+			os.Remove(out)
+			os.Remove(path + sign.FileExt)
+			return nil, err
+		}
+	}
 	if err := c.putSig(appID, sigID); err != nil {
 		os.Remove(out)
+		os.Remove(path + sign.FileExt)
 		return nil, err
 	}
 	return &SignResult{

@@ -5,9 +5,12 @@
 //	rottencore list | check-updates | update <app id> | uninstall <app id>
 //	rottencore search <words> | info <app id>            the Rotten Apple store catalog (optional)
 //	rottencore config [--store-url URL] [--accounts-issuer URL] [--theme dark|light|system]
-//	rottencore signin                                    Red-XAI Accounts (coming soon)
+//	rottencore signin                                    Red-XAI Accounts browser loopback (coming soon)
+//	rottencore login                                     Quick Login device flow (public client, PKCE)
 //	rottencore whoami                                    the signed-in account, without secrets
-//	rottencore sign --lifetime --with-launcher|--without-launcher --platform macos|ios|android|windows|linux <file>
+//	rottencore sign --lifetime|--developer --with-launcher|--without-launcher --platform macos|ios|android|windows|linux <file>
+//	rottencore open <file>                               decrypt a red-X carrier, verify, install
+//	rottencore daemon                                    background watch, updates, self-reset
 //	rottencore agent                                     in-memory signing agent the Mac app keeps running
 //
 // Every command takes --json (one JSON object on stdout: {"ok":true,"result":...} or {"ok":false,"error":...,"code":...}).
@@ -67,6 +70,8 @@ func main() {
 	theme := fs.String("theme", "", "config: dark | light | system")
 	limit := fs.Int("limit", 25, "search: at most this many results")
 	lifetime := fs.Bool("lifetime", false, "sign with the Red-XAI lifetime certificate")
+	developer := fs.Bool("developer", false, "sign with this account's developer certificate")
+	noBrowser := fs.Bool("no-browser", false, "print the Quick Login URL without opening a browser")
 	withLauncher := fs.Bool("with-launcher", false, "sign so the Rotten Apple launcher is required")
 	withoutLauncher := fs.Bool("without-launcher", false, "sign without requiring the launcher")
 	platformFlag := fs.String("platform", "", "macos | ios | android | windows | linux")
@@ -232,11 +237,25 @@ func main() {
 		_, err := c.Accounts.SignIn(ctx)
 		check(err)
 	case "whoami":
-		w, err := c.WhoAmI(ctx, os.Getenv("ROTTENCORE_ACCESS_TOKEN"))
+		token, err := c.AccessToken()
+		check(err)
+		w, err := c.WhoAmI(ctx, token)
 		check(err)
 		out(w, func() { printWho(w) })
+	case "login":
+		runLogin(ctx, c, *noBrowser)
+	case "logout":
+		check(c.Logout(ctx))
+		out(map[string]bool{"signedOut": true}, func() { fmt.Println("signed out of RottenCore") })
+	case "dev-cert":
+		runDevCert(ctx, c, *secretsStdin)
+	case "open":
+		need(rest, 1)
+		runOpen(ctx, c, rest[0], *secretsStdin)
+	case "daemon":
+		runDaemon(ctx, c, rest)
 	case "sign":
-		runSign(ctx, c, rest, *lifetime, *withLauncher, *withoutLauncher, *viaAgent, *secretsStdin, *platformFlag)
+		runSign(ctx, c, rest, *lifetime, *developer, *withLauncher, *withoutLauncher, *viaAgent, *secretsStdin, *platformFlag)
 	case "agent":
 		runAgent(ctx, c, rest)
 	default:
@@ -397,10 +416,13 @@ func usage() {
   list | check-updates | update <app id> | uninstall <app id>
   search <words> | info <app id>
   config [--store-url URL] [--accounts-issuer URL] [--theme dark|light|system]
-  whoami
-  sign --lifetime --with-launcher|--without-launcher --platform macos|ios|android|windows|linux <file>
+  whoami | login | logout
+  dev-cert
+  open <file>
+  sign --lifetime|--developer --with-launcher|--without-launcher --platform macos|ios|android|windows|linux <file>
   agent | agent shutdown
+  daemon | daemon install | daemon uninstall
   signin | version
-flags: --json --admin sudo|osascript --secrets-stdin --via-agent
+flags: --json --admin sudo|osascript --secrets-stdin --via-agent --no-browser
 `)
 }

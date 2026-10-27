@@ -134,6 +134,10 @@ public struct AgentAck: Codable, Equatable {
     public var stopped: Bool
 }
 
+public struct SessionAck: Codable, Equatable {
+    public var signedOut: Bool
+}
+
 /// The trust rule the app enforces before it lets anyone press Install (the engine enforces it again).
 public enum InstallGate: Equatable {
     case refused(String)          // checksum mismatch: never installable

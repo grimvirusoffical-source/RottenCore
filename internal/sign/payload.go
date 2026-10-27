@@ -16,8 +16,12 @@ import (
 // TypeRottenCoreSigned is the payload type field.
 const TypeRottenCoreSigned = "rotten_core_signed"
 
-// Issuer is the lifetime cert's issuer. Accounts is the only issuer RottenCore accepts.
+// Issuer is the lifetime cert's issuer. Accounts is the only issuer of that certificate.
 const Issuer = "red-x-accounts-owner"
+
+// IssuerDeveloper marks a per-developer key RottenCore minted locally.
+// Accounts does not publish a registration endpoint for these keys (see core login docs).
+const IssuerDeveloper = "rotten-core-developer"
 
 // CertKind is the Accounts document kind for the owner's lifetime certificate.
 const CertKind = "rxa-lifetime-cert"
@@ -114,8 +118,8 @@ func (p Payload) validateBody() error {
 	if p.AppID == "" || p.Version == "" {
 		return errors.New("app id and version are required")
 	}
-	if p.Cert.ID == "" || p.Cert.Issuer != Issuer {
-		return errors.New("lifetime cert issuer is not red-x-accounts-owner")
+	if p.Cert.ID == "" || (p.Cert.Issuer != Issuer && p.Cert.Issuer != IssuerDeveloper) {
+		return errors.New("signature issuer is not red-x-accounts-owner or rotten-core-developer")
 	}
 	pub, err := hex.DecodeString(strings.ToLower(p.Cert.PubKey))
 	if err != nil || len(pub) != ed25519.PublicKeySize {

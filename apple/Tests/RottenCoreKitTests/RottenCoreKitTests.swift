@@ -119,6 +119,11 @@ final class RottenCoreKitTests: XCTestCase {
         XCTAssertEqual(id.platforms, ["macos", "ios"])
         XCTAssertTrue(id.agentRunning)
         XCTAssertFalse(id.launcherInstalled)
+        let out = """
+        {"ok":true,"result":{"signedOut":true}}
+        """
+        let ack = try RottenCoreCLI.decode(Data(out.utf8), as: SessionAck.self)
+        XCTAssertTrue(ack.signedOut)
     }
 
     /// Runs the real engine when CI provides it (ROTTENCORE_BIN), against a private support folder.

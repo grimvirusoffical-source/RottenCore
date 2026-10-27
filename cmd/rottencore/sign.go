@@ -13,12 +13,15 @@ import (
 	"github.com/grimvirusoffical-source/RottenCore/core"
 )
 
-func validateSign(lifetime, withLauncher, withoutLauncher bool, platform string, paths []string) error {
-	if !lifetime {
-		return errors.New("sign needs --lifetime")
+func validateSign(lifetime, developer, withLauncher, withoutLauncher bool, platform string, paths []string) error {
+	if lifetime == developer {
+		return errors.New("sign needs exactly one of --lifetime or --developer")
 	}
 	if withLauncher == withoutLauncher {
 		return errors.New("sign needs exactly one of --with-launcher or --without-launcher")
+	}
+	if developer && !withLauncher {
+		return errors.New("a developer certificate requires --with-launcher")
 	}
 	if strings.TrimSpace(platform) == "" {
 		return errors.New("sign needs --platform macos|ios|android|windows|linux")
@@ -29,11 +32,25 @@ func validateSign(lifetime, withLauncher, withoutLauncher bool, platform string,
 	return nil
 }
 
-func runSign(ctx context.Context, c *core.Core, paths []string, lifetime, withLauncher, withoutLauncher, viaAgent, secretsStdin bool, platform string) {
-	if err := validateSign(lifetime, withLauncher, withoutLauncher, platform, paths); err != nil {
+func runSign(ctx context.Context, c *core.Core, paths []string, lifetime, developer, withLauncher, withoutLauncher, viaAgent, secretsStdin bool, platform string) {
+	if err := validateSign(lifetime, developer, withLauncher, withoutLauncher, platform, paths); err != nil {
 		fail(err, 2)
 	}
-	token := os.Getenv("ROTTENCORE_ACCESS_TOKEN")
+	token, err := c.AccessToken()
+	if err != nil {
+		fail(err, 1)
+	}
+	if developer {
+		pw, err := readSignPassword(secretsStdin)
+		if err != nil {
+			fail(err, 1)
+		}
+		defer core.Wipe(pw)
+		res, err := c.SignDeveloper(ctx, token, pw, paths[0], platform, nil)
+		check(err)
+		out(res, func() { printSign(res) })
+		return
+	}
 	who, err := c.WhoAmI(ctx, token)
 	check(err)
 	useAgent := viaAgent || who.Role != core.RoleOwner
